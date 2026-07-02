@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+.local-node/
+
+# Build output
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Editor / OS
+.DS_Store
+__MACOSX/
+.idea/
+.vscode/
+*.swp
+*.swo
+Thumbs.db
+
+# Trae / uploads
+.uploads/

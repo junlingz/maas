@@ -1,0 +1,316 @@
+<!-- ===== 左侧导航 ===== -->
+<aside class="sidebar">
+  <div class="logo-bar">
+    <div class="logo-icon">M</div>
+    <div class="logo-text">企业 MaaS 平台</div>
+  </div>
+
+  <div class="lab-entry">
+    <div class="title">🔬 模型实验室 <span class="new">NEW</span></div>
+    <div class="go">即刻前往 →</div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-item">
+      <span class="icon">📦</span><span>模型管理</span><span class="chev">▸</span>
+    </div>
+    <div class="sub-menu">
+      <div class="sub-item" id="tab-model-series">模型系列</div>
+      <div class="sub-item" id="tab-model-manage">模型管理</div>
+    </div>
+
+    <div class="nav-item">
+      <span class="icon">⚙️</span><span>模型训练</span><span class="chev">▸</span>
+    </div>
+    <div class="sub-menu">
+      <div class="sub-item" id="tab-train-task">训练任务</div>
+      <div class="sub-item" id="tab-data-manage">数据管理</div>
+    </div>
+
+    <div class="nav-item">
+      <span class="icon">🚀</span><span>模型服务</span><span class="chev">▸</span>
+    </div>
+    <div class="sub-menu">
+      <div class="sub-item" id="tab-service-manage">服务管理</div>
+      <div class="sub-item" id="tab-inference-monitor">推理监控</div>
+    </div>
+
+    <div class="nav-item">
+      <span class="icon">🎯</span><span>模型体验</span><span class="chev">▸</span>
+    </div>
+    <div class="sub-menu">
+      <div class="sub-item" id="tab-online-experience">在线体验</div>
+      <div class="sub-item" id="tab-api-doc">API 文档</div>
+    </div>
+
+    <div class="nav-item">
+      <span class="icon">📊</span><span>模型评测</span><span class="chev">▸</span>
+    </div>
+    <div class="sub-menu">
+      <div class="sub-item" id="tab-eval-task">评测任务</div>
+      <div class="sub-item" id="tab-eval-result">结果总览</div>
+    </div>
+
+    <div class="nav-item">
+      <span class="icon">📈</span><span>统计监控</span><span class="chev">▸</span>
+    </div>
+    <div class="sub-menu">
+      <div class="sub-item" id="tab-usage-stats">用量统计</div>
+      <div class="sub-item" id="tab-resource-monitor">资源监控</div>
+    </div>
+
+    <div class="nav-item">
+      <span class="icon">👥</span><span>用户管理</span><span class="chev">▸</span>
+    </div>
+    <div class="sub-menu">
+      <div class="sub-item" id="tab-user-list">用户列表</div>
+      <div class="sub-item" id="tab-user-role">角色权限</div>
+    </div>
+
+    <div class="nav-item open">
+      <span class="icon">🗂️</span><span>空间管理</span><span class="chev">▸</span>
+    </div>
+    <div class="sub-menu show">
+      <div class="sub-item" id="tab-space-users">工作空间</div>
+      <div class="sub-item" id="tab-space-members">空间成员</div>
+      <div class="sub-item" id="tab-space-quota">API Keys</div>
+    </div>
+    <div class="nav-item open">
+      <span class="icon">🖥️</span><span>资源管理</span><span class="chev">▸</span>
+    </div>
+    <div class="sub-menu show">
+      <div class="sub-item" id="tab-cluster">集群管理</div>
+      <div class="sub-item active" id="tab-pool">资源池管理</div>
+      <div class="sub-item" id="tab-storage">存储资源管理</div>
+      <div class="sub-item" id="tab-allocation">空间资源分配</div>
+    </div>
+  </div>
+</aside>
+
+<!-- ===== 主内容 ===== -->
+<div class="main">
+  <div class="topbar">
+    <div class="top-left"><div class="collapse-btn">☰</div></div>
+    <div class="top-right">
+      <div class="top-item">🌐 中文</div>
+      <div class="top-divider"></div>
+      <div class="top-item space">⭐ admin空间</div>
+      <div class="top-divider"></div>
+      <div class="user-info">
+        <div class="avatar">adm</div>
+        <span class="user-name">admin</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="breadcrumb">
+    <a>首页</a><span class="sep">/</span>
+    <a id="crumbModule">资源管理</a><span class="sep">/</span>
+    <span class="curr" id="crumbCurr">空间资源分配</span>
+  </div>
+
+  <div class="page-title">
+    <div>
+      <h1 id="pageTitle">空间资源分配</h1>
+      <div class="desc" id="pageDesc">由平台总管理员 admin 为工作空间分配 GPU 资源池、卡数、Token 额度和可用业务场景</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ============================================================ -->
+    <!-- 页面：模型系列 -->
+    <!-- ============================================================ -->
+    <div id="page-model-series" style="display:none;">
+      <div class="stat-cards">
+        <div class="stat-card primary"><div class="label">模型系列</div><div class="value">8<small>个</small></div><div class="footer">公共大模型</div></div>
+        <div class="stat-card success"><div class="label">模型版本</div><div class="value">24<small>个</small></div><div class="footer">已部署上线</div></div>
+        <div class="stat-card warning"><div class="label">今日调用量</div><div class="value">128<small>万</small></div><div class="footer">Token 调用</div></div>
+        <div class="stat-card purple"><div class="label">推理并发</div><div class="value">3,200<small></small></div><div class="footer">峰值 QPS</div></div>
+      </div>
+      <div class="card">
+        <div class="filter-bar">
+          <input class="filter-input" placeholder="请输入模型名称搜索">
+          <div class="filter-item"><label>模型类型</label>
+            <select class="filter-select"><option>全部</option><option>对话</option><option>代码</option><option>多模态</option></select>
+          </div>
+          <button class="btn">🔍 搜索</button>
+          <div class="spacer"></div>
+          <button class="btn btn-primary">+ 新建模型系列</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th style="width:200px;">模型系列</th><th>模型描述</th><th style="width:100px;">模型类型</th>
+              <th style="width:80px;">版本数</th><th style="width:100px;">状态</th><th style="width:160px;">操作</th>
+            </tr></thead>
+            <tbody>
+              <tr><td>GLM-4</td><td>通用对话大模型，支持长文本理解和生成</td><td><span class="type-tag">对话</span></td><td>6</td><td><span class="status-tag running">已上线</span></td><td><span class="action-link">查看</span><span class="action-link">编辑</span></td></tr>
+              <tr><td>CodeGeeX</td><td>代码生成大模型，支持多语言代码补全</td><td><span class="type-tag green">代码</span></td><td>4</td><td><span class="status-tag running">已上线</span></td><td><span class="action-link">查看</span><span class="action-link">编辑</span></td></tr>
+              <tr><td>CogVLM</td><td>多模态大模型，支持图文理解</td><td><span class="type-tag purple">多模态</span></td><td>3</td><td><span class="status-tag running">已上线</span></td><td><span class="action-link">查看</span><span class="action-link">编辑</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- 页面：模型管理 -->
+    <!-- ============================================================ -->
+    <div id="page-model-manage" style="display:none;">
+      <div class="card">
+        <div class="filter-bar">
+          <input class="filter-input" placeholder="请输入模型名称搜索">
+          <div class="filter-item"><label>所属系列</label>
+            <select class="filter-select"><option>全部</option><option>GLM-4</option><option>CodeGeeX</option></select>
+          </div>
+          <div class="filter-item"><label>可见范围</label>
+            <select class="filter-select"><option>全部</option><option>公共</option><option>私有</option></select>
+          </div>
+          <button class="btn">🔍 搜索</button>
+          <div class="spacer"></div>
+          <button class="btn btn-primary">+ 注册模型</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th style="width:180px;">模型名称</th><th style="width:100px;">版本</th>
+              <th style="width:100px;">所属系列</th><th style="width:80px;">可见范围</th>
+              <th style="width:100px;">精度</th><th style="width:130px;">所属空间</th>
+              <th style="width:100px;">状态</th><th style="width:140px;">操作</th>
+            </tr></thead>
+            <tbody>
+              <tr><td>glm-4-plus</td><td>v1.2.0</td><td>GLM-4</td><td><span class="type-tag green">公共</span></td><td>FP16</td><td>系统</td><td><span class="status-tag running">已部署</span></td><td><span class="action-link">部署</span><span class="action-link">查看</span></td></tr>
+              <tr><td>glm-4-flash</td><td>v1.0.0</td><td>GLM-4</td><td><span class="type-tag green">公共</span></td><td>INT4</td><td>系统</td><td><span class="status-tag running">已部署</span></td><td><span class="action-link">部署</span><span class="action-link">查看</span></td></tr>
+              <tr><td>my-finetune-model</td><td>v0.1</td><td>—</td><td><span class="type-tag purple">私有</span></td><td>LoRA</td><td>演示工作空间01</td><td><span class="status-tag warning">未部署</span></td><td><span class="action-link">部署</span><span class="action-link">查看</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- 页面：训练任务 -->
+    <!-- ============================================================ -->
+    <div id="page-train-task" style="display:none;">
+      <div class="stat-cards">
+        <div class="stat-card primary"><div class="label">训练任务</div><div class="value">12<small>个</small></div><div class="footer">运行中 3 · 排队 2</div></div>
+        <div class="stat-card success"><div class="label">GPU 使用</div><div class="value">24<small>张</small></div><div class="footer">占用率 60%</div></div>
+        <div class="stat-card warning"><div class="label">今日完成</div><div class="value">8<small>个</small></div><div class="footer">成功 7 · 失败 1</div></div>
+        <div class="stat-card purple"><div class="label">总训练时长</div><div class="value">128<small>小时</small></div><div class="footer">本月累计</div></div>
+      </div>
+      <div class="card">
+        <div class="filter-bar">
+          <input class="filter-input" placeholder="请输入任务名称搜索">
+          <div class="filter-item"><label>任务状态</label>
+            <select class="filter-select"><option>全部</option><option>运行中</option><option>已完成</option><option>排队中</option><option>失败</option></select>
+          </div>
+          <div class="filter-item"><label>训练类型</label>
+            <select class="filter-select"><option>全部</option><option>预训练</option><option>微调</option><option>LoRA</option></select>
+          </div>
+          <button class="btn">🔍 搜索</button>
+          <div class="spacer"></div>
+          <button class="btn btn-primary">+ 创建训练任务</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th style="width:200px;">任务名称</th><th style="width:100px;">训练类型</th>
+              <th style="width:150px;">基础模型</th><th style="width:100px;">GPU 卡数</th>
+              <th style="width:100px;">所属空间</th><th style="width:80px;">状态</th>
+              <th style="width:150px;">进度</th><th style="width:140px;">操作</th>
+            </tr></thead>
+            <tbody>
+              <tr><td>glm4-finance-finetune</td><td><span class="type-tag orange">微调</span></td><td>glm-4-9b</td><td>8 张</td><td>演示工作空间01</td><td><span class="status-tag running">运行中</span></td>
+                <td><div style="display:flex; align-items:center; gap:8px;"><div style="flex:1; height:6px; background:#E5E6EB; border-radius:3px; overflow:hidden;"><div style="width:65%; height:100%; background:var(--primary); border-radius:3px;"></div></div><span style="font-size:11px; color:var(--ink-2);">65%</span></div></td>
+                <td><span class="action-link">查看日志</span><span class="action-link">停止</span></td></tr>
+              <tr><td>pretrain-code-v2</td><td><span class="type-tag">预训练</span></td><td>codegeex2-6b</td><td>16 张</td><td>开发团队A</td><td><span class="status-tag running">运行中</span></td>
+                <td><div style="display:flex; align-items:center; gap:8px;"><div style="flex:1; height:6px; background:#E5E6EB; border-radius:3px; overflow:hidden;"><div style="width:32%; height:100%; background:var(--primary); border-radius:3px;"></div></div><span style="font-size:11px; color:var(--ink-2);">32%</span></div></td>
+                <td><span class="action-link">查看日志</span><span class="action-link">停止</span></td></tr>
+              <tr><td>customer-service-lora</td><td><span class="type-tag purple">LoRA</span></td><td>glm-4-9b</td><td>2 张</td><td>演示工作空间01</td><td><span class="status-tag success">已完成</span></td>
+                <td><div style="display:flex; align-items:center; gap:8px;"><div style="flex:1; height:6px; background:#E5E6EB; border-radius:3px; overflow:hidden;"><div style="width:100%; height:100%; background:var(--success); border-radius:3px;"></div></div><span style="font-size:11px; color:var(--ink-2);">100%</span></div></td>
+                <td><span class="action-link">查看结果</span><span class="action-link">查看日志</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- 页面：数据管理 -->
+    <!-- ============================================================ -->
+    <div id="page-data-manage" style="display:none;">
+      <div class="stat-cards">
+        <div class="stat-card primary"><div class="label">数据集</div><div class="value">36<small>个</small></div><div class="footer">总数据量 2.8TB</div></div>
+        <div class="stat-card success"><div class="label">已标注</div><div class="value">24<small>个</small></div><div class="footer">标注完成率 67%</div></div>
+        <div class="stat-card warning"><div class="label">标注中</div><div class="value">8<small>个</small></div><div class="footer">待处理数据</div></div>
+        <div class="stat-card purple"><div class="label">数据版本</div><div class="value">82<small>个</small></div><div class="footer">历史版本管理</div></div>
+      </div>
+      <div class="card">
+        <div class="filter-bar">
+          <input class="filter-input" placeholder="请输入数据集名称搜索">
+          <div class="filter-item"><label>数据类型</label>
+            <select class="filter-select"><option>全部</option><option>文本</option><option>图文</option><option>代码</option></select>
+          </div>
+          <div class="filter-item"><label>状态</label>
+            <select class="filter-select"><option>全部</option><option>已上传</option><option>处理中</option><option>已就绪</option></select>
+          </div>
+          <button class="btn">🔍 搜索</button>
+          <div class="spacer"></div>
+          <button class="btn btn-primary">+ 上传数据集</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th style="width:200px;">数据集名称</th><th style="width:100px;">数据类型</th>
+              <th>描述</th><th style="width:100px;">数据量</th>
+              <th style="width:100px;">版本</th><th style="width:100px;">所属空间</th>
+              <th style="width:80px;">状态</th><th style="width:140px;">操作</th>
+            </tr></thead>
+            <tbody>
+              <tr><td>finance-corpus-v1</td><td><span class="type-tag">文本</span></td><td>金融领域语料数据，包含研报、公告等</td><td>120万条</td><td>v1.2</td><td>演示工作空间01</td><td><span class="status-tag running">已就绪</span></td><td><span class="action-link">预览</span><span class="action-link">标注</span></td></tr>
+              <tr><td>customer-service-chat</td><td><span class="type-tag">文本</span></td><td>客服对话历史数据整理</td><td>50万条</td><td>v2.0</td><td>演示工作空间01</td><td><span class="status-tag warning">处理中</span></td><td><span class="action-link">预览</span><span class="action-link">停止</span></td></tr>
+              <tr><td>multimodal-product</td><td><span class="type-tag purple">图文</span></td><td>电商商品图文数据</td><td>8万条</td><td>v1.0</td><td>开发团队A</td><td><span class="status-tag running">已就绪</span></td><td><span class="action-link">预览</span><span class="action-link">标注</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- 页面：服务管理 -->
+    <!-- ============================================================ -->
+    <div id="page-service-manage" style="display:none;">
+      <div class="stat-cards">
+        <div class="stat-card primary"><div class="label">推理服务</div><div class="value">18<small>个</small></div><div class="footer">运行中 15 · 已停止 3</div></div>
+        <div class="stat-card success"><div class="label">今日调用</div><div class="value">128<small>万次</small></div><div class="footer">成功率 99.8%</div></div>
+        <div class="stat-card warning"><div class="label">平均延迟</div><div class="value">120<small>ms</small></div><div class="footer">P99: 350ms</div></div>
+        <div class="stat-card purple"><div class="label">GPU 占用</div><div class="value">32<small>张</small></div><div class="footer">推理算力</div></div>
+      </div>
+      <div class="card">
+        <div class="filter-bar">
+          <input class="filter-input" placeholder="请输入服务名称搜索">
+          <div class="filter-item"><label>服务状态</label>
+            <select class="filter-select"><option>全部</option><option>运行中</option><option>已停止</option><option>部署中</option></select>
+          </div>
+          <button class="btn">🔍 搜索</button>
+          <div class="spacer"></div>
+          <button class="btn btn-primary">+ 部署服务</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th style="width:200px;">服务名称</th><th style="width:180px;">模型</th>
+              <th style="width:80px;">副本数</th><th style="width:100px;">资源组</th>
+              <th style="width:100px;">所属空间</th><th style="width:80px;">状态</th>
+              <th style="width:130px;">调用地址</th><th style="width:140px;">操作</th>
+            </tr></thead>
+            <tbody>
+              <tr><td>glm4-plus-service</td><td>glm-4-plus (v1.2.0)</td><td>4</td><td>公共组</td><td>系统</td><td><span class="status-tag running">运行中</span></td><td style="font-family:'SF Mono',monospace; font-size:11px; color:var(--ink-2);">/v1/chat/completions</td><td><span class="action-link">监控</span><span class="action-link">扩缩容</span><span class="more-btn">⋯</span></td></tr>
+              <tr><td>codegeex-service</td><td>codegeex4 (v1.0.0)</td><td>2</td><td>公共组</td><td>系统</td><td><span class="status-tag running">运行中</span></td><td style="font-family:'SF Mono',monospace; font-size:11px; color:var(--ink-2);">/v1/code/completions</td><td><span class="action-link">监控</span><span class="action-link">扩缩容</span><span class="more-btn">⋯</span></td></tr>
+              <tr><td>my-private-service</td><td>my-finetune-model (v0.1)</td><td>1</td><td>test 组</td><td>演示工作空间01</td><td><span class="status-tag warning">已停止</span></td><td style="font-family:'SF Mono',monospace; font-size:11px; color:var(--ink-3);">—</td><td><span class="action-link">启动</span><span class="action-link">查看</span><span class="more-btn">⋯</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>

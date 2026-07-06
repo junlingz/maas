@@ -843,59 +843,68 @@ export function CreateModelSeriesPage({ onBack }: { onBack: () => void }) {
   );
 }
 
-// ─── Model card data ───────────────────────────────────────────────────────────
+// ─── Model Catalog (模型库) — aligned with prototype ─────────────────────────
 
 interface ModelCard {
-  id: number; name: string; type1: string; type2: string;
-  paramSize: string; contextLen: string;
-  vendor: string; createdAt: string; iconKey: string;
+  id: string;
+  name: string;
+  developer: string;
+  size: string;          // 参数量（B）
+  category: string;      // 模型分类
+  types: string[];       // 模型类型（多选）
+  weightPath: string;
+  imagePath: string;
+  description: string;
+  iconData?: string;     // base64 图标
+  createdAt: string;
+  // 兼容 App.tsx onDeploy 回调字段
+  type1: string;
+  paramSize: string;
+  contextLen: string;
 }
 
-const ALL_MODELS: ModelCard[] = [
-  { id: 1, name: "deepseek-v3",      type1: "通用大模型", type2: "文生文", paramSize: "671B",  contextLen: "128K", vendor: "deepseek", createdAt: "2026-06-24 10:00:00", iconKey: "deepseek" },
-  { id: 2, name: "embedding-v3",     type1: "向量模型",   type2: "文生文", paramSize: "0.3B",  contextLen: "8K",   vendor: "智谱",     createdAt: "2026-04-08 21:14:09", iconKey: "智谱"    },
-  { id: 3, name: "cogvlm-9b",        type1: "图像模型",   type2: "图生文", paramSize: "9B",    contextLen: "4K",   vendor: "智谱",     createdAt: "2026-03-03 17:05:13", iconKey: "智谱"    },
-  { id: 4, name: "chatglm4-32b",     type1: "通用大模型", type2: "文生文", paramSize: "32B",   contextLen: "128K", vendor: "智谱AI",   createdAt: "2026-03-03 15:42:01", iconKey: "智谱AI" },
-  { id: 5, name: "LLaMA 3.1",        type1: "通用大模型", type2: "文生文", paramSize: "70B",   contextLen: "128K", vendor: "meta",     createdAt: "2025-11-24 18:25:22", iconKey: "meta"    },
-  { id: 6, name: "Baichuan-M2 Plus", type1: "通用大模型", type2: "文生文", paramSize: "13B",   contextLen: "32K",  vendor: "百川",     createdAt: "2025-11-24 18:00:14", iconKey: "百川"    },
-  { id: 7, name: "Qwen3-7B",         type1: "通用大模型", type2: "文生文", paramSize: "7B",    contextLen: "32K",  vendor: "通义",     createdAt: "2025-10-28 14:33:09", iconKey: "通义"    },
-  { id: 8, name: "T1-100",           type1: "推理模型",   type2: "文生文", paramSize: "100B",  contextLen: "64K",  vendor: "T1",       createdAt: "2025-12-12 01:05:22", iconKey: "deepseek" },
+const CATALOG_MODELS: ModelCard[] = [
+  { id: "deepseek-v3",       developer: "DeepSeek", name: "deepseek-v3",       size: "671", category: "通用大模型",  types: ["通用大模型"],  weightPath: "/models/deepseek-v3",       imagePath: "harbor.xxx.com/lm/vllm:deepseek-v3", description: "DeepSeek V3 通用大语言模型。",          createdAt: "2026-06-24", type1: "通用大模型", paramSize: "671B", contextLen: "128K" },
+  { id: "embedding-v3",      developer: "智谱",     name: "embedding-v3",      size: "0.3", category: "嵌入模型",    types: ["嵌入模型"],    weightPath: "/models/embedding-v3",      imagePath: "harbor.xxx.com/lm/embedding:v3",      description: "文本向量化模型。",                     createdAt: "2026-04-08", type1: "向量模型", paramSize: "0.3B", contextLen: "8K" },
+  { id: "cogvlm-9b",         developer: "智谱",     name: "cogvlm-9b",         size: "9",   category: "图片模型",    types: ["图片模型"],    weightPath: "/models/cogvlm-9b",         imagePath: "harbor.xxx.com/lm/vllm:cogvlm-9b",    description: "视觉语言理解模型。",                   createdAt: "2026-03-03", type1: "图像模型", paramSize: "9B",   contextLen: "4K" },
+  { id: "chatglm4-32b",      developer: "智谱",     name: "chatglm4-32b",      size: "32",  category: "通用大模型",  types: ["通用大模型"],  weightPath: "/models/chatglm4-32b",      imagePath: "harbor.xxx.com/lm/vllm:chatglm4-32b", description: "面向对话与生成任务的通用模型。",       createdAt: "2026-03-03", type1: "通用大模型", paramSize: "32B",  contextLen: "128K" },
+  { id: "llama-3-1",         developer: "智谱",     name: "LLaMA 3.1",         size: "70",  category: "通用大模型",  types: ["通用大模型"],  weightPath: "/models/llama-3.1",         imagePath: "harbor.xxx.com/lm/vllm:llama-3.1",    description: "LLaMA 3.1 通用语言模型。",             createdAt: "2025-11-24", type1: "通用大模型", paramSize: "70B",  contextLen: "128K" },
+  { id: "baichuan-m2-plus",  developer: "千问",     name: "Baichuan-M2 Plus",  size: "13",  category: "通用大模型",  types: ["通用大模型"],  weightPath: "/models/baichuan-m2-plus",  imagePath: "harbor.xxx.com/lm/vllm:baichuan-m2-plus", description: "百川通用大语言模型。",             createdAt: "2025-11-24", type1: "通用大模型", paramSize: "13B",  contextLen: "32K" },
+  { id: "qwen3-7b",          developer: "千问",     name: "Qwen3-7B",          size: "7",   category: "通用大模型",  types: ["通用大模型"],  weightPath: "/models/Qwen3-7B",          imagePath: "harbor.xxx.com/lm/vllm:qwen3-7b",     description: "通义千问 Qwen3 7B 模型。",             createdAt: "2025-10-28", type1: "通用大模型", paramSize: "7B",   contextLen: "32K" },
+  { id: "t1-100",            developer: "千问",     name: "T1-100",            size: "100", category: "重排模型",    types: ["重排模型"],    weightPath: "/models/T1-100",            imagePath: "harbor.xxx.com/lm/vllm:t1-100",       description: "面向复杂任务的推理模型。",             createdAt: "2025-12-12", type1: "推理模型", paramSize: "100B", contextLen: "64K" },
+  { id: "whisper-large-v3",  developer: "智谱",     name: "whisper-large-v3",  size: "1.5", category: "语音识别模型", types: ["语音识别模型"], weightPath: "/models/whisper-large-v3", imagePath: "harbor.xxx.com/lm/vllm:whisper-v3",   description: "OpenAI Whisper Large V3 语音识别模型。", createdAt: "2026-01-15", type1: "推理模型", paramSize: "1.5B", contextLen: "—" },
 ];
 
-const TYPE1_OPTIONS = ["通用大模型", "推理模型", "图像模型", "向量模型", "代码模型"];
-const TYPE2_OPTIONS = ["文生文", "图生文", "文生图", "文生视频"];
+const DEVELOPERS = ["智谱", "千问", "DeepSeek"];
+const CATEGORY_OPTIONS = ["通用大模型", "嵌入模型", "图片模型", "重排模型", "语音识别模型", "语音合成模型"];
+const IMAGE_OPTIONS = [
+  "harbor.xxx.com/lm/vllm:v0.12.0",
+  "harbor.xxx.com/lm/vllm:v0.11.0",
+  "harbor.xxx.com/lm/sglang:v0.4.0",
+  "harbor.xxx.com/lm/vllm:deepseek-v3",
+  "harbor.xxx.com/lm/embedding:v3",
+];
 
-// Icon color per vendor/type
-const ICON_CFG: Record<string, { bg: string; color: string }> = {
-  "deepseek": { bg: "#eff4ff", color: "#4f6ef7" },
-  "智谱":     { bg: "#f0fdf4", color: "#16a34a" },
-  "智谱AI":   { bg: "#f0fdf4", color: "#16a34a" },
-  "通义":     { bg: "#fff7ed", color: "#c2410c" },
-  "meta":     { bg: "#fff1f2", color: "#be123c" },
-  "百川":     { bg: "#faf5ff", color: "#7c3aed" },
-  "T1":       { bg: "#eff4ff", color: "#4f6ef7" },
+const BRAND_DEVS: Record<string, { glyph: string; bg: string }> = {
+  "智谱":     { glyph: "智", bg: "linear-gradient(145deg,#4267ef,#5668ff)" },
+  "千问":     { glyph: "千", bg: "linear-gradient(145deg,#ff5537,#ff7135)" },
+  "DeepSeek": { glyph: "D",  bg: "linear-gradient(145deg,#079bd2,#18b7e8)" },
 };
 
-function getIconCfg(vendor: string) { return ICON_CFG[vendor] ?? { bg: "#f3f4f6", color: "#6b7280" }; }
+function getBrand(developer: string) {
+  return BRAND_DEVS[developer] ?? { glyph: (developer || "?").charAt(0).toUpperCase(), bg: "linear-gradient(145deg,#6d28d9,#8b2cf2)" };
+}
 
-// type tag colors
-function typeTagStyle(type: string): React.CSSProperties {
-  const map: Record<string, React.CSSProperties> = {
-    "通用大模型": { background: "#eff4ff", color: "#4f6ef7" },
-    "推理模型":   { background: "#fff1f2", color: "#be123c" },
-    "图像模型":   { background: "#fff7ed", color: "#c2410c" },
-    "向量模型":   { background: "#f0fdf4", color: "#15803d" },
-    "代码模型":   { background: "#f0f9ff", color: "#0369a1" },
-    "文生文":     { background: "#f8fafc", color: "#6b7280" },
-    "图生文":     { background: "#f0fdfa", color: "#0f766e" },
-    "文生图":     { background: "#fdf2f8", color: "#9d174d" },
-  };
-  return map[type] ?? { background: "#f3f4f6", color: "#6b7280" };
+function categoryTagStyle(category: string): React.CSSProperties {
+  if (category === "嵌入模型") return { background: "#ecf9ef", color: "#128237" };
+  if (category === "图片模型") return { background: "#fff4e9", color: "#c84413" };
+  if (category === "重排模型") return { background: "#fff0f3", color: "#cc1748" };
+  return { background: "#edf2ff", color: "#4169f6" };
 }
 
 // ─── Card More Menu ────────────────────────────────────────────────────────────
 
-function CardMoreMenu({ onDelete }: { onDelete: () => void }) {
+function CardMoreMenu({ onView, onEdit, onDelete }: { onView: () => void; onEdit: () => void; onDelete: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -905,19 +914,17 @@ function CardMoreMenu({ onDelete }: { onDelete: () => void }) {
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <button onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
-        style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 6px", color: "#9ca3af", borderRadius: 4, fontSize: 16, lineHeight: 1 }}
-        onMouseEnter={e => (e.currentTarget.style.background = "#f3f4f6")}
-        onMouseLeave={e => (e.currentTarget.style.background = "none")}>⋯</button>
+        style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 6px", color: "#9ba6b7", borderRadius: 4, fontSize: 18, letterSpacing: 1, lineHeight: 1 }}
+        onMouseEnter={e => (e.currentTarget.style.color = "#53627a")}
+        onMouseLeave={e => (e.currentTarget.style.color = "#9ba6b7")}>•••</button>
       {open && (
-        <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "#fff", border: "1px solid #e0e3ed", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", zIndex: 50, minWidth: 100, overflow: "hidden" }}>
-          {["查看详情", "编辑"].map(lbl => (
-            <button key={lbl} onClick={() => setOpen(false)} style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 14px", fontSize: 13, border: "none", background: "none", cursor: "pointer", color: "#374151" }}
-              onMouseEnter={e => (e.currentTarget.style.background = "#f8f9fc")}
-              onMouseLeave={e => (e.currentTarget.style.background = "none")}>{lbl}</button>
-          ))}
-          <button onClick={() => { onDelete(); setOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 14px", fontSize: 13, border: "none", background: "none", cursor: "pointer", color: "#ef4444" }}
-            onMouseEnter={e => (e.currentTarget.style.background = "#fff5f5")}
-            onMouseLeave={e => (e.currentTarget.style.background = "none")}>删除</button>
+        <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "#fff", border: "1px solid #e3e8f1", borderRadius: 8, boxShadow: "0 8px 24px rgba(15,23,42,.12)", zIndex: 50, minWidth: 120, overflow: "hidden" }}>
+          <button onClick={() => { onView(); setOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 13, border: "none", background: "none", cursor: "pointer", color: "#344054" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#f2f5fa")} onMouseLeave={e => (e.currentTarget.style.background = "none")}>查看详情</button>
+          <button onClick={() => { onEdit(); setOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 13, border: "none", background: "none", cursor: "pointer", color: "#344054" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#f2f5fa")} onMouseLeave={e => (e.currentTarget.style.background = "none")}>编辑</button>
+          <button onClick={() => { onDelete(); setOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 13, border: "none", background: "none", cursor: "pointer", color: "#e5484d" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#fff1f1")} onMouseLeave={e => (e.currentTarget.style.background = "none")}>删除</button>
         </div>
       )}
     </div>
@@ -926,221 +933,221 @@ function CardMoreMenu({ onDelete }: { onDelete: () => void }) {
 
 // ─── Model Card ────────────────────────────────────────────────────────────────
 
-function ModelCardItem({ card, onDelete, onDeploy }: { card: ModelCard; onDelete: () => void; onDeploy: () => void }) {
-  const ic = getIconCfg(card.iconKey ?? card.vendor);
-  const iconOpt = ICON_OPTS.find(o => o.label === card.iconKey) ?? ICON_OPTS[0];
-
+function ModelCardItem({ card, onView, onEdit, onDelete, onDeploy }: {
+  card: ModelCard; onView: () => void; onEdit: () => void; onDelete: () => void; onDeploy: () => void;
+}) {
+  const brand = getBrand(card.developer);
   return (
-    <div style={{ background: "#fff", border: "1px solid #e8ebf2", borderRadius: 10, padding: "16px 16px 12px", transition: "box-shadow 0.2s" }}
-      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)"}
-      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.boxShadow = "none"}>
+    <div style={{ minWidth: 0, minHeight: 260, padding: 16, display: "flex", flexDirection: "column", background: "#fff", border: "1px solid #dfe5ee", borderRadius: 10, boxShadow: "0 3px 12px rgba(31,41,55,.03)", transition: "transform .18s,box-shadow .18s,border-color .18s" }}
+      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLDivElement).style.borderColor = "#cad4e4"; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 8px 20px rgba(31,41,55,.07)"; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = "none"; (e.currentTarget as HTMLDivElement).style.borderColor = "#dfe5ee"; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 3px 12px rgba(31,41,55,.03)"; }}>
 
-      {/* 图标 + 模型名称 + more menu */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div style={{ width: 34, height: 34, borderRadius: 8, background: iconOpt.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontWeight: 700, fontSize: 15, color: "#fff" }}>
-            {iconOpt.letter}
-          </div>
-          <span style={{ fontSize: 14, fontWeight: 600, color: "#1a1d23", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{card.name}</span>
+      {/* head */}
+      <div className="flex items-center" style={{ gap: 12, minWidth: 0, marginBottom: 14 }}>
+        {card.iconData ? (
+          <img src={card.iconData} alt={card.name} style={{ width: 44, height: 44, borderRadius: 9, flex: "0 0 44px", objectFit: "cover", background: "#f4f6fa" }} />
+        ) : (
+          <span style={{ width: 44, height: 44, borderRadius: 9, flex: "0 0 44px", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 19, fontWeight: 750, background: brand.bg, boxShadow: "inset 0 0 0 1px rgba(255,255,255,.12)" }}>{brand.glyph}</span>
+        )}
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <h3 title={card.name} style={{ minWidth: 0, color: "#20232a", fontSize: 17, fontWeight: 700, lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: 0 }}>{card.name}</h3>
         </div>
-        <CardMoreMenu onDelete={onDelete} />
+        <CardMoreMenu onView={onView} onEdit={onEdit} onDelete={onDelete} />
       </div>
 
-      {/* Fields */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
-        {/* 参数量 */}
-        <div className="flex items-center justify-between">
-          <span style={{ fontSize: 12, color: "#9ca3af" }}>参数量</span>
-          <span style={{ fontSize: 12.5, fontWeight: 500, color: "#374151" }}>{card.paramSize}</span>
+      {/* meta */}
+      <div style={{ display: "grid", gridTemplateColumns: "70px minmax(0,1fr)", rowGap: 8, alignItems: "center", fontSize: 13, lineHeight: 1.35 }}>
+        <span style={{ color: "#9aa5b5", whiteSpace: "nowrap" }}>参数量</span>
+        <span style={{ color: "#374151", textAlign: "right", fontWeight: 650, minWidth: 0 }}>{card.size}B</span>
+        <span style={{ color: "#9aa5b5", whiteSpace: "nowrap" }}>开发者</span>
+        <span title={card.developer} style={{ color: "#374151", textAlign: "right", fontWeight: 650, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{card.developer}</span>
+        <span style={{ color: "#9aa5b5", whiteSpace: "nowrap" }}>模型分类</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 7, minWidth: 0 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", minHeight: 22, padding: "2px 7px", borderRadius: 5, fontSize: 12, fontWeight: 650, whiteSpace: "nowrap", ...categoryTagStyle(card.category) }}>{card.category}</span>
         </div>
-        {/* 上下文长度 */}
-        <div className="flex items-center justify-between">
-          <span style={{ fontSize: 12, color: "#9ca3af" }}>上下文长度</span>
-          <span style={{ fontSize: 12.5, fontWeight: 500, color: "#374151" }}>{card.contextLen}</span>
-        </div>
-        {/* 模型类型 */}
-        <div className="flex items-center justify-between">
-          <span style={{ fontSize: 12, color: "#9ca3af" }}>模型类型</span>
-          <div className="flex gap-1">
-            {[card.type1, card.type2].map((t, i) => (
-              <span key={i} style={{ fontSize: 11, fontWeight: 500, padding: "1px 6px", borderRadius: 3, ...typeTagStyle(t) }}>{t}</span>
-            ))}
-          </div>
-        </div>
-        {/* 创建时间 */}
-        <div className="flex items-center justify-between">
-          <span style={{ fontSize: 12, color: "#9ca3af" }}>创建时间</span>
-          <span style={{ fontSize: 11.5, color: "#6b7280" }}>{card.createdAt.slice(0, 10)}</span>
-        </div>
+        <span style={{ color: "#9aa5b5", whiteSpace: "nowrap" }}>创建时间</span>
+        <span style={{ color: "#687386", textAlign: "right", fontWeight: 500, fontSize: 12.5 }}>{card.createdAt}</span>
       </div>
 
-      {/* Footer actions */}
-      <div style={{ height: 1, background: "#f5f7fa", marginBottom: 10 }} />
-      <div className="flex items-center gap-3">
-        {["查看", "编辑"].map(a => (
-          <button key={a} style={{ fontSize: 12.5, color: "#4f6ef7", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500 }}
-            onMouseEnter={e => (e.currentTarget.style.color = "#3b5de8")}
-            onMouseLeave={e => (e.currentTarget.style.color = "#4f6ef7")}>{a}</button>
-        ))}
-        <button onClick={onDeploy}
-          style={{ fontSize: 12.5, fontWeight: 500, color: "#fff", background: "#4f6ef7", border: "none", borderRadius: 5, padding: "3px 12px", cursor: "pointer", marginLeft: "auto" }}
-          onMouseEnter={e => (e.currentTarget.style.background = "#3b5de8")}
-          onMouseLeave={e => (e.currentTarget.style.background = "#4f6ef7")}>部署</button>
+      {/* actions */}
+      <div style={{ marginTop: "auto", paddingTop: 12, borderTop: "1px solid #edf0f5", display: "flex", alignItems: "center", gap: 14 }}>
+        <button onClick={onView} style={{ border: 0, background: "transparent", color: "#4169f6", fontSize: 14, fontWeight: 650, cursor: "pointer", padding: "5px 0" }}
+          onMouseEnter={e => (e.currentTarget.style.color = "#274bd8")} onMouseLeave={e => (e.currentTarget.style.color = "#4169f6")}>查看</button>
+        <button onClick={onEdit} style={{ border: 0, background: "transparent", color: "#4169f6", fontSize: 14, fontWeight: 650, cursor: "pointer", padding: "5px 0" }}
+          onMouseEnter={e => (e.currentTarget.style.color = "#274bd8")} onMouseLeave={e => (e.currentTarget.style.color = "#4169f6")}>编辑</button>
+        <button onClick={onDeploy} style={{ marginLeft: "auto", minWidth: 64, height: 34, border: 0, borderRadius: 7, cursor: "pointer", background: "linear-gradient(135deg,#4168f6,#5668ed)", color: "#fff", fontSize: 14, fontWeight: 700, boxShadow: "0 3px 8px rgba(65,104,246,.16)" }}
+          onMouseEnter={e => (e.currentTarget.style.background = "linear-gradient(135deg,#3157e9,#4859df)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "linear-gradient(135deg,#4168f6,#5668ed)")}>部署</button>
       </div>
     </div>
   );
 }
 
-// ─── New Model Modal ───────────────────────────────────────────────────────────
+// ─── Catalog Create/Edit/View Modal ───────────────────────────────────────────
 
-const ICON_OPTS = [
-  { label: "通义千问",  bg: "#ff6b35", letter: "通" },
-  { label: "智谱",      bg: "#4f6ef7", letter: "智" },
-  { label: "DeepSeek",  bg: "#0ea5e9", letter: "D"  },
-  { label: "百川",      bg: "#7c3aed", letter: "百" },
-  { label: "Meta",      bg: "#be123c", letter: "M"  },
-];
-const CATEGORIES = ["通用大模型", "向量", "图片", "重排", "语音识别", "语音合成"];
+type CatalogModalMode = "add" | "edit" | "view";
 
-function NewModelModal({ onClose, onDone }: { onClose: () => void; onDone: (m: ModelCard) => void }) {
-  const [name, setName]         = useState("");
-  const [icon, setIcon]         = useState(ICON_OPTS[0]);
-  const [iconOpen, setIconOpen] = useState(false);
-  const [params, setParams]     = useState("");
-  const [ctx, setCtx]           = useState("8192");
-  const [cats, setCats]         = useState<string[]>(["LLM"]);
-  const [weights, setWeights]   = useState("");
-  const [image, setImage]       = useState("");
-  const [desc, setDesc]         = useState("");
-  const [errs, setErrs]         = useState<Record<string, boolean>>({});
-  const iconRef = useRef<HTMLDivElement>(null);
+function CatalogModal({ mode, initial, onClose, onSave }: {
+  mode: CatalogModalMode;
+  initial: ModelCard | null;
+  onClose: () => void;
+  onSave: (m: ModelCard) => void;
+}) {
+  const isView = mode === "view";
+  const [name, setName]           = useState(initial?.name ?? "");
+  const [developer, setDeveloper] = useState(initial?.developer ?? "");
+  const [size, setSize]           = useState(initial?.size ?? "");
+  const [weightPath, setWeight]   = useState(initial?.weightPath ?? "");
+  const [imagePath, setImage]     = useState(initial?.imagePath ?? "");
+  const [desc, setDesc]           = useState(initial?.description ?? "");
+  const [types, setTypes]         = useState<string[]>(initial?.types ?? ["通用大模型"]);
+  const [iconData, setIconData]   = useState<string | undefined>(initial?.iconData);
+  const [formErr, setFormErr]     = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (iconRef.current && !iconRef.current.contains(e.target as Node)) setIconOpen(false); };
-    document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h);
-  }, []);
+  const titleMap: Record<CatalogModalMode, string> = { add: "新建模型", edit: "编辑模型", view: "模型详情" };
 
-  const toggleCat = (c: string) => setCats(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
+  const toggleType = (t: string) => setTypes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
 
-  const submit = () => {
-    const e: Record<string, boolean> = {};
-    if (!name.trim()) e.name = true;
-    if (!params)      e.params = true;
-    if (cats.length === 0) e.cats = true;
-    if (Object.keys(e).length) { setErrs(e); return; }
-    const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
-    const ts = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-    const t1Map: Record<string, string> = { "通用大模型": "通用大模型", "向量": "向量模型", "图片": "图像模型", "重排": "推理模型", "语音识别": "推理模型", "语音合成": "推理模型" };
-    onDone({ id: Date.now(), name: name.trim(), type1: t1Map[cats[0]] ?? "通用大模型", type2: "文生文", paramSize: params + "B", contextLen: Math.round(Number(ctx) / 1024) + "K", vendor: icon.label, createdAt: ts, iconKey: icon.label });
-    onClose();
+  const onIconFile = (file?: File) => {
+    if (!file) return;
+    if (!/^image\/(png|jpeg|svg\+xml)$/.test(file.type)) { setFormErr("请上传 PNG、JPG 或 SVG 图片"); return; }
+    if (file.size > 5 * 1024 * 1024) { setFormErr("图标文件不能超过 5 MB"); return; }
+    const reader = new FileReader();
+    reader.onload = () => { setIconData(String(reader.result || "")); setFormErr(""); };
+    reader.readAsDataURL(file);
   };
 
-  const inp: React.CSSProperties = { width: "100%", height: 36, padding: "0 10px", fontSize: 13, border: "1px solid #e0e3ed", borderRadius: 7, outline: "none", boxSizing: "border-box" as const, color: "#1a1d23" };
+  const submit = () => {
+    if (!name.trim() || !developer.trim() || size === "" || Number(size) < 0 || !iconData || !types.length || !weightPath.trim() || !imagePath.trim()) {
+      setFormErr("请填写必填项"); return;
+    }
+    const category = types[0];
+    const capability = (category === "图片模型") ? "图生文" : "文生文";
+    const t1Map: Record<string, string> = { "通用大模型": "通用大模型", "嵌入模型": "向量模型", "图片模型": "图像模型", "重排模型": "推理模型", "语音识别模型": "推理模型", "语音合成模型": "推理模型" };
+    const result: ModelCard = {
+      ...(initial ?? {}),
+      id: initial?.id ?? `model-${Date.now()}`,
+      name: name.trim(),
+      developer: developer.trim(),
+      size: size.trim(),
+      category,
+      types,
+      capability,
+      weightPath: weightPath.trim(),
+      imagePath: imagePath.trim(),
+      iconData,
+      description: desc.trim(),
+      createdAt: initial?.createdAt ?? new Date().toISOString().slice(0, 10),
+      type1: t1Map[category] ?? "通用大模型",
+      paramSize: `${size.trim()}B`,
+      contextLen: initial?.contextLen ?? "—",
+    };
+    onSave(result);
+  };
+
+  const inp: React.CSSProperties = { width: "100%", height: 40, padding: "0 12px", fontSize: 13, border: "1px solid #d5ddea", borderRadius: 7, outline: "none", color: "#20232a", background: isView ? "#f8fafc" : "#fff", boxSizing: "border-box" as const, fontFamily: "inherit" };
+  const labelSt: React.CSSProperties = { display: "block", marginBottom: 5, color: "#344054", fontSize: 13, fontWeight: 650 };
+  const fgSt: React.CSSProperties = { marginBottom: 14 };
 
   return (
     <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 200 }} />
-      <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 520, maxHeight: "90vh", background: "#fff", borderRadius: 12, zIndex: 201, boxShadow: "0 24px 64px rgba(0,0,0,0.18)", display: "flex", flexDirection: "column" }}>
-        <div className="flex items-center justify-between flex-shrink-0" style={{ padding: "18px 20px 14px", borderBottom: "1px solid #f0f2f7" }}>
-          <span style={{ fontSize: 16, fontWeight: 600, color: "#1a1d23" }}>新建模型</span>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: 18 }}>×</button>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(31,41,55,.44)", zIndex: 200 }} />
+      <div style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", width: "min(860px, calc(100vw - 32px))", maxHeight: "calc(100vh - 32px)", display: "flex", flexDirection: "column", background: "#fff", borderRadius: 14, zIndex: 201, boxShadow: "0 28px 80px rgba(15,23,42,.24)", overflow: "hidden" }}>
+        {/* header */}
+        <div className="flex items-center justify-between" style={{ flex: "0 0 auto", padding: "18px 24px 16px", borderBottom: "1px solid #edf0f4" }}>
+          <h3 style={{ fontSize: 20, color: "#20232a", margin: 0 }}>{titleMap[mode]}</h3>
+          <button onClick={onClose} aria-label="关闭" style={{ width: 30, height: 30, border: "none", background: "none", cursor: "pointer", borderRadius: 6, fontSize: 24, fontWeight: 600, color: "#9aa4b3" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#f3f4f6")} onMouseLeave={e => (e.currentTarget.style.background = "none")}>×</button>
         </div>
 
-        <div className="flex-1 overflow-auto" style={{ padding: "16px 20px" }}>
-          {/* 2-col: 模型名称 + 图标 */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 14 }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}><span style={{ color: "#ef4444", marginRight: 2 }}>*</span>模型名称</div>
-              <input value={name} onChange={e => { setName(e.target.value); setErrs(p => ({ ...p, name: false })); }}
-                placeholder="如 Qwen3-8B" style={{ ...inp, borderColor: errs.name ? "#ef4444" : "#e0e3ed" }} />
-              {errs.name && <div style={{ fontSize: 12, color: "#ef4444", marginTop: 3 }}>请输入模型名称</div>}
+        {/* body */}
+        <div style={{ flex: "1 1 auto", overflowY: "auto", padding: "18px 24px 20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 20 }}>
+            <div style={fgSt}>
+              <label style={labelSt}><span style={{ color: "#ef4444", marginRight: 2 }}>*</span>模型名称</label>
+              <input value={name} onChange={e => setName(e.target.value)} placeholder="如 Qwen3-8B" disabled={isView} style={inp} />
             </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}><span style={{ color: "#ef4444", marginRight: 2 }}>*</span>图标</div>
-              <div ref={iconRef} style={{ position: "relative" }}>
-                <button onClick={() => setIconOpen(o => !o)} className="flex items-center gap-2"
-                  style={{ ...inp, cursor: "pointer", background: "#fff", justifyContent: "space-between", paddingRight: 8 }}>
-                  <div className="flex items-center gap-2">
-                    <span style={{ width: 22, height: 22, borderRadius: 5, background: icon.bg, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700 }}>{icon.letter}</span>
-                    <span style={{ fontSize: 13 }}>{icon.label}</span>
-                  </div>
-                  <ChevronDown size={13} color="#9ca3af" />
-                </button>
-                {iconOpen && (
-                  <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, width: "100%", background: "#fff", border: "1px solid #e0e3ed", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", zIndex: 10, overflow: "hidden" }}>
-                    {ICON_OPTS.map(opt => (
-                      <div key={opt.label} onClick={() => { setIcon(opt); setIconOpen(false); }}
-                        className="flex items-center gap-2"
-                        style={{ padding: "9px 12px", cursor: "pointer", background: opt.label === icon.label ? "#f0f4ff" : "#fff" }}
-                        onMouseEnter={e => { if (opt.label !== icon.label) (e.currentTarget as HTMLDivElement).style.background = "#f8f9fc"; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = opt.label === icon.label ? "#f0f4ff" : "#fff"; }}>
-                        <span style={{ width: 22, height: 22, borderRadius: 5, background: opt.bg, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700 }}>{opt.letter}</span>
-                        <span style={{ fontSize: 13 }}>{opt.label}</span>
-                      </div>
-                    ))}
+            <div style={fgSt}>
+              <label style={labelSt}><span style={{ color: "#ef4444", marginRight: 2 }}>*</span>开发者</label>
+              <input value={developer} onChange={e => setDeveloper(e.target.value)} placeholder="请输入开发者，如 DeepSeek" disabled={isView} style={inp} />
+            </div>
+            <div style={fgSt}>
+              <label style={labelSt}><span style={{ color: "#ef4444", marginRight: 2 }}>*</span>参数量（B）</label>
+              <input type="number" value={size} onChange={e => setSize(e.target.value)} placeholder="如 8.0" min={0} step={0.1} disabled={isView} style={inp} />
+              <span style={{ display: "block", marginTop: 4, color: "#929dad", fontSize: 11 }}>保留 1 位小数</span>
+            </div>
+            <div style={fgSt}>
+              <label style={labelSt}><span style={{ color: "#ef4444", marginRight: 2 }}>*</span>图标</label>
+              <div className="flex items-center" style={{ gap: 12, minHeight: 56 }}>
+                <div style={{ width: 56, height: 56, flex: "0 0 56px", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", border: "1px solid #d9e0ea", borderRadius: 8, background: "#f8fafc" }}>
+                  {iconData ? (
+                    <img src={iconData} alt="预览" style={{ width: 56, height: 56, objectFit: "cover" }} />
+                  ) : (
+                    <span style={{ width: 56, height: 56, display: "flex", alignItems: "center", justifyContent: "center", color: "#586273", fontSize: 22 }}>·</span>
+                  )}
+                </div>
+                {!isView && (
+                  <div style={{ minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 5 }}>
+                    <div className="flex items-center" style={{ gap: 8, flexWrap: "wrap" }}>
+                      <label style={{ height: 36, padding: "0 13px", display: "inline-flex", alignItems: "center", border: "1px solid #cfd7e5", borderRadius: 7, color: "#4b5fdf", background: "#fff", fontSize: 13, fontWeight: 650, cursor: "pointer" }}
+                        onMouseEnter={e => (e.currentTarget.style.borderColor = "#7890f6")}
+                        onMouseLeave={e => (e.currentTarget.style.borderColor = "#cfd7e5")}>
+                        {iconData ? "重新上传" : "上传本地图片"}
+                        <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/svg+xml" onChange={e => onIconFile(e.target.files?.[0])} style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
+                      </label>
+                      {iconData && (
+                        <button type="button" onClick={() => setIconData(undefined)} style={{ height: 36, padding: "0 12px", border: "1px solid #f3b8bb", borderRadius: 7, color: "#d83b42", background: "#fff", fontSize: 13, fontWeight: 650, cursor: "pointer" }}
+                          onMouseEnter={e => (e.currentTarget.style.borderColor = "#e86a70")} onMouseLeave={e => (e.currentTarget.style.borderColor = "#f3b8bb")}>删除</button>
+                      )}
+                    </div>
+                    <span style={{ color: "#929dad", fontSize: 11, whiteSpace: "nowrap" }}>支持 PNG、JPG、SVG，最大 5 MB</span>
                   </div>
                 )}
               </div>
             </div>
-          </div>
-
-          {/* 参数量 */}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}><span style={{ color: "#ef4444", marginRight: 2 }}>*</span>参数量（B）</div>
-            <input type="number" value={params} onChange={e => { setParams(e.target.value); setErrs(p => ({ ...p, params: false })); }}
-              placeholder="如 8.0" style={{ ...inp, borderColor: errs.params ? "#ef4444" : "#e0e3ed", width: "50%" }} />
-            <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 3 }}>保留 1 位小数</div>
-            {errs.params && <div style={{ fontSize: 12, color: "#ef4444", marginTop: 2 }}>请输入参数量</div>}
-          </div>
-
-          {/* 上下文长度 */}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}><span style={{ color: "#ef4444", marginRight: 2 }}>*</span>上下文长度（Tokens）</div>
-            <input type="number" value={ctx} onChange={e => setCtx(e.target.value)}
-              style={{ ...inp, width: "50%" }} />
-            <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 3 }}>默认 8192，最大 131072</div>
-          </div>
-
-          {/* 分类 */}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 8 }}><span style={{ color: "#ef4444", marginRight: 2 }}>*</span>分类</div>
-            <div className="flex flex-wrap gap-3">
-              {CATEGORIES.map(c => (
-                <label key={c} className="flex items-center gap-1.5" style={{ cursor: "pointer", fontSize: 13, color: "#374151" }}>
-                  <input type="checkbox" checked={cats.includes(c)} onChange={() => toggleCat(c)} style={{ accentColor: "#4f6ef7", width: 14, height: 14 }} />
-                  {c}
-                </label>
-              ))}
+            <div style={{ ...fgSt, gridColumn: "1 / -1" }}>
+              <label style={labelSt}><span style={{ color: "#ef4444", marginRight: 2 }}>*</span>模型类型</label>
+              <div className="flex flex-wrap" style={{ gap: 9 }}>
+                {CATEGORY_OPTIONS.map(c => {
+                  const checked = types.includes(c);
+                  return (
+                    <label key={c} style={{ position: "relative", cursor: isView ? "default" : "pointer" }}>
+                      <input type="checkbox" checked={checked} disabled={isView} onChange={() => toggleType(c)} style={{ position: "absolute", opacity: 0, pointerEvents: "none" }} />
+                      <span style={{ minHeight: 36, padding: "7px 12px", display: "inline-flex", alignItems: "center", border: `1px solid ${checked ? "#7890f6" : "#d9e0ea"}`, borderRadius: 7, background: checked ? "#f0f4ff" : "#fff", color: checked ? "#3f5bd8" : "#596579", fontSize: 13, fontWeight: checked ? 650 : 400, boxShadow: checked ? "0 0 0 1px rgba(81,107,243,.06)" : "none" }}>{c}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
-            {errs.cats && <div style={{ fontSize: 12, color: "#ef4444", marginTop: 4 }}>请至少选择一个分类</div>}
-          </div>
-
-          {/* 模型权重地址 */}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}>模型权重地址</div>
-            <input value={weights} onChange={e => setWeights(e.target.value)} placeholder="如 /models/Qwen3-8B" style={inp} />
-            <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 3 }}>NFS 共享盘权重文件路径，用户手动填写</div>
-          </div>
-
-          {/* 模型镜像地址 */}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}>模型镜像地址</div>
-            <input value={image} onChange={e => setImage(e.target.value)} placeholder="Harbor 镜像地址" style={inp} />
-            <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 3 }}>用户手动填写或选择已有版本</div>
-          </div>
-
-          {/* 简介 */}
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}>简介</div>
-            <textarea value={desc} onChange={e => setDesc(e.target.value.slice(0, 500))} placeholder="模型简介，最长 500 字"
-              style={{ width: "100%", height: 88, padding: "8px 10px", fontSize: 13, border: "1px solid #e0e3ed", borderRadius: 7, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" as const }} />
-            <div style={{ fontSize: 12, color: "#9ca3af", textAlign: "right", marginTop: 2 }}>{desc.length}/500</div>
+            <div style={fgSt}>
+              <label style={labelSt}><span style={{ color: "#ef4444", marginRight: 2 }}>*</span>模型权重地址</label>
+              <input value={weightPath} onChange={e => setWeight(e.target.value)} placeholder="如 /models/Qwen3-8B" disabled={isView} style={inp} />
+              <span style={{ display: "block", marginTop: 4, color: "#929dad", fontSize: 11 }}>NFS 共享盘权重文件路径</span>
+            </div>
+            <div style={fgSt}>
+              <label style={labelSt}><span style={{ color: "#ef4444", marginRight: 2 }}>*</span>模型镜像地址</label>
+              <input value={imagePath} onChange={e => setImage(e.target.value)} list="catalog-image-options" placeholder="搜索或输入 Harbor 镜像地址" disabled={isView} style={inp} />
+              <datalist id="catalog-image-options">
+                {IMAGE_OPTIONS.map(o => <option key={o} value={o} />)}
+              </datalist>
+              <span style={{ display: "block", marginTop: 4, color: "#929dad", fontSize: 11 }}>输入关键字可搜索 Harbor 镜像，也可直接粘贴完整地址</span>
+            </div>
+            <div style={{ ...fgSt, gridColumn: "1 / -1" }}>
+              <label style={labelSt}>简介</label>
+              <textarea value={desc} onChange={e => setDesc(e.target.value.slice(0, 500))} maxLength={500} placeholder="模型简介，最长 500 字" disabled={isView} style={{ ...inp, height: 72, minHeight: 72, padding: "9px 12px", lineHeight: 1.5, resize: "vertical" }} />
+              <span style={{ display: "block", marginTop: 4, color: "#929dad", fontSize: 11, textAlign: "right" }}>{desc.length}/500</span>
+            </div>
+            {formErr && <div style={{ gridColumn: "1 / -1", margin: "-10px 0 18px", padding: "10px 13px", borderRadius: 8, background: "#fef2f2", color: "#dc2626", fontSize: 14 }}>{formErr}</div>}
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 flex-shrink-0" style={{ padding: "12px 20px", borderTop: "1px solid #f0f2f7" }}>
-          <button onClick={onClose} style={{ height: 34, padding: "0 20px", fontSize: 13, border: "1px solid #e0e3ed", borderRadius: 7, background: "#fff", cursor: "pointer", color: "#374151" }}>取消</button>
-          <button onClick={submit} style={{ height: 34, padding: "0 24px", fontSize: 13, border: "none", borderRadius: 7, background: "#4f6ef7", color: "#fff", cursor: "pointer", fontWeight: 500 }}>确认</button>
+        {/* footer */}
+        <div className="flex items-center justify-end" style={{ flex: "0 0 auto", gap: 10, padding: "12px 24px", borderTop: "1px solid #edf0f4", background: "rgba(255,255,255,.97)" }}>
+          <button onClick={onClose} style={{ height: 40, minWidth: 84, justifyContent: "center", border: "1px solid #e0e3ed", borderRadius: 8, background: "#fff", color: "#374151", fontSize: 14, fontWeight: 650, cursor: "pointer" }}>取消</button>
+          {!isView && (
+            <button onClick={submit} style={{ height: 40, minWidth: 92, justifyContent: "center", border: 0, borderRadius: 8, background: "linear-gradient(135deg,#4168f6,#5668ed)", color: "#fff", fontSize: 14, fontWeight: 650, cursor: "pointer" }}>确认</button>
+          )}
         </div>
       </div>
     </>
@@ -1148,94 +1155,111 @@ function NewModelModal({ onClose, onDone }: { onClose: () => void; onDone: (m: M
 }
 
 export function ModelManagementPage({ onDeploy }: { onDeploy?: (card: ModelCard) => void } = {}) {
-  const [showCreate, setShowCreate] = useState(false);
-  const [showNewModel, setShowNewModel] = useState(false);
-  const [filterType1, setFilterType1] = useState("");
-  const [filterType2, setFilterType2] = useState("");
+  const [models, setModels]           = useState<ModelCard[]>(CATALOG_MODELS);
   const [searchInput, setSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [models, setModels] = useState<ModelCard[]>(ALL_MODELS);
-
-  if (showCreate) return <CreateModelSeriesPage onBack={() => setShowCreate(false)} />;
+  const [filterCategory, setFilterCategory] = useState("");
+  const [filterDeveloper, setFilterDeveloper] = useState("");
+  const [modal, setModal]             = useState<{ mode: CatalogModalMode; id: string | null } | null>(null);
 
   const filtered = models.filter(m => {
-    if (filterType1 && m.type1 !== filterType1) return false;
-    if (filterType2 && m.type2 !== filterType2) return false;
-    if (searchQuery && !m.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (searchInput.trim() && !m.name.toLowerCase().includes(searchInput.trim().toLowerCase())) return false;
+    if (filterCategory && !(m.types || [m.category]).includes(filterCategory)) return false;
+    if (filterDeveloper && m.developer !== filterDeveloper) return false;
     return true;
   });
 
-  const doSearch = () => setSearchQuery(searchInput);
-  const doReset  = () => { setFilterType1(""); setFilterType2(""); setSearchInput(""); setSearchQuery(""); };
+  const doReset = () => { setSearchInput(""); setFilterCategory(""); setFilterDeveloper(""); };
 
-  const selSt: React.CSSProperties = {
-    height: 32, padding: "0 28px 0 10px", fontSize: 13, border: "1px solid #e0e3ed",
-    borderRadius: 6, outline: "none", background: "#fff", color: "#374151", appearance: "none", cursor: "pointer",
+  const editing = modal && modal.id ? models.find(m => m.id === modal.id) ?? null : null;
+
+  const handleSave = (m: ModelCard) => {
+    setModels(prev => {
+      const idx = prev.findIndex(x => x.id === m.id);
+      if (idx >= 0) { const next = [...prev]; next[idx] = m; return next; }
+      return [m, ...prev];
+    });
+    setModal(null);
   };
 
+  const selSt: React.CSSProperties = { height: 38, padding: "0 28px 0 12px", fontSize: 13, border: "1px solid #d5ddea", borderRadius: 8, outline: "none", background: "#fff", color: "#344054", appearance: "none", cursor: "pointer", fontFamily: "inherit" };
+
   return (
-    <div className="flex flex-col h-full" style={{ background: "#f5f7fa" }}>
-      <div className="flex items-center gap-1.5 flex-shrink-0" style={{ padding: "14px 24px 0", fontSize: 13, color: "#6b7280" }}>
+    <div className="flex flex-col h-full" style={{ background: "#f5f6fa" }}>
+      <div className="flex items-center gap-1.5 flex-shrink-0" style={{ padding: "14px 24px 0", fontSize: 12, color: "#9ca3af" }}>
         <span style={{ color: "#4f6ef7" }}>首页</span><span>/</span>
         <span style={{ color: "#4f6ef7" }}>模型管理</span><span>/</span>
-        <span style={{ color: "#1a1d23", fontWeight: 500 }}>模型库</span>
+        <span style={{ color: "#1f2937", fontWeight: 500 }}>模型库</span>
       </div>
+
       <div className="flex-1 flex flex-col min-h-0" style={{ margin: "16px 24px 24px" }}>
-        {/* Filter bar */}
-        <div className="flex items-center gap-2 flex-wrap flex-shrink-0" style={{ marginBottom: 16 }}>
+        {/* Toolbar */}
+        <div className="flex items-center flex-wrap" style={{ gap: 10, padding: "16px 18px", marginBottom: 20, background: "#fff", border: "1px solid #e3e8f1", borderRadius: 10, boxShadow: "0 2px 10px rgba(31,41,55,.035)" }}>
+          {/* search */}
+          <div style={{ position: "relative", width: 260, flex: "0 0 260px" }}>
+            <Search size={17} color="#aab2bf" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+            <input value={searchInput} onChange={e => setSearchInput(e.target.value)} placeholder="搜索模型名称..."
+              style={{ width: "100%", height: 38, padding: "6px 40px 6px 38px", fontSize: 13, border: "1px solid #d5ddea", borderRadius: 8, outline: "none", fontFamily: "inherit", color: "#20232a" }} />
+            {searchInput && (
+              <button type="button" aria-label="清空搜索词" onClick={() => setSearchInput("")}
+                style={{ position: "absolute", right: 9, top: "50%", transform: "translateY(-50%)", width: 22, height: 22, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", border: 0, borderRadius: "50%", background: "#c5c9d0", color: "#fff", fontSize: 16, fontWeight: 500, cursor: "pointer" }}
+                onMouseEnter={e => (e.currentTarget.style.background = "#9da5b1")}
+                onMouseLeave={e => (e.currentTarget.style.background = "#c5c9d0")}>×</button>
+            )}
+          </div>
+          {/* category */}
           <div style={{ position: "relative" }}>
-            <select value={filterType1} onChange={e => { setFilterType1(e.target.value); }} style={selSt}>
-              <option value="">一级分类</option>
-              {TYPE1_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+            <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={selSt}>
+              <option value="">全部类型</option>
+              {CATEGORY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
             <ChevronDown size={13} color="#9ca3af" style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
           </div>
+          {/* developer */}
           <div style={{ position: "relative" }}>
-            <select value={filterType2} onChange={e => { setFilterType2(e.target.value); }} style={selSt}>
-              <option value="">二级分类</option>
-              {TYPE2_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+            <select value={filterDeveloper} onChange={e => setFilterDeveloper(e.target.value)} style={selSt}>
+              <option value="">全部开发者</option>
+              {DEVELOPERS.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
             <ChevronDown size={13} color="#9ca3af" style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
           </div>
-          <div className="flex items-center rounded-md" style={{ border: "1px solid #e0e3ed", height: 32, padding: "0 10px", background: "#fff" }}>
-            <input type="text" placeholder="请输入模型名称" value={searchInput}
-              onChange={e => setSearchInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doSearch()}
-              style={{ fontSize: 13, border: "none", outline: "none", width: 150, background: "transparent" }} />
-          </div>
-          <button onClick={doSearch} style={{ display: "flex", alignItems: "center", gap: 5, height: 32, padding: "0 14px", fontSize: 13, fontWeight: 500, color: "#374151", background: "#fff", border: "1px solid #e0e3ed", borderRadius: 6, cursor: "pointer" }}
-            onMouseEnter={e => (e.currentTarget.style.background = "#f8f9fc")} onMouseLeave={e => (e.currentTarget.style.background = "#fff")}>
-            <Search size={13} /> 搜索
-          </button>
-          <button onClick={doReset} style={{ display: "flex", alignItems: "center", gap: 5, height: 32, padding: "0 14px", fontSize: 13, fontWeight: 500, color: "#374151", background: "#fff", border: "1px solid #e0e3ed", borderRadius: 6, cursor: "pointer" }}
-            onMouseEnter={e => (e.currentTarget.style.background = "#f8f9fc")} onMouseLeave={e => (e.currentTarget.style.background = "#fff")}>
-            <RotateCcw size={13} /> 重置
+          {/* reset */}
+          <button type="button" onClick={doReset} className="flex items-center" style={{ height: 38, padding: "0 14px", gap: 6, border: "1px solid #d5ddea", borderRadius: 8, background: "#fff", color: "#344054", fontSize: 13, fontFamily: "inherit", cursor: "pointer", whiteSpace: "nowrap" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#f8fafc")} onMouseLeave={e => (e.currentTarget.style.background = "#fff")}>
+            <RotateCcw size={16} /> <span>重置</span>
           </button>
           <div style={{ flex: 1 }} />
-          <button onClick={() => setShowNewModel(true)}
-            style={{ display: "flex", alignItems: "center", gap: 6, height: 32, padding: "0 14px", fontSize: 13, fontWeight: 500, color: "#fff", background: "#4f6ef7", border: "none", borderRadius: 6, cursor: "pointer" }}
-            onMouseEnter={e => (e.currentTarget.style.background = "#3b5de8")} onMouseLeave={e => (e.currentTarget.style.background = "#4f6ef7")}>
-            <Plus size={14} /> 新增模型
+          <button onClick={() => setModal({ mode: "add", id: null })}
+            style={{ display: "flex", alignItems: "center", gap: 6, height: 38, padding: "0 16px", fontSize: 13, fontWeight: 500, color: "#fff", background: "linear-gradient(135deg,#4168f6,#5668ed)", border: "none", borderRadius: 8, cursor: "pointer" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "linear-gradient(135deg,#3157e9,#4859df)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "linear-gradient(135deg,#4168f6,#5668ed)")}>
+            <Plus size={14} /> 新建模型
           </button>
         </div>
 
         {/* Card grid */}
         <div className="flex-1 overflow-auto">
           {filtered.length === 0 ? (
-            <div className="flex items-center justify-center rounded-xl" style={{ background: "#fff", border: "1px solid #e8ebf2", height: 200, color: "#9ca3af", fontSize: 13 }}>暂无数据</div>
+            <div style={{ padding: "80px 20px", color: "#98a2b3", textAlign: "center", background: "#fff", border: "1px dashed #d8dee9", borderRadius: 14 }}>暂无符合条件的模型</div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16 }}>
               {filtered.map(m => (
                 <ModelCardItem key={m.id} card={m}
-                onDelete={() => setModels(prev => prev.filter(x => x.id !== m.id))}
-                onDeploy={() => onDeploy?.(m)} />
+                  onView={() => setModal({ mode: "view", id: m.id })}
+                  onEdit={() => setModal({ mode: "edit", id: m.id })}
+                  onDelete={() => setModels(prev => prev.filter(x => x.id !== m.id))}
+                  onDeploy={() => onDeploy?.(m)} />
               ))}
             </div>
           )}
         </div>
       </div>
 
-      {showNewModel && (
-        <NewModelModal onClose={() => setShowNewModel(false)} onDone={m => setModels(prev => [m, ...prev])} />
+      {modal && (
+        <CatalogModal
+          mode={modal.mode}
+          initial={editing}
+          onClose={() => setModal(null)}
+          onSave={handleSave} />
       )}
     </div>
   );

@@ -10,7 +10,7 @@ interface MyModel {
   capability: string;
   trainedAt: string;
   status: "已部署" | "未部署" | "部署中";
-  space: string;
+  creator: string;
 }
 
 const MODELS: MyModel[] = [
@@ -23,7 +23,7 @@ const MODELS: MyModel[] = [
     capability: "文生文",
     trainedAt: "2026.10.26 18:02:36",
     status: "已部署",
-    space: "admin空间",
+    creator: "张伟",
   },
   {
     id: 2,
@@ -34,7 +34,29 @@ const MODELS: MyModel[] = [
     capability: "文生文",
     trainedAt: "2026.10.29 18:02:36",
     status: "未部署",
-    space: "admin空间",
+    creator: "李娜",
+  },
+  {
+    id: 3,
+    name: "金融风控反欺诈模型",
+    desc: "面向银行信贷与支付场景，识别异常交易模式与团伙欺诈行为，覆盖身份冒用、套现、洗钱等风险类型，毫秒级响应。",
+    baseModel: "Qwen3-14B",
+    modelType: "行业模型",
+    capability: "文生文",
+    trainedAt: "2026.11.02 09:14:08",
+    status: "部署中",
+    creator: "王芳",
+  },
+  {
+    id: 4,
+    name: "法律合同审查助手",
+    desc: "基于法律语料微调，支持合同条款风险识别、合规性校验与修订建议，覆盖租赁、采购、劳动等多种合同类型。",
+    baseModel: "GLM-4-Air",
+    modelType: "行业模型",
+    capability: "文生文",
+    trainedAt: "2026.11.05 14:33:51",
+    status: "未部署",
+    creator: "刘强",
   },
 ];
 
@@ -44,7 +66,7 @@ const STATUS_CFG = {
   "部署中": { bg: "#eff6ff", text: "#2563eb", border: "#bfdbfe" },
 };
 
-function CardMenu({ onDelete, onView }: { onDelete: () => void; onView: () => void }) {
+function CardMenu({ onDelete }: { onDelete: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -61,10 +83,6 @@ function CardMenu({ onDelete, onView }: { onDelete: () => void; onView: () => vo
       </button>
       {open && (
         <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "#fff", border: "1px solid #e0e3ed", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", zIndex: 50, minWidth: 100, overflow: "hidden" }}>
-          <button onClick={() => { onView(); setOpen(false); }}
-            style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 14px", fontSize: 13, border: "none", background: "none", cursor: "pointer", color: "#374151" }}
-            onMouseEnter={e => (e.currentTarget.style.background = "#f8f9fc")}
-            onMouseLeave={e => (e.currentTarget.style.background = "none")}>查看详情</button>
           <button onClick={() => { onDelete(); setOpen(false); }}
             style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 14px", fontSize: 13, border: "none", background: "none", cursor: "pointer", color: "#ef4444" }}
             onMouseEnter={e => (e.currentTarget.style.background = "#fff5f5")}
@@ -121,19 +139,19 @@ function ModelCard({ model, onDelete }: { model: MyModel; onDelete: () => void }
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span style={{ fontSize: 12, color: "#9ca3af", width: 56, flexShrink: 0 }}>所属空间：</span>
-          <span style={{ fontSize: 12.5, color: "#374151" }}>{model.space}</span>
+          <span style={{ fontSize: 12, color: "#9ca3af", width: 56, flexShrink: 0 }}>创建人：</span>
+          <span style={{ fontSize: 12.5, color: "#374151" }}>{model.creator}</span>
         </div>
         <div className="flex items-center gap-2">
           <span style={{ fontSize: 12, color: "#9ca3af", width: 56, flexShrink: 0 }}>部署状态：</span>
-          <span style={{ fontSize: 12, fontWeight: 500, padding: "2px 8px", borderRadius: 4, background: sc.bg, color: sc.text, border: `1px solid ${sc.border}` }}>
+          <span style={{ fontSize: 12.5, fontWeight: 500, color: sc.text }}>
             {model.status}
           </span>
           {model.status === "未部署" && (
             <button
-              style={{ fontSize: 12, fontWeight: 500, color: "#4f6ef7", background: "#eff4ff", border: "1px solid #c7d9ff", borderRadius: 5, padding: "2px 10px", cursor: "pointer" }}
-              onMouseEnter={e => (e.currentTarget.style.background = "#e0e8ff")}
-              onMouseLeave={e => (e.currentTarget.style.background = "#eff4ff")}>
+              style={{ fontSize: 12, fontWeight: 500, color: "#fff", background: "#4f6ef7", border: "none", borderRadius: 5, padding: "3px 12px", cursor: "pointer" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#3b5de8")}
+              onMouseLeave={e => (e.currentTarget.style.background = "#4f6ef7")}>
               部署
             </button>
           )}
@@ -151,7 +169,7 @@ function ModelCard({ model, onDelete }: { model: MyModel; onDelete: () => void }
             onMouseLeave={e => (e.currentTarget.style.color = "#4f6ef7")}>
             查看 <ChevronRight size={12} />
           </button>
-          <CardMenu onView={() => {}} onDelete={onDelete} />
+          <CardMenu onDelete={onDelete} />
         </div>
       </div>
     </div>

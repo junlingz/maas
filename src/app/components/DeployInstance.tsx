@@ -137,7 +137,7 @@ export function DeployInstancePage() {
       <div className="flex items-center gap-1.5 flex-shrink-0" style={{ padding: "14px 24px 0", fontSize: 13, color: "#6b7280" }}>
         <span style={{ color: "#4f6ef7" }}>首页</span><span>/</span>
         <span style={{ color: "#4f6ef7" }}>模型管理</span><span>/</span>
-        <span style={{ color: "#1a1d23", fontWeight: 500 }}>部署实例</span>
+        <span style={{ color: "#1a1d23", fontWeight: 500 }}>模型实例</span>
       </div>
 
       <div className="flex-1 flex flex-col min-h-0 rounded-xl" style={{ margin: "14px 24px 24px", background: "#fff", border: "1px solid #e8ebf2" }}>

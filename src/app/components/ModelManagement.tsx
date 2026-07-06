@@ -785,7 +785,7 @@ export function CreateModelSeriesPage({ onBack }: { onBack: () => void }) {
               <Check size={32} color="#22c55e" />
             </div>
             <div style={{ fontSize: 18, fontWeight: 600, color: "#1a1d23", marginBottom: 8 }}>创建成功</div>
-            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 28 }}>模型系列已成功创建，可在模型管理列表中查看</div>
+            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 28 }}>模型系列已成功创建，可在模型库列表中查看</div>
             <button onClick={onBack} style={{ fontSize: 13, fontWeight: 500, color: "#fff", background: "#4f6ef7", border: "none", borderRadius: 8, padding: "10px 32px", cursor: "pointer" }}>
               返回列表
             </button>
@@ -806,7 +806,7 @@ export function CreateModelSeriesPage({ onBack }: { onBack: () => void }) {
           <div className="flex items-center gap-1.5" style={{ fontSize: 13, color: "#6b7280" }}>
             <span>首页</span>
             <span>/</span>
-            <span style={{ cursor: "pointer", color: "#4f6ef7" }} onClick={onBack}>模型管理</span>
+            <span style={{ cursor: "pointer", color: "#4f6ef7" }} onClick={onBack}>模型库</span>
             <span>/</span>
             <span style={{ color: "#1a1d23", fontWeight: 500 }}>创建模型系列</span>
           </div>
@@ -1175,6 +1175,11 @@ export function ModelManagementPage({ onDeploy }: { onDeploy?: (card: ModelCard)
 
   return (
     <div className="flex flex-col h-full" style={{ background: "#f5f7fa" }}>
+      <div className="flex items-center gap-1.5 flex-shrink-0" style={{ padding: "14px 24px 0", fontSize: 13, color: "#6b7280" }}>
+        <span style={{ color: "#4f6ef7" }}>首页</span><span>/</span>
+        <span style={{ color: "#4f6ef7" }}>模型管理</span><span>/</span>
+        <span style={{ color: "#1a1d23", fontWeight: 500 }}>模型库</span>
+      </div>
       <div className="flex-1 flex flex-col min-h-0" style={{ margin: "16px 24px 24px" }}>
         {/* Filter bar */}
         <div className="flex items-center gap-2 flex-wrap flex-shrink-0" style={{ marginBottom: 16 }}>

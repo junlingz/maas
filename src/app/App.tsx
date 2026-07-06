@@ -59,9 +59,9 @@ const menuData: MenuItem[] = [
   {
     label: "模型管理", key: "model-management", icon: <Layers size={16} />,
     children: [
-      { label: "模型管理", key: "model-list" },
+      { label: "模型库", key: "model-list" },
       { label: "模型部署", key: "model-deploy" },
-      { label: "部署实例", key: "deploy-instance" },
+      { label: "模型实例", key: "deploy-instance" },
     ],
   },
   {

@@ -59,9 +59,9 @@ const menuData: MenuItem[] = [
   {
     label: "模型管理", key: "model-management", icon: <Layers size={16} />,
     children: [
-      { label: "模型库", key: "model-list" },
+      { label: "模型管理", key: "model-list" },
       { label: "模型部署", key: "model-deploy" },
-      { label: "模型实例", key: "deploy-instance" },
+      { label: "部署实例", key: "deploy-instance" },
     ],
   },
   {
@@ -1523,7 +1523,7 @@ export default function App() {
             <TrainingDataPage />
           ) : activeMenu === "model-list" ? (
             <ModelManagementPage onDeploy={card => {
-              setDeployPrefill({ modelName: card.name, modelPath: card.weightPath, imagePath: card.imagePath, modelId: card.id });
+              setDeployPrefill({ modelName: card.name, modelPath: `/nfs/models/${card.name}`, classify: card.type1 === "通用大模型" ? "LLM" : card.type1 === "向量模型" ? "Embedding" : card.type1 === "图像模型" ? "Vision" : "LLM", paramSize: card.paramSize, contextLen: card.contextLen });
               handleMenuSelect("model-deploy");
             }} />
           ) : activeMenu === "model-deploy" ? (

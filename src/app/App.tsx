@@ -13,11 +13,9 @@ import { ModelRoutingPage } from "./components/ModelRouting";
 import { ModelEvaluationPage } from "./components/ModelEvaluation";
 import { EvaluationDataPage } from "./components/EvaluationData";
 import { ResourcePermissionPage } from "./components/ResourcePermission";
-import { PromptTemplatePage } from "./components/PromptTemplate";
 import { ModelDeploymentPage, DeployPrefill } from "./components/ModelDeployment";
 import { ClusterListPage } from "./components/ClusterList";
 import { NodeListPage, ResourceGroupPage } from "./components/NodeResourceGroup";
-import { PromptTuningPage, TplInfo } from "./components/PromptTuning";
 import { ModelExperiencePage } from "./components/ModelExperience";
 import {
   Store, FlaskConical, BrainCircuit, ClipboardCheck, Layers,
@@ -41,8 +39,6 @@ const menuData: MenuItem[] = [
     label: "体验中心", key: "experience-center", icon: <FlaskConical size={16} />,
     children: [
       { label: "模型体验", key: "model-experience" },
-      { label: "Prompt 模板", key: "prompt-template" },
-      { label: "Prompt 调优", key: "prompt-tuning" },
     ],
   },
   {
@@ -1476,7 +1472,6 @@ function Sidebar({ active, onSelect }: { active: string; onSelect: (key: string)
 export default function App() {
   const [activeMenu, setActiveMenu] = useState("training-task");
   const [trainingView, setTrainingView] = useState<"list" | "create" | "evaluation">("list");
-  const [tuningTpl, setTuningTpl]       = useState<TplInfo | null>(null);
   const [deployPrefill, setDeployPrefill] = useState<DeployPrefill | null>(null);
   const [evalTaskName, setEvalTaskName] = useState("");
 
@@ -1565,10 +1560,6 @@ export default function App() {
             <UserRolePage />
           ) : activeMenu === "model-experience" ? (
             <ModelExperiencePage />
-          ) : activeMenu === "prompt-template" ? (
-            <PromptTemplatePage onOpenTuning={(title, version) => { setTuningTpl({ title, version }); handleMenuSelect("prompt-tuning"); }} />
-          ) : activeMenu === "prompt-tuning" ? (
-            <PromptTuningPage initialTemplate={tuningTpl} />
           ) : (
             <PlaceholderPage label={activeLabel} />
           )}

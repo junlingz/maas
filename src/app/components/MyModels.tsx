@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react"; // eslint-disable-line
-import { Search, MoreVertical, Cpu, ChevronRight } from "lucide-react";
+import { Search, MoreVertical, Cpu, ChevronRight, ChevronDown, Check } from "lucide-react";
 
 interface MyModel {
   id: number;
@@ -11,6 +11,7 @@ interface MyModel {
   trainedAt: string;
   status: "已部署" | "未部署" | "部署中";
   creator: string;
+  versions: string[];
 }
 
 const MODELS: MyModel[] = [
@@ -19,44 +20,48 @@ const MODELS: MyModel[] = [
     name: "客服智能应答助手-Pro",
     desc: "基于企业内部客服知识库微调，专注于产品售后咨询、退换货流程指引及技术支持场景，响应准确率提升 40% 以上，支持多轮对话与意图识别。",
     baseModel: "Qwen3-32B",
-    modelType: "通用大模型",
+    modelType: "LLM",
     capability: "文生文",
     trainedAt: "2026.10.26 18:02:36",
     status: "已部署",
     creator: "张伟",
+    versions: ["v1.0", "v1.5", "v2.0"],
   },
   {
     id: 2,
     name: "医疗病历结构化模型-v2",
     desc: "针对医院电子病历系统深度微调，支持非结构化病历文本的自动解析、ICD 编码推荐及临床术语标准化处理，有效减少人工录入工作量。",
     baseModel: "GLM-4-Flash",
-    modelType: "通用大模型",
+    modelType: "LLM",
     capability: "文生文",
     trainedAt: "2026.10.29 18:02:36",
     status: "未部署",
     creator: "李娜",
+    versions: ["v1.0", "v2.0"],
   },
   {
     id: 3,
     name: "金融风控反欺诈模型",
     desc: "面向银行信贷与支付场景，识别异常交易模式与团伙欺诈行为，覆盖身份冒用、套现、洗钱等风险类型，毫秒级响应。",
     baseModel: "Qwen3-14B",
-    modelType: "行业模型",
+    modelType: "LLM",
     capability: "文生文",
     trainedAt: "2026.11.02 09:14:08",
     status: "部署中",
     creator: "王芳",
+    versions: ["v1.0", "v1.2", "v1.8"],
   },
   {
     id: 4,
     name: "法律合同审查助手",
     desc: "基于法律语料微调，支持合同条款风险识别、合规性校验与修订建议，覆盖租赁、采购、劳动等多种合同类型。",
     baseModel: "GLM-4-Air",
-    modelType: "行业模型",
+    modelType: "LLM",
     capability: "文生文",
     trainedAt: "2026.11.05 14:33:51",
     status: "未部署",
     creator: "刘强",
+    versions: ["v1.0", "v1.3"],
   },
 ];
 
@@ -95,6 +100,13 @@ function CardMenu({ onDelete }: { onDelete: () => void }) {
 
 function ModelCard({ model, onDelete }: { model: MyModel; onDelete: () => void }) {
   const sc = STATUS_CFG[model.status];
+  const [version, setVersion] = useState<string>(model.versions[model.versions.length - 1]);
+  const [vOpen, setVOpen] = useState(false);
+  const vRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (vRef.current && !vRef.current.contains(e.target as Node)) setVOpen(false); };
+    document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h);
+  }, []);
 
   return (
     <div style={{
@@ -105,7 +117,7 @@ function ModelCard({ model, onDelete }: { model: MyModel; onDelete: () => void }
       onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.boxShadow = "0 6px 20px rgba(79,110,247,0.12)"}
       onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.boxShadow = "0 2px 8px rgba(79,110,247,0.06)"}>
 
-      {/* Header: icon + name only */}
+      {/* Header: icon + name + version */}
       <div className="flex items-center gap-2 mb-3">
         <div className="flex items-center justify-center rounded-lg flex-shrink-0"
           style={{ width: 32, height: 32, background: "linear-gradient(135deg,#4f6ef7,#7c5cf6)" }}>
@@ -114,6 +126,31 @@ function ModelCard({ model, onDelete }: { model: MyModel; onDelete: () => void }
         <span style={{ fontSize: 15, fontWeight: 700, color: "#1a1d23", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
           {model.name}
         </span>
+        {/* Version dropdown */}
+        <div ref={vRef} style={{ position: "relative", flexShrink: 0 }}>
+          <button
+            onClick={() => setVOpen(o => !o)}
+            style={{ fontSize: 11.5, fontWeight: 600, color: "#4f6ef7", background: "#eff4ff", border: "1px solid #d6e0ff", borderRadius: 5, padding: "2px 8px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#e1eaff")}
+            onMouseLeave={e => (e.currentTarget.style.background = "#eff4ff")}>
+            {version}
+            <ChevronDown size={11} />
+          </button>
+          {vOpen && (
+            <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "#fff", border: "1px solid #e0e3ed", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", zIndex: 50, minWidth: 88, overflow: "hidden" }}>
+              {model.versions.map(v => (
+                <button key={v}
+                  onClick={() => { setVersion(v); setVOpen(false); }}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 12px", fontSize: 12, border: "none", background: v === version ? "#f5f7ff" : "none", cursor: "pointer", color: v === version ? "#4f6ef7" : "#374151", fontWeight: v === version ? 600 : 400 }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#f5f7ff")}
+                  onMouseLeave={e => (e.currentTarget.style.background = v === version ? "#f5f7ff" : "none")}>
+                  {v}
+                  {v === version && <Check size={12} color="#4f6ef7" />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Description */}
@@ -127,23 +164,21 @@ function ModelCard({ model, onDelete }: { model: MyModel; onDelete: () => void }
       {/* Meta fields */}
       <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 14, flex: 1 }}>
         <div className="flex items-center gap-2">
-          <span style={{ fontSize: 12, color: "#9ca3af", width: 56, flexShrink: 0 }}>基座模型：</span>
+          <span style={{ fontSize: 12, color: "#9ca3af", width: 72, flexShrink: 0, whiteSpace: "nowrap" }}>基座模型：</span>
           <span style={{ fontSize: 12.5, fontWeight: 500, color: "#374151", fontFamily: "monospace" }}>{model.baseModel}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span style={{ fontSize: 12, color: "#9ca3af", width: 56, flexShrink: 0 }}>模型类型：</span>
+          <span style={{ fontSize: 12, color: "#9ca3af", width: 72, flexShrink: 0, whiteSpace: "nowrap" }}>模型类型：</span>
           <div className="flex items-center gap-1.5">
-            {[model.modelType, model.capability].map(t => (
-              <span key={t} style={{ fontSize: 11.5, fontWeight: 500, padding: "1px 8px", borderRadius: 4, background: "#eff4ff", color: "#4f6ef7" }}>{t}</span>
-            ))}
+            <span style={{ fontSize: 11.5, fontWeight: 500, padding: "1px 8px", borderRadius: 4, background: "#eff4ff", color: "#4f6ef7" }}>{model.modelType}</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span style={{ fontSize: 12, color: "#9ca3af", width: 56, flexShrink: 0 }}>创建人：</span>
+          <span style={{ fontSize: 12, color: "#9ca3af", width: 72, flexShrink: 0, whiteSpace: "nowrap" }}>创建人：</span>
           <span style={{ fontSize: 12.5, color: "#374151" }}>{model.creator}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span style={{ fontSize: 12, color: "#9ca3af", width: 56, flexShrink: 0 }}>部署状态：</span>
+          <span style={{ fontSize: 12, color: "#9ca3af", width: 72, flexShrink: 0, whiteSpace: "nowrap" }}>部署状态：</span>
           <span style={{ fontSize: 12.5, fontWeight: 500, color: sc.text }}>
             {model.status}
           </span>

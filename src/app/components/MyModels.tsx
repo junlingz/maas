@@ -190,6 +190,14 @@ function ModelCard({ model, onDelete }: { model: MyModel; onDelete: () => void }
               部署
             </button>
           )}
+          {(model.status === "已部署" || model.status === "部署中") && (
+            <button
+              style={{ fontSize: 12, fontWeight: 500, color: "#4f6ef7", background: "#fff", border: "1px solid #4f6ef7", borderRadius: 5, padding: "2px 12px", cursor: "pointer" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#eff4ff")}
+              onMouseLeave={e => (e.currentTarget.style.background = "#fff")}>
+              查看
+            </button>
+          )}
         </div>
       </div>
 
@@ -202,7 +210,7 @@ function ModelCard({ model, onDelete }: { model: MyModel; onDelete: () => void }
             style={{ fontSize: 12.5, fontWeight: 500, color: "#4f6ef7", background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 2 }}
             onMouseEnter={e => (e.currentTarget.style.color = "#3b5de8")}
             onMouseLeave={e => (e.currentTarget.style.color = "#4f6ef7")}>
-            查看 <ChevronRight size={12} />
+            查看训练任务 <ChevronRight size={12} />
           </button>
           <CardMenu onDelete={onDelete} />
         </div>

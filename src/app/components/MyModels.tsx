@@ -170,7 +170,7 @@ function ModelCard({ model, onDelete }: { model: MyModel; onDelete: () => void }
         <div className="flex items-center gap-2">
           <span style={{ fontSize: 12, color: "#9ca3af", width: 72, flexShrink: 0, whiteSpace: "nowrap" }}>模型类型：</span>
           <div className="flex items-center gap-1.5">
-            <span style={{ fontSize: 11.5, fontWeight: 500, padding: "1px 8px", borderRadius: 4, background: "#eff4ff", color: "#4f6ef7" }}>{model.modelType}</span>
+            <span style={{ fontSize: 11.5, fontWeight: 500, padding: "1px 8px", borderRadius: 4, background: "#eff4ff", color: "#4f6ef7" }}>LLM</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -200,9 +200,9 @@ function ModelCard({ model, onDelete }: { model: MyModel; onDelete: () => void }
         <div className="flex items-center gap-3">
           <button
             style={{ fontSize: 12.5, fontWeight: 500, color: "#4f6ef7", background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 2 }}
-            onMouseEnter={e => (e.currentTarget.style.color = "#3b5de8")}
+            onMouseEnter={e => (e.currentTarget.style.color = "#3b5de8"}
             onMouseLeave={e => (e.currentTarget.style.color = "#4f6ef7")}>
-            查看 <ChevronRight size={12} />
+            查看
           </button>
           <CardMenu onDelete={onDelete} />
         </div>

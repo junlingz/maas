@@ -852,6 +852,7 @@ interface ModelCard {
   size: string;          // 参数量（B）
   category: string;      // 模型分类
   types: string[];       // 模型类型（多选）
+  capabilities?: string[]; // 能力（多选，非必填）
   weightPath: string;
   imagePath: string;
   description: string;
@@ -864,19 +865,20 @@ interface ModelCard {
 }
 
 const CATALOG_MODELS: ModelCard[] = [
-  { id: "deepseek-v3",       developer: "DeepSeek", name: "deepseek-v3",       size: "671", category: "通用大模型",  types: ["通用大模型"],  weightPath: "/models/deepseek-v3",       imagePath: "harbor.xxx.com/lm/vllm:deepseek-v3", description: "DeepSeek V3 通用大语言模型。",          createdAt: "2026-06-24", type1: "通用大模型", paramSize: "671B", contextLen: "128K" },
-  { id: "embedding-v3",      developer: "智谱",     name: "embedding-v3",      size: "0.3", category: "嵌入模型",    types: ["嵌入模型"],    weightPath: "/models/embedding-v3",      imagePath: "harbor.xxx.com/lm/embedding:v3",      description: "文本向量化模型。",                     createdAt: "2026-04-08", type1: "向量模型", paramSize: "0.3B", contextLen: "8K" },
-  { id: "cogvlm-9b",         developer: "智谱",     name: "cogvlm-9b",         size: "9",   category: "图片模型",    types: ["图片模型"],    weightPath: "/models/cogvlm-9b",         imagePath: "harbor.xxx.com/lm/vllm:cogvlm-9b",    description: "视觉语言理解模型。",                   createdAt: "2026-03-03", type1: "图像模型", paramSize: "9B",   contextLen: "4K" },
-  { id: "chatglm4-32b",      developer: "智谱",     name: "chatglm4-32b",      size: "32",  category: "通用大模型",  types: ["通用大模型"],  weightPath: "/models/chatglm4-32b",      imagePath: "harbor.xxx.com/lm/vllm:chatglm4-32b", description: "面向对话与生成任务的通用模型。",       createdAt: "2026-03-03", type1: "通用大模型", paramSize: "32B",  contextLen: "128K" },
-  { id: "llama-3-1",         developer: "智谱",     name: "LLaMA 3.1",         size: "70",  category: "通用大模型",  types: ["通用大模型"],  weightPath: "/models/llama-3.1",         imagePath: "harbor.xxx.com/lm/vllm:llama-3.1",    description: "LLaMA 3.1 通用语言模型。",             createdAt: "2025-11-24", type1: "通用大模型", paramSize: "70B",  contextLen: "128K" },
-  { id: "baichuan-m2-plus",  developer: "千问",     name: "Baichuan-M2 Plus",  size: "13",  category: "通用大模型",  types: ["通用大模型"],  weightPath: "/models/baichuan-m2-plus",  imagePath: "harbor.xxx.com/lm/vllm:baichuan-m2-plus", description: "百川通用大语言模型。",             createdAt: "2025-11-24", type1: "通用大模型", paramSize: "13B",  contextLen: "32K" },
-  { id: "qwen3-7b",          developer: "千问",     name: "Qwen3-7B",          size: "7",   category: "通用大模型",  types: ["通用大模型"],  weightPath: "/models/Qwen3-7B",          imagePath: "harbor.xxx.com/lm/vllm:qwen3-7b",     description: "通义千问 Qwen3 7B 模型。",             createdAt: "2025-10-28", type1: "通用大模型", paramSize: "7B",   contextLen: "32K" },
-  { id: "t1-100",            developer: "千问",     name: "T1-100",            size: "100", category: "重排模型",    types: ["重排模型"],    weightPath: "/models/T1-100",            imagePath: "harbor.xxx.com/lm/vllm:t1-100",       description: "面向复杂任务的推理模型。",             createdAt: "2025-12-12", type1: "推理模型", paramSize: "100B", contextLen: "64K" },
-  { id: "whisper-large-v3",  developer: "智谱",     name: "whisper-large-v3",  size: "1.5", category: "语音识别模型", types: ["语音识别模型"], weightPath: "/models/whisper-large-v3", imagePath: "harbor.xxx.com/lm/vllm:whisper-v3",   description: "OpenAI Whisper Large V3 语音识别模型。", createdAt: "2026-01-15", type1: "推理模型", paramSize: "1.5B", contextLen: "—" },
+  { id: "deepseek-v3",       developer: "DeepSeek", name: "deepseek-v3",       size: "671", category: "LLM",            types: ["LLM"],            weightPath: "/models/deepseek-v3",       imagePath: "harbor.xxx.com/lm/vllm:deepseek-v3", description: "DeepSeek V3 通用大语言模型。",          createdAt: "2026-06-24", type1: "通用大模型", paramSize: "671B", contextLen: "128K" },
+  { id: "embedding-v3",      developer: "智谱",     name: "embedding-v3",      size: "0.3", category: "Embedding",      types: ["Embedding"],      weightPath: "/models/embedding-v3",      imagePath: "harbor.xxx.com/lm/embedding:v3",      description: "文本向量化模型。",                     createdAt: "2026-04-08", type1: "向量模型", paramSize: "0.3B", contextLen: "8K" },
+  { id: "cogvlm-9b",         developer: "智谱",     name: "cogvlm-9b",         size: "9",   category: "Image",          types: ["Image"],          weightPath: "/models/cogvlm-9b",         imagePath: "harbor.xxx.com/lm/vllm:cogvlm-9b",    description: "视觉语言理解模型。",                   createdAt: "2026-03-03", type1: "图像模型", paramSize: "9B",   contextLen: "4K" },
+  { id: "chatglm4-32b",      developer: "智谱",     name: "chatglm4-32b",      size: "32",  category: "LLM",            types: ["LLM"],            weightPath: "/models/chatglm4-32b",      imagePath: "harbor.xxx.com/lm/vllm:chatglm4-32b", description: "面向对话与生成任务的通用模型。",       createdAt: "2026-03-03", type1: "通用大模型", paramSize: "32B",  contextLen: "128K" },
+  { id: "llama-3-1",         developer: "智谱",     name: "LLaMA 3.1",         size: "70",  category: "LLM",            types: ["LLM"],            weightPath: "/models/llama-3.1",         imagePath: "harbor.xxx.com/lm/vllm:llama-3.1",    description: "LLaMA 3.1 通用语言模型。",             createdAt: "2025-11-24", type1: "通用大模型", paramSize: "70B",  contextLen: "128K" },
+  { id: "baichuan-m2-plus",  developer: "千问",     name: "Baichuan-M2 Plus",  size: "13",  category: "LLM",            types: ["LLM"],            weightPath: "/models/baichuan-m2-plus",  imagePath: "harbor.xxx.com/lm/vllm:baichuan-m2-plus", description: "百川通用大语言模型。",             createdAt: "2025-11-24", type1: "通用大模型", paramSize: "13B",  contextLen: "32K" },
+  { id: "qwen3-7b",          developer: "千问",     name: "Qwen3-7B",          size: "7",   category: "LLM",            types: ["LLM"],            weightPath: "/models/Qwen3-7B",          imagePath: "harbor.xxx.com/lm/vllm:qwen3-7b",     description: "通义千问 Qwen3 7B 模型。",             createdAt: "2025-10-28", type1: "通用大模型", paramSize: "7B",   contextLen: "32K" },
+  { id: "t1-100",            developer: "千问",     name: "T1-100",            size: "100", category: "Reranker",       types: ["Reranker"],       weightPath: "/models/T1-100",            imagePath: "harbor.xxx.com/lm/vllm:t1-100",       description: "面向复杂任务的推理模型。",             createdAt: "2025-12-12", type1: "推理模型", paramSize: "100B", contextLen: "64K" },
+  { id: "whisper-large-v3",  developer: "智谱",     name: "whisper-large-v3",  size: "1.5", category: "Speech-to-Text", types: ["Speech-to-Text"], weightPath: "/models/whisper-large-v3", imagePath: "harbor.xxx.com/lm/vllm:whisper-v3",   description: "OpenAI Whisper Large V3 语音识别模型。", createdAt: "2026-01-15", type1: "推理模型", paramSize: "1.5B", contextLen: "—" },
 ];
 
 const DEVELOPERS = ["智谱", "千问", "DeepSeek"];
-const CATEGORY_OPTIONS = ["通用大模型", "嵌入模型", "图片模型", "重排模型", "语音识别模型", "语音合成模型"];
+const CATEGORY_OPTIONS = ["LLM", "Embedding", "Reranker", "Image", "Text-to-Speech", "Speech-to-Text"];
+const CAPABILITY_OPTIONS = ["vision", "tool", "reasoning"];
 const IMAGE_OPTIONS = [
   "harbor.xxx.com/lm/vllm:v0.12.0",
   "harbor.xxx.com/lm/vllm:v0.11.0",
@@ -1000,7 +1002,9 @@ function CatalogModal({ mode, initial, onClose, onSave }: {
   const [weightPath, setWeight]   = useState(initial?.weightPath ?? "");
   const [imagePath, setImage]     = useState(initial?.imagePath ?? "");
   const [desc, setDesc]           = useState(initial?.description ?? "");
-  const [types, setTypes]         = useState<string[]>(initial?.types ?? ["通用大模型"]);
+  const [types, setTypes]         = useState<string[]>(initial?.types ?? ["LLM"]);
+  const [capabilities, setCapabilities] = useState<string[]>(initial?.capabilities ?? []);
+  const toggleCapability = (c: string) => setCapabilities(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
   const [iconData, setIconData]   = useState<string | undefined>(initial?.iconData);
   const [formErr, setFormErr]     = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -1023,8 +1027,7 @@ function CatalogModal({ mode, initial, onClose, onSave }: {
       setFormErr("请填写必填项"); return;
     }
     const category = types[0];
-    const capability = (category === "图片模型") ? "图生文" : "文生文";
-    const t1Map: Record<string, string> = { "通用大模型": "通用大模型", "嵌入模型": "向量模型", "图片模型": "图像模型", "重排模型": "推理模型", "语音识别模型": "推理模型", "语音合成模型": "推理模型" };
+    const t1Map: Record<string, string> = { "LLM": "通用大模型", "Embedding": "向量模型", "Image": "图像模型", "Reranker": "推理模型", "Speech-to-Text": "推理模型", "Text-to-Speech": "推理模型" };
     const result: ModelCard = {
       ...(initial ?? {}),
       id: initial?.id ?? `model-${Date.now()}`,
@@ -1033,7 +1036,7 @@ function CatalogModal({ mode, initial, onClose, onSave }: {
       size: size.trim(),
       category,
       types,
-      capability,
+      capabilities,
       weightPath: weightPath.trim(),
       imagePath: imagePath.trim(),
       iconData,
@@ -1114,6 +1117,20 @@ function CatalogModal({ mode, initial, onClose, onSave }: {
                   return (
                     <label key={c} style={{ position: "relative", cursor: isView ? "default" : "pointer" }}>
                       <input type="checkbox" checked={checked} disabled={isView} onChange={() => toggleType(c)} style={{ position: "absolute", opacity: 0, pointerEvents: "none" }} />
+                      <span style={{ minHeight: 36, padding: "7px 12px", display: "inline-flex", alignItems: "center", border: `1px solid ${checked ? "#7890f6" : "#d9e0ea"}`, borderRadius: 7, background: checked ? "#f0f4ff" : "#fff", color: checked ? "#3f5bd8" : "#596579", fontSize: 13, fontWeight: checked ? 650 : 400, boxShadow: checked ? "0 0 0 1px rgba(81,107,243,.06)" : "none" }}>{c}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+            <div style={{ ...fgSt, gridColumn: "1 / -1" }}>
+              <label style={labelSt}>能力<span style={{ color: "#929dad", fontSize: 11, fontWeight: 400, marginLeft: 6 }}>（非必填，可多选）</span></label>
+              <div className="flex flex-wrap" style={{ gap: 9 }}>
+                {CAPABILITY_OPTIONS.map(c => {
+                  const checked = capabilities.includes(c);
+                  return (
+                    <label key={c} style={{ position: "relative", cursor: isView ? "default" : "pointer" }}>
+                      <input type="checkbox" checked={checked} disabled={isView} onChange={() => toggleCapability(c)} style={{ position: "absolute", opacity: 0, pointerEvents: "none" }} />
                       <span style={{ minHeight: 36, padding: "7px 12px", display: "inline-flex", alignItems: "center", border: `1px solid ${checked ? "#7890f6" : "#d9e0ea"}`, borderRadius: 7, background: checked ? "#f0f4ff" : "#fff", color: checked ? "#3f5bd8" : "#596579", fontSize: 13, fontWeight: checked ? 650 : 400, boxShadow: checked ? "0 0 0 1px rgba(81,107,243,.06)" : "none" }}>{c}</span>
                     </label>
                   );

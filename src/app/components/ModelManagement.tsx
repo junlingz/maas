@@ -878,7 +878,7 @@ const CATALOG_MODELS: ModelCard[] = [
 
 const DEVELOPERS = ["智谱", "千问", "DeepSeek"];
 const CATEGORY_OPTIONS = ["LLM", "Embedding", "Reranker", "Image", "Text-to-Speech", "Speech-to-Text"];
-const CAPABILITY_OPTIONS = ["vision", "tool", "reasoning"];
+const CAPABILITY_OPTIONS = ["vision", "tools", "reasoning"];
 const IMAGE_OPTIONS = [
   "harbor.xxx.com/lm/vllm:v0.12.0",
   "harbor.xxx.com/lm/vllm:v0.11.0",

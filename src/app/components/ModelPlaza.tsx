@@ -1,11 +1,13 @@
 import { useState, useMemo } from "react";
-import { Search, RotateCcw, ArrowLeft, GitCompare, Copy, Check as CheckIcon } from "lucide-react";
+import { Search, RotateCcw, ArrowLeft, Copy, Check as CheckIcon, X } from "lucide-react";
+import { MODEL_CAPABILITIES, MODEL_CATEGORIES } from "../model-management/types";
+import type { DeploymentRecord, ModelRecord } from "../model-management/types";
 
 // ─── Filter data ──────────────────────────────────────────────────────────────
 
-const MODEL_TYPES = ["通用大模型", "预训练模型", "图像模型", "向量模型", "拟人模型", "代码模型", "推理模型"];
-const MODEL_CAPS  = ["文生文", "文生图", "图生文", "文生视频", "文生音频", "向量模型", "音频生文", "语音生语音"];
-const MODEL_VENDORS = ["智谱", "通义", "深度求索"];
+const MODEL_TYPES = [...MODEL_CATEGORIES];
+const MODEL_CAPS  = [...MODEL_CAPABILITIES];
+const MODEL_STATUS = ["未部署", "已部署"] as const;
 
 // ─── Vendor logos ─────────────────────────────────────────────────────────────
 
@@ -38,12 +40,18 @@ function VendorIcon({ vendor, size = 40 }: { vendor: string; size?: number }) {
 
 interface ModelCard {
   id: string;
+  modelId?: string;
+  deploymentId?: string;
   name: string;
   vendor: string;
   types: string[];     // 模型类型
   caps: string[];      // 模型能力
   paramSize: string;
   desc: string;
+  status: typeof MODEL_STATUS[number];
+  resourceGroup?: string;
+  deploymentStatus?: DeploymentRecord["status"];
+  sourceModel: ModelRecord;
 }
 
 const ALL_MODELS: ModelCard[] = [
@@ -198,6 +206,8 @@ const ALL_MODELS: ModelCard[] = [
 function TagBtn({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <button
+      className="notranslate"
+      translate="no"
       onClick={onClick}
       style={{
         fontSize: 12.5, fontWeight: active ? 500 : 400,
@@ -213,7 +223,14 @@ function TagBtn({ label, active, onClick }: { label: string; active: boolean; on
 
 // ─── Model card ───────────────────────────────────────────────────────────────
 
-function ModelCardItem({ model, onCardClick, onApiClick, onExperience }: { model: ModelCard; onCardClick: () => void; onApiClick: () => void; onExperience: () => void }) {
+function ModelCardItem({ model, onCardClick, onApiClick, onExperience, onDeploy, onTrain }: {
+  model: ModelCard;
+  onCardClick: () => void;
+  onApiClick: () => void;
+  onExperience: () => void;
+  onDeploy: () => void;
+  onTrain: () => void;
+}) {
   const tagColors: Record<string, { bg: string; text: string }> = {
     "通用大模型": { bg: "#eff4ff", text: "#4f6ef7" },
     "预训练模型": { bg: "#faf5ff", text: "#7c3aed" },
@@ -230,7 +247,17 @@ function ModelCardItem({ model, onCardClick, onApiClick, onExperience }: { model
     "向量模型能力": { bg: "#f0fdf4", text: "#15803d" },
     "音频生文":   { bg: "#fef9c3", text: "#854d0e" },
     "语音生语音": { bg: "#ecfeff", text: "#0e7490" },
+    "LLM": { bg: "#eff4ff", text: "#4f6ef7" },
+    "Embedding": { bg: "#f0fdf4", text: "#15803d" },
+    "Reranker": { bg: "#fff1f2", text: "#be123c" },
+    "Image": { bg: "#fff7ed", text: "#c2410c" },
+    "Text-to-Speech": { bg: "#f5f3ff", text: "#6d28d9" },
+    "Speech-to-Text": { bg: "#ecfeff", text: "#0e7490" },
+    "vision": { bg: "#eef6ff", text: "#1769dd" },
+    "tool": { bg: "#f0fdf4", text: "#15803d" },
+    "reasoning": { bg: "#fff7ed", text: "#c2410c" },
   };
+  const deployedStatusTone = { bg: "#f0faf5", text: "#16a34a", border: "#bbf7d0" };
 
   const allTags = [...model.types, ...model.caps, model.paramSize];
 
@@ -239,6 +266,7 @@ function ModelCardItem({ model, onCardClick, onApiClick, onExperience }: { model
       className="flex flex-col rounded-xl"
       style={{
         background: "#fff", border: "1px solid #e8ebf2",
+        width: "100%", minWidth: 0,
         padding: "16px 18px 14px", transition: "box-shadow 0.2s, border-color 0.2s", cursor: "pointer",
       }}
       onClick={onCardClick}
@@ -252,12 +280,17 @@ function ModelCardItem({ model, onCardClick, onApiClick, onExperience }: { model
       }}
     >
       {/* Header */}
-      <div className="flex items-center gap-3 mb-3">
+      <div className="flex items-start gap-3 mb-3">
         <VendorIcon vendor={model.vendor} size={40} />
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#1a1d23", lineHeight: 1.3 }}>{model.name}</div>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div title={model.name} style={{ fontSize: 15, fontWeight: 700, color: "#1a1d23", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{model.name}</div>
           <div style={{ fontSize: 11.5, color: "#9ca3af", marginTop: 1 }}>{model.vendor}</div>
         </div>
+        {model.status === "已部署" && (
+          <span style={{ fontSize: 12, fontWeight: 650, padding: "3px 9px", borderRadius: 14, background: deployedStatusTone.bg, color: deployedStatusTone.text, border: `1px solid ${deployedStatusTone.border}`, whiteSpace: "nowrap" }}>
+            {model.status}
+          </span>
+        )}
       </div>
 
       {/* Tags */}
@@ -265,7 +298,7 @@ function ModelCardItem({ model, onCardClick, onApiClick, onExperience }: { model
         {allTags.map((tag, i) => {
           const tc = tagColors[tag] ?? { bg: "#f3f4f6", text: "#6b7280" };
           return (
-            <span key={`${tag}-${i}`} style={{
+            <span key={`${tag}-${i}`} className="notranslate" translate="no" style={{
               fontSize: 11.5, fontWeight: 500, padding: "2px 8px", borderRadius: 4,
               background: tc.bg, color: tc.text,
             }}>{tag}</span>
@@ -282,27 +315,48 @@ function ModelCardItem({ model, onCardClick, onApiClick, onExperience }: { model
         {model.desc}
       </div>
 
-      {/* Footer */}
-      <div className="flex items-center gap-2 mt-4 pt-3" style={{ borderTop: "1px solid #f0f2f7" }}
-        onClick={e => e.stopPropagation()}>
-        <button onClick={onApiClick} style={{
-          flex: 1, fontSize: 13, fontWeight: 500, color: "#4f6ef7",
-          background: "#fff", border: "1px solid #4f6ef7",
-          borderRadius: 7, padding: "7px 0", cursor: "pointer", transition: "background 0.15s",
-        }}
-          onMouseEnter={e => (e.currentTarget.style.background = "#f5f8ff")}
-          onMouseLeave={e => (e.currentTarget.style.background = "#fff")}
-        >API说明</button>
-        <button style={{
-          flex: 1, fontSize: 13, fontWeight: 500, color: "#fff",
-          background: "#4f6ef7", border: "none",
-          borderRadius: 7, padding: "7px 0", cursor: "pointer", transition: "background 0.15s",
-        }}
-          onMouseEnter={e => (e.currentTarget.style.background = "#3b5de8")}
-          onMouseLeave={e => (e.currentTarget.style.background = "#4f6ef7")}
-          onClick={onExperience}
-        >立即体验</button>
-      </div>
+      {model.status === "已部署" && (
+        <div className="flex items-center gap-2 mt-4 pt-3" style={{ borderTop: "1px solid #f0f2f7" }}
+          onClick={e => e.stopPropagation()}>
+          <button onClick={onExperience} style={{
+            flex: 1, fontSize: 13, fontWeight: 500, color: "#fff",
+            background: "#4f6ef7", border: "none",
+            borderRadius: 7, padding: "7px 0", cursor: "pointer", transition: "background 0.15s",
+          }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#3b5de8")}
+            onMouseLeave={e => (e.currentTarget.style.background = "#4f6ef7")}
+          >去体验</button>
+          <button onClick={onTrain} style={{
+            flex: 1, fontSize: 13, fontWeight: 500, color: "#4f6ef7",
+            background: "#fff", border: "1px solid #4f6ef7",
+            borderRadius: 7, padding: "7px 0", cursor: "pointer", transition: "background 0.15s",
+          }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#f5f8ff")}
+            onMouseLeave={e => (e.currentTarget.style.background = "#fff")}
+          >去训练</button>
+          <button onClick={onApiClick} style={{
+            flex: 1, fontSize: 13, fontWeight: 500, color: "#4f6ef7",
+            background: "#fff", border: "1px solid #4f6ef7",
+            borderRadius: 7, padding: "7px 0", cursor: "pointer", transition: "background 0.15s",
+          }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#f5f8ff")}
+            onMouseLeave={e => (e.currentTarget.style.background = "#fff")}
+          >API接入</button>
+        </div>
+      )}
+      {model.status === "未部署" && (
+        <div className="flex items-center justify-end gap-2 mt-4 pt-3" style={{ borderTop: "1px solid #f0f2f7" }}
+          onClick={e => e.stopPropagation()}>
+          <button onClick={onDeploy} style={{
+            minWidth: 86, fontSize: 13, fontWeight: 500, color: "#fff",
+            background: "#4f6ef7", border: "none",
+            borderRadius: 7, padding: "7px 0", cursor: "pointer", transition: "background 0.15s",
+          }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#3b5de8")}
+            onMouseLeave={e => (e.currentTarget.style.background = "#4f6ef7")}
+          >去部署</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -384,9 +438,13 @@ function Tag({ children, variant = "blue" }: { children: React.ReactNode; varian
   );
 }
 
-const CURL_TEMPLATE = (modelKey: string) => `curl http://maas-front-prod.zhipuaidemo.cn/v1/chat/completions \\
+const API_BASE_URL = "http://maas-front-prod.zhipuaidemo.cn";
+const API_PATH = "/v1/chat/completions";
+const API_KEY_PLACEHOLDER = "maas_api_key_xxxxx";
+
+const CURL_TEMPLATE = (endpoint: string, modelKey: string) => `curl ${endpoint} \\
   -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer xxxxx" \\
+  -H "Authorization: Bearer ${API_KEY_PLACEHOLDER}" \\
   -d '{
     "model": "${modelKey}",
     "messages": [
@@ -398,12 +456,27 @@ const CURL_TEMPLATE = (modelKey: string) => `curl http://maas-front-prod.zhipuai
     "max_tokens": 2048
   }'`;
 
+const API_ACCESS_NOTES = [
+  "请求地址来自平台推理网关，模型部署成功后会开放到该网关进行路由调用。",
+  "Model Key 绑定当前部署服务，调用时填写在请求体 model 字段，不使用模型库原始模型 ID。",
+  "Authorization 使用平台签发的 API Key，API Key 通常在访问凭证或用户密钥管理中创建。",
+];
+
+const API_SECTION_LINKS = [
+  { id: "api-basic-info", label: "接口基础信息" },
+  { id: "api-curl-example", label: "CURL 调用示例" },
+  { id: "api-request-params", label: "核心请求参数" },
+  { id: "api-response-fields", label: "返回结果字段" },
+];
+
 const REQUEST_PARAMS = [
-  { name: "model",       type: "string",  required: true,  desc: (key: string) => <>模型标识，固定值"<span style={{ color: "#4f6ef7", fontFamily: "monospace" }}>{key}</span>"</> },
-  { name: "messages",    type: "array",   required: true,  desc: () => <>对话历史，每项包含 role（system/user/assistant）与 content</> },
-  { name: "temperature", type: "float",   required: false, desc: () => <>生成随机性，取值范围 0–1，默认 0.7；值越高输出越发散，越低越精准稳定</> },
+  { name: "model",       type: "string",  required: true,  desc: (key: string) => <>填写当前部署服务的 Model Key：<span style={{ color: "#4f6ef7", fontFamily: "monospace" }}>{key}</span></> },
+  { name: "messages",    type: "array",   required: true,  desc: () => <>对话消息列表，每项包含 role 与 content；role 支持 system、user、assistant</> },
+  { name: "temperature", type: "float",   required: false, desc: () => <>采样温度，取值范围 0–1，默认 0.7；值越高输出越发散，越低越稳定</> },
+  { name: "top_p",       type: "float",   required: false, desc: () => <>核采样参数，取值范围 0–1；一般与 temperature 二选一调节</> },
   { name: "stream",      type: "boolean", required: false, desc: () => <>是否开启 SSE 流式返回，默认 true；开启后以数据流形式分段返回结果</> },
-  { name: "max_tokens",  type: "integer", required: false, desc: () => <>模型最大生成 token 数，不填则使用模型默认上限</> },
+  { name: "max_tokens",  type: "integer", required: false, desc: () => <>本次请求最大生成 token 数，不填则使用部署服务默认上限</> },
+  { name: "tools",       type: "array",   required: false, desc: () => <>工具调用配置；模型能力包含 tool 时可传入函数工具定义</> },
 ];
 
 const RETURN_FIELDS = [
@@ -411,20 +484,46 @@ const RETURN_FIELDS = [
   { name: "object",                   type: "string",  desc: '对象类型，固定值 "chat.completion"' },
   { name: "created",                  type: "integer", desc: "请求创建时间（Unix 时间戳）" },
   { name: "model",                    type: "string",  desc: "本次使用的模型标识" },
-  { name: "choices",                  type: "array",   desc: "模型生成的内容列表" },
-  { name: "choices[].message",        type: "object",  desc: "生成消息，包含 role 与 content 字段" },
+  { name: "choices",                  type: "array",   desc: "模型生成结果列表" },
+  { name: "choices[].message.role",   type: "string",  desc: "生成消息角色，通常为 assistant" },
+  { name: "choices[].message.content", type: "string", desc: "模型生成的文本内容" },
+  { name: "choices[].delta",          type: "object",  desc: "流式返回时的增量内容片段" },
   { name: "choices[].finish_reason",  type: "string",  desc: '结束原因，stop / length / tool_calls' },
   { name: "usage",                    type: "object",  desc: "Token 用量统计" },
   { name: "usage.prompt_tokens",      type: "integer", desc: "输入 token 数" },
   { name: "usage.completion_tokens",  type: "integer", desc: "输出 token 数" },
   { name: "usage.total_tokens",       type: "integer", desc: "总 token 数" },
+  { name: "error.code",               type: "string",  desc: "调用失败时返回的错误码" },
+  { name: "error.message",            type: "string",  desc: "调用失败时返回的错误说明" },
 ];
 
 function ApiTabContent({ model }: { model: ModelCard }) {
-  const modelKey = `${model.id}:10042:1781192133306`;
-  const endpoint = "http://maas-front-prod.zhipuaidemo.cn/v1/chat/completions";
-  const headerText = "Authorization: Bearer xxxxx\nContent-Type: application/json";
-  const curlCode = CURL_TEMPLATE(modelKey);
+  const deploymentKey = model.deploymentId ? `deployment-${model.deploymentId}` : model.id;
+  const modelKey = `${deploymentKey}:10042:${model.sourceModel.id}`;
+  const endpoint = `${API_BASE_URL}${API_PATH}`;
+  const headerText = `Authorization: Bearer ${API_KEY_PLACEHOLDER}\nContent-Type: application/json`;
+  const curlCode = CURL_TEMPLATE(endpoint, modelKey);
+  const responseExample = `{
+  "id": "chatcmpl-7f5a2d91",
+  "object": "chat.completion",
+  "created": 1781192133,
+  "model": "${modelKey}",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "你好，我是当前部署模型的智能助手。"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 24,
+    "completion_tokens": 18,
+    "total_tokens": 42
+  }
+}`;
   const [copiedCurl, setCopiedCurl] = useState(false);
 
   const copyCurl = () => {
@@ -435,13 +534,28 @@ function ApiTabContent({ model }: { model: ModelCard }) {
 
   const thSt: React.CSSProperties = { padding: "10px 16px", textAlign: "left", fontSize: 12.5, fontWeight: 500, color: "#9ca3af", borderBottom: "1px solid #f0f2f7", whiteSpace: "nowrap" };
   const tdSt: React.CSSProperties = { padding: "12px 16px", fontSize: 13, borderBottom: "1px solid #f5f7fa", verticalAlign: "top" };
+  const jumpToSection = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 22, paddingBottom: 24 }}>
+      <div className="flex flex-wrap items-center gap-2" style={{ position: "sticky", top: -24, zIndex: 5, margin: "-24px -24px 0", padding: "12px 24px", borderBottom: "1px solid #e8ebf2", background: "#fff" }}>
+        <span style={{ fontSize: 12.5, color: "#8b95a7", marginRight: 4 }}>本页包含</span>
+        {API_SECTION_LINKS.map(item => (
+          <button key={item.id} type="button" onClick={() => jumpToSection(item.id)}
+            style={{ height: 28, padding: "0 11px", border: "1px solid #d8e3ff", borderRadius: 6, background: "#fff", color: "#4f6ef7", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+            {item.label}
+          </button>
+        ))}
+      </div>
 
       {/* ① 接口基础信息区 */}
-      <div>
+      <div id="api-basic-info" style={{ scrollMarginTop: 56 }}>
         <SectionTitle>接口基础信息</SectionTitle>
+        <div style={{ marginBottom: 10, padding: "8px 12px", border: "1px solid #d8e3ff", borderRadius: 8, background: "#f6f9ff" }}>
+          {API_ACCESS_NOTES.map(note => (
+            <div key={note} style={{ fontSize: 12.5, color: "#4b5563", lineHeight: 1.65 }}>{note}</div>
+          ))}
+        </div>
         <div style={{ border: "1px solid #e8ebf2", borderRadius: 10, overflow: "hidden", padding: "0 16px" }}>
           <InfoRow label="请求地址" copyText={endpoint}>
             <span style={{ fontFamily: "monospace", fontSize: 13, color: "#1a1d23" }}>{endpoint}</span>
@@ -449,9 +563,9 @@ function ApiTabContent({ model }: { model: ModelCard }) {
           <InfoRow label="请求方式">
             <Tag variant="blue">POST</Tag>
           </InfoRow>
-          <InfoRow label="请求Header" copyText={headerText}>
+          <InfoRow label="Header / 鉴权" copyText={headerText}>
             <div style={{ fontFamily: "monospace", fontSize: 12.5, color: "#374151", lineHeight: 1.8 }}>
-              <div>Authorization: Bearer xxxxx</div>
+              <div>Authorization: Bearer {API_KEY_PLACEHOLDER}</div>
               <div>Content-Type: application/json</div>
             </div>
           </InfoRow>
@@ -459,7 +573,10 @@ function ApiTabContent({ model }: { model: ModelCard }) {
             <span style={{ fontFamily: "monospace", fontSize: 12.5, background: "#f0f4ff", color: "#4f6ef7", padding: "3px 10px", borderRadius: 5, border: "1px solid #c7d9ff", display: "inline-block" }}>{modelKey}</span>
           </InfoRow>
           <InfoRow label="调用方式">
-            <Tag variant="blue">SSE流式调用</Tag>
+            <div className="flex items-center gap-2">
+              <Tag variant="blue">OpenAI Compatible</Tag>
+              <Tag variant="blue">SSE流式调用</Tag>
+            </div>
           </InfoRow>
           <InfoRow label="支持特性">
             <div className="flex items-center gap-2">
@@ -471,7 +588,7 @@ function ApiTabContent({ model }: { model: ModelCard }) {
       </div>
 
       {/* ② CURL调用示例 */}
-      <div>
+      <div id="api-curl-example" style={{ scrollMarginTop: 56 }}>
         <SectionTitle>CURL 调用示例</SectionTitle>
         <div style={{ background: "#1a1d2e", borderRadius: 10, overflow: "hidden" }}>
           <div className="flex items-center justify-between" style={{ padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
@@ -496,7 +613,7 @@ function ApiTabContent({ model }: { model: ModelCard }) {
       </div>
 
       {/* ③ 核心请求参数说明 */}
-      <div>
+      <div id="api-request-params" style={{ scrollMarginTop: 56 }}>
         <SectionTitle>核心请求参数说明</SectionTitle>
         <div style={{ border: "1px solid #e8ebf2", borderRadius: 10, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -523,8 +640,12 @@ function ApiTabContent({ model }: { model: ModelCard }) {
       </div>
 
       {/* ④ 返回结果与字段说明 */}
-      <div>
+      <div id="api-response-fields" style={{ scrollMarginTop: 56 }}>
         <SectionTitle>返回结果与字段说明</SectionTitle>
+        <div style={{ marginBottom: 14, background: "#1a1d2e", borderRadius: 10, overflow: "hidden" }}>
+          <div style={{ padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: "monospace" }}>response.json</div>
+          <pre style={{ margin: 0, padding: "16px 20px", fontSize: 12.5, color: "#e2e8f0", fontFamily: "'JetBrains Mono', 'Fira Code', monospace", lineHeight: 1.8, whiteSpace: "pre-wrap", overflowX: "auto" }}>{responseExample}</pre>
+        </div>
         <div style={{ border: "1px solid #e8ebf2", borderRadius: 10, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
@@ -551,8 +672,10 @@ function ApiTabContent({ model }: { model: ModelCard }) {
   );
 }
 
-function ModelDetailPage({ model, onBack, initialTab = "intro", onExperience }: { model: ModelCard; onBack: () => void; initialTab?: "intro" | "api"; onExperience?: () => void }) {
-  const [tab, setTab] = useState<"intro" | "api">(initialTab);
+function ModelDetailPage({ model, onBack, initialTab = "intro", onExperience, onDeploy, onTrain }: { model: ModelCard; onBack: () => void; initialTab?: "intro" | "api"; onExperience?: () => void; onDeploy?: () => void; onTrain?: () => void }) {
+  const canUseApi = model.status === "已部署";
+  const detailTabs = canUseApi ? (["intro", "api"] as const) : (["intro"] as const);
+  const [tab, setTab] = useState<"intro" | "api">(canUseApi ? initialTab : "intro");
   const detail = MODEL_DETAIL[model.id] ?? DEFAULT_DETAIL;
 
   const tagColors: Record<string, { bg: string; text: string }> = {
@@ -574,7 +697,7 @@ function ModelDetailPage({ model, onBack, initialTab = "intro", onExperience }: 
   const allTags = [...model.types, ...model.caps, model.paramSize];
 
   return (
-    <div className="flex flex-col h-full overflow-auto" style={{ background: "#f5f7fa", padding: "20px 24px 32px" }}>
+    <div className="flex flex-col h-full overflow-hidden" style={{ background: "#f5f7fa", padding: "20px 24px 32px" }}>
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 flex-shrink-0" style={{ marginBottom: 16, fontSize: 13, color: "#6b7280" }}>
         <button onClick={onBack} className="flex items-center gap-1.5"
@@ -588,7 +711,7 @@ function ModelDetailPage({ model, onBack, initialTab = "intro", onExperience }: 
       {/* Header card */}
       <div style={{ background: "#fff", border: "1px solid #e8ebf2", borderRadius: 12, padding: "20px 24px", marginBottom: 16 }}>
         <div className="flex items-start justify-between gap-4">
-          {/* Left: logo + name + tags + desc */}
+          {/* Left: logo + name + tags */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-3">
               <VendorIcon vendor={model.vendor} size={44} />
@@ -602,47 +725,62 @@ function ModelDetailPage({ model, onBack, initialTab = "intro", onExperience }: 
               {allTags.map((tag, i) => {
                 const tc = tagColors[tag] ?? { bg: "#f3f4f6", text: "#6b7280" };
                 return (
-                  <span key={`${tag}-${i}`} style={{ fontSize: 12, fontWeight: 500, padding: "3px 10px", borderRadius: 5, background: tc.bg, color: tc.text }}>
+                  <span key={`${tag}-${i}`} className="notranslate" translate="no" style={{ fontSize: 12, fontWeight: 500, padding: "3px 10px", borderRadius: 5, background: tc.bg, color: tc.text }}>
                     {tag}
                   </span>
                 );
               })}
             </div>
-            {/* Description */}
-            <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.8 }}>{model.desc}</div>
           </div>
 
-          {/* Right: buttons */}
-          <div className="flex items-center gap-2 flex-shrink-0" style={{ paddingTop: 4 }}>
-            <button style={{
-              display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500,
-              color: "#374151", background: "#fff", border: "1px solid #e0e3ed",
-              borderRadius: 8, padding: "8px 16px", cursor: "pointer",
-            }}
-              onMouseEnter={e => (e.currentTarget.style.background = "#f8f9fc")}
-              onMouseLeave={e => (e.currentTarget.style.background = "#fff")}
-            >
-              <GitCompare size={14} /> 模型对比
-            </button>
-            <button style={{
-              display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500,
-              color: "#fff", background: "#4f6ef7", border: "none",
-              borderRadius: 8, padding: "8px 20px", cursor: "pointer",
-            }}
-              onMouseEnter={e => (e.currentTarget.style.background = "#3b5de8")}
-              onMouseLeave={e => (e.currentTarget.style.background = "#4f6ef7")}
-              onClick={onExperience}
-            >
-              立即体验
-            </button>
-          </div>
+          {model.status === "已部署" && (
+            <div className="flex items-center gap-2 flex-shrink-0" style={{ paddingTop: 4 }}>
+              <button style={{
+                display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500,
+                color: "#fff", background: "#4f6ef7", border: "none",
+                borderRadius: 8, padding: "8px 20px", cursor: "pointer",
+              }}
+                onMouseEnter={e => (e.currentTarget.style.background = "#3b5de8")}
+                onMouseLeave={e => (e.currentTarget.style.background = "#4f6ef7")}
+                onClick={onExperience}
+              >
+                立即体验
+              </button>
+              <button style={{
+                display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500,
+                color: "#4f6ef7", background: "#fff", border: "1px solid #4f6ef7",
+                borderRadius: 8, padding: "8px 20px", cursor: "pointer",
+              }}
+                onMouseEnter={e => (e.currentTarget.style.background = "#f5f8ff")}
+                onMouseLeave={e => (e.currentTarget.style.background = "#fff")}
+                onClick={onTrain}
+              >
+                去训练
+              </button>
+            </div>
+          )}
+          {model.status === "未部署" && (
+            <div className="flex items-center gap-2 flex-shrink-0" style={{ paddingTop: 4 }}>
+              <button style={{
+                display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500,
+                color: "#fff", background: "#4f6ef7", border: "none",
+                borderRadius: 8, padding: "8px 20px", cursor: "pointer",
+              }}
+                onMouseEnter={e => (e.currentTarget.style.background = "#3b5de8")}
+                onMouseLeave={e => (e.currentTarget.style.background = "#4f6ef7")}
+                onClick={onDeploy}
+              >
+                去部署
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Tab bar */}
-      <div style={{ background: "#fff", border: "1px solid #e8ebf2", borderRadius: 12, overflow: "hidden" }}>
-        <div className="flex" style={{ borderBottom: "1px solid #f0f2f7" }}>
-          {(["intro", "api"] as const).map(t => (
+      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "#fff", border: "1px solid #e8ebf2", borderRadius: 12, overflow: "hidden" }}>
+        <div className="flex" style={{ flexShrink: 0, borderBottom: "1px solid #f0f2f7" }}>
+          {detailTabs.map(t => (
             <button key={t} onClick={() => setTab(t)} style={{
               padding: "13px 24px", fontSize: 14, fontWeight: tab === t ? 600 : 400,
               color: tab === t ? "#4f6ef7" : "#6b7280",
@@ -656,8 +794,8 @@ function ModelDetailPage({ model, onBack, initialTab = "intro", onExperience }: 
         </div>
 
         {/* Tab content */}
-        <div style={{ padding: "24px" }}>
-          {tab === "intro" ? (
+        <div style={{ flex: 1, minHeight: 0, padding: "24px", overflowY: "auto", overscrollBehavior: "contain" }}>
+          {tab === "intro" || !canUseApi ? (
             <div>
               <p style={{ fontSize: 13.5, color: "#374151", lineHeight: 1.9, marginBottom: 20 }}>
                 {detail.intro}
@@ -682,14 +820,64 @@ function ModelDetailPage({ model, onBack, initialTab = "intro", onExperience }: 
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-export function ModelPlazaPage({ onExperience }: { onExperience?: () => void }) {
+interface ModelPlazaPageProps {
+  models: ModelRecord[];
+  deployments: DeploymentRecord[];
+  onDeploy?: (model: ModelRecord) => void;
+  onExperience?: (modelName: string) => void;
+  onTrain?: (model: ModelRecord) => void;
+}
+
+function toCardBase(model: ModelRecord) {
+  return {
+    modelId: model.id,
+    vendor: model.developer,
+    types: [model.category],
+    caps: model.capabilities,
+    paramSize: `${model.paramSize}B`,
+    desc: model.description || `${model.name} 模型说明。`,
+    sourceModel: model,
+  };
+}
+
+export function ModelPlazaPage({ models, deployments, onDeploy, onExperience, onTrain }: ModelPlazaPageProps) {
   const [selTypes, setSelTypes]   = useState<Set<string>>(new Set());
   const [selCaps, setSelCaps]     = useState<Set<string>>(new Set());
   const [selVendors, setSelVendors] = useState<Set<string>>(new Set());
+  const [selStatus, setSelStatus] = useState<Set<string>>(new Set());
   const [searchText, setSearchText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [detailModel, setDetailModel] = useState<ModelCard | null>(null);
   const [detailTab, setDetailTab] = useState<"intro" | "api">("intro");
+
+  const plazaModels = useMemo<ModelCard[]>(() => {
+    const modelById = new Map(models.map(model => [model.id, model]));
+    const deployedModelIds = new Set(deployments.map(deployment => deployment.modelId));
+    const deployedCards = deployments.flatMap(deployment => {
+      const model = modelById.get(deployment.modelId);
+      if (!model) return [];
+      return [{
+        ...toCardBase(model),
+        id: `deployment-${deployment.id}`,
+        deploymentId: deployment.id,
+        name: deployment.name,
+        status: "已部署" as const,
+        resourceGroup: deployment.resourceGroup,
+        deploymentStatus: deployment.status,
+      }];
+    });
+    const undeployedCards = models
+      .filter(model => !deployedModelIds.has(model.id))
+      .map(model => ({
+        ...toCardBase(model),
+        id: `model-${model.id}`,
+        name: model.name,
+        status: "未部署" as const,
+      }));
+    return [...undeployedCards, ...deployedCards];
+  }, [models, deployments]);
+
+  const modelVendors = useMemo(() => Array.from(new Set(plazaModels.map(model => model.vendor))).filter(Boolean), [plazaModels]);
 
   const toggle = (set: Set<string>, setFn: (s: Set<string>) => void, val: string) => {
     const next = new Set(set);
@@ -701,24 +889,26 @@ export function ModelPlazaPage({ onExperience }: { onExperience?: () => void }) 
     setSelTypes(new Set());
     setSelCaps(new Set());
     setSelVendors(new Set());
+    setSelStatus(new Set());
     setSearchText("");
     setSearchQuery("");
   };
 
   const filtered = useMemo(() => {
-    return ALL_MODELS.filter(m => {
+    return plazaModels.filter(m => {
       if (selTypes.size > 0 && !m.types.some(t => selTypes.has(t))) return false;
       if (selCaps.size > 0 && !m.caps.some(c => selCaps.has(c))) return false;
       if (selVendors.size > 0 && !selVendors.has(m.vendor)) return false;
+      if (selStatus.size > 0 && !selStatus.has(m.status)) return false;
       if (searchQuery && !m.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       return true;
     });
-  }, [selTypes, selCaps, selVendors, searchQuery]);
+  }, [plazaModels, selTypes, selCaps, selVendors, selStatus, searchQuery]);
 
-  const hasFilter = selTypes.size > 0 || selCaps.size > 0 || selVendors.size > 0 || searchQuery;
+  const hasFilter = selTypes.size > 0 || selCaps.size > 0 || selVendors.size > 0 || selStatus.size > 0 || searchQuery;
 
   if (detailModel) {
-    return <ModelDetailPage model={detailModel} initialTab={detailTab} onBack={() => { setDetailModel(null); setDetailTab("intro"); }} onExperience={onExperience} />;
+    return <ModelDetailPage model={detailModel} initialTab={detailTab} onBack={() => { setDetailModel(null); setDetailTab("intro"); }} onExperience={() => onExperience?.(detailModel.sourceModel.name)} onDeploy={() => onDeploy?.(detailModel.sourceModel)} onTrain={() => onTrain?.(detailModel.sourceModel)} />;
   }
 
   return (
@@ -747,9 +937,19 @@ export function ModelPlazaPage({ onExperience }: { onExperience?: () => void }) 
           <RotateCcw size={14} color={hasFilter ? "#f97316" : "#9ca3af"} />
         </button>
 
-        {/* 模型类型 */}
+        {/* 状态 */}
         <div className="flex items-center gap-2 mb-2.5">
-          <span style={{ fontSize: 13, fontWeight: 500, color: "#374151", width: 56, flexShrink: 0 }}>模型类型</span>
+          <span style={{ fontSize: 13, fontWeight: 500, color: "#374151", width: 56, flexShrink: 0 }}>状态</span>
+          <div className="flex flex-wrap gap-1.5">
+            {MODEL_STATUS.map(s => (
+              <TagBtn key={s} label={s} active={selStatus.has(s)} onClick={() => toggle(selStatus, setSelStatus, s)} />
+            ))}
+          </div>
+        </div>
+
+        {/* 模型分类 */}
+        <div className="flex items-center gap-2 mb-2.5">
+          <span style={{ fontSize: 13, fontWeight: 500, color: "#374151", width: 56, flexShrink: 0 }}>模型分类</span>
           <div className="flex flex-wrap gap-1.5">
             {MODEL_TYPES.map(t => (
               <TagBtn key={t} label={t} active={selTypes.has(t)} onClick={() => toggle(selTypes, setSelTypes, t)} />
@@ -771,7 +971,7 @@ export function ModelPlazaPage({ onExperience }: { onExperience?: () => void }) 
         <div className="flex items-center gap-2">
           <span style={{ fontSize: 13, fontWeight: 500, color: "#374151", width: 56, flexShrink: 0 }}>模型厂商</span>
           <div className="flex flex-wrap gap-1.5">
-            {MODEL_VENDORS.map(v => (
+            {modelVendors.map(v => (
               <TagBtn key={v} label={v} active={selVendors.has(v)} onClick={() => toggle(selVendors, setSelVendors, v)} />
             ))}
           </div>
@@ -788,8 +988,18 @@ export function ModelPlazaPage({ onExperience }: { onExperience?: () => void }) 
             value={searchText}
             onChange={e => setSearchText(e.target.value)}
             onKeyDown={e => e.key === "Enter" && setSearchQuery(searchText)}
-            style={{ fontSize: 13, border: "none", outline: "none", background: "transparent", width: "100%", color: "#1a1d23" }}
+            style={{ fontSize: 13, border: "none", outline: "none", background: "transparent", flex: 1, minWidth: 0, color: "#1a1d23" }}
           />
+          {(searchText || searchQuery) && (
+            <button
+              type="button"
+              aria-label="清空搜索词"
+              onClick={() => { setSearchText(""); setSearchQuery(""); }}
+              style={{ width: 20, height: 20, padding: 0, border: 0, borderRadius: "50%", background: "#c5c9d0", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+            >
+              <X size={12} />
+            </button>
+          )}
         </div>
         <button
           onClick={() => setSearchQuery(searchText)}
@@ -819,14 +1029,16 @@ export function ModelPlazaPage({ onExperience }: { onExperience?: () => void }) 
           <div style={{ fontSize: 12.5, marginTop: 4 }}>请调整筛选条件或搜索关键词</div>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16 }}>
           {filtered.map(m => (
             <ModelCardItem
               key={m.id}
               model={m}
               onCardClick={() => { setDetailTab("intro"); setDetailModel(m); }}
               onApiClick={() => { setDetailTab("api"); setDetailModel(m); }}
-              onExperience={onExperience}
+              onExperience={() => onExperience?.(m.sourceModel.name)}
+              onDeploy={() => onDeploy?.(m.sourceModel)}
+              onTrain={() => onTrain?.(m.sourceModel)}
             />
           ))}
         </div>

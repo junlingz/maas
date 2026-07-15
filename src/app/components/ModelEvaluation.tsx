@@ -41,7 +41,7 @@ const makeChartData = (task: EvalTask) => task.datasets.map(ds => ({
 
 // ─── Create Task Drawer ────────────────────────────────────────────────────────
 
-function CreateDrawer({ onClose, onDone }: { onClose: () => void; onDone: (t: Omit<EvalTask, "id" | "updatedAt">) => void }) {
+function CreateDrawer({ initialModel, onClose, onDone }: { initialModel?: string | null; onClose: () => void; onDone: (t: Omit<EvalTask, "id" | "updatedAt">) => void }) {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
   const defaultName = `eval_${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}`;
@@ -49,7 +49,7 @@ function CreateDrawer({ onClose, onDone }: { onClose: () => void; onDone: (t: Om
   const [name, setName]           = useState(defaultName);
   const [desc, setDesc]           = useState("");
   const [modelType, setModelType] = useState("文生文");
-  const [evalModels, setEvalModels] = useState<string[]>([]);
+  const [evalModels, setEvalModels] = useState<string[]>(initialModel ? [initialModel] : []);
   const [dataMode, setDataMode]   = useState<"preset" | "user">("preset");
   const [datasets, setDatasets]   = useState<string[]>([]);
   const [modelOpen, setModelOpen] = useState(false);
@@ -57,6 +57,9 @@ function CreateDrawer({ onClose, onDone }: { onClose: () => void; onDone: (t: Om
   const [errors, setErrors]       = useState<Record<string, boolean>>({});
   const modelRef = useRef<HTMLDivElement>(null);
   const dataRef  = useRef<HTMLDivElement>(null);
+  const modelOptions = initialModel && !MODEL_OPTS.includes(initialModel)
+    ? [initialModel, ...MODEL_OPTS]
+    : MODEL_OPTS;
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -157,7 +160,7 @@ function CreateDrawer({ onClose, onDone }: { onClose: () => void; onDone: (t: Om
               </div>
               {modelOpen && (
                 <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, width: "100%", background: "#fff", border: "1px solid #e0e3ed", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", zIndex: 10, maxHeight: 200, overflowY: "auto" }}>
-                  {MODEL_OPTS.map(m => (
+                  {modelOptions.map(m => (
                     <div key={m} onClick={() => toggleModel(m)} className="flex items-center gap-2"
                       style={{ padding: "9px 12px", fontSize: 13, cursor: "pointer", background: evalModels.includes(m) ? "#f5f8ff" : "#fff", color: evalModels.includes(m) ? "#4f6ef7" : "#374151" }}
                       onMouseEnter={e => { if (!evalModels.includes(m)) (e.currentTarget as HTMLDivElement).style.background = "#f8f9fc"; }}
@@ -348,7 +351,7 @@ function DeleteModal({ task, onClose, onConfirm }: { task: EvalTask; onClose: ()
 
 // ─── Main page ─────────────────────────────────────────────────────────────────
 
-export function ModelEvaluationPage() {
+export function ModelEvaluationPage({ initialModel, onInitialModelConsumed }: { initialModel?: string | null; onInitialModelConsumed?: () => void }) {
   const [tasks, setTasks]           = useState<EvalTask[]>(TASKS_INIT);
   const [methodFilter, setMethodFilter] = useState("");
   const [nameInput, setNameInput]   = useState("");
@@ -356,8 +359,16 @@ export function ModelEvaluationPage() {
   const [nameQuery, setNameQuery]   = useState("");
   const [page, setPage]             = useState(1);
   const [showCreate, setShowCreate] = useState(false);
+  const [createInitialModel, setCreateInitialModel] = useState<string | null>(null);
   const [viewTask, setViewTask]     = useState<EvalTask | null>(null);
   const [deleteTask, setDeleteTask] = useState<EvalTask | null>(null);
+
+  useEffect(() => {
+    if (!initialModel) return;
+    setCreateInitialModel(initialModel);
+    setShowCreate(true);
+    onInitialModelConsumed?.();
+  }, [initialModel, onInitialModelConsumed]);
 
   const PAGE_SIZE = 10;
   const filtered = tasks.filter(t => {
@@ -427,7 +438,7 @@ export function ModelEvaluationPage() {
               <RotateCcw size={13} /> 重置
             </button>
           </div>
-          <button onClick={() => setShowCreate(true)} style={{ display: "flex", alignItems: "center", gap: 6, height: 34, padding: "0 14px", fontSize: 13, fontWeight: 500, color: "#fff", background: "#4f6ef7", border: "none", borderRadius: 6, cursor: "pointer" }}
+          <button onClick={() => { setCreateInitialModel(null); setShowCreate(true); }} style={{ display: "flex", alignItems: "center", gap: 6, height: 34, padding: "0 14px", fontSize: 13, fontWeight: 500, color: "#fff", background: "#4f6ef7", border: "none", borderRadius: 6, cursor: "pointer" }}
             onMouseEnter={e => (e.currentTarget.style.background = "#3b5de8")}
             onMouseLeave={e => (e.currentTarget.style.background = "#4f6ef7")}>
             <Plus size={14} /> 创建评测任务
@@ -517,7 +528,7 @@ export function ModelEvaluationPage() {
         </div>
       </div>
 
-      {showCreate && <CreateDrawer onClose={() => setShowCreate(false)} onDone={handleCreate} />}
+      {showCreate && <CreateDrawer initialModel={createInitialModel} onClose={() => setShowCreate(false)} onDone={handleCreate} />}
       {viewTask   && <DetailDrawer task={viewTask} onClose={() => setViewTask(null)} />}
       {deleteTask && <DeleteModal  task={deleteTask} onClose={() => setDeleteTask(null)} onConfirm={() => { setTasks(prev => prev.filter(t => t.id !== deleteTask.id)); setDeleteTask(null); }} />}
     </div>

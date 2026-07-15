@@ -486,7 +486,7 @@ function ApiDrawer({ model, category, onClose }: { model: string; category: Cate
 
 interface Message { id: number; role: "user" | "assistant"; content: string; }
 
-export function ModelExperiencePage() {
+export function ModelExperiencePage({ initialModel }: { initialModel?: string | null }) {
   const [category, setCategory]           = useState<Category>("预训练模型");
   const [model, setModel]                 = useState(EDU_MODEL);
   const [catOpen, setCatOpen]             = useState(false);
@@ -507,6 +507,17 @@ export function ModelExperiencePage() {
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   useEffect(() => {
+    if (!initialModel) return;
+    const matched = (Object.keys(CATEGORY_MODELS) as Category[]).find(c => CATEGORY_MODELS[c].includes(initialModel));
+    setCategory(matched ?? "我的模型");
+    setModel(initialModel);
+    setMessages([]);
+    setInput("");
+    setActiveCap(null);
+    setEduSubModel("通用");
+  }, [initialModel]);
+
+  useEffect(() => {
     const h = (e: MouseEvent) => {
       if (catRef.current   && !catRef.current.contains(e.target as Node))   setCatOpen(false);
       if (modelRef.current && !modelRef.current.contains(e.target as Node)) setModelOpen(false);
@@ -523,6 +534,9 @@ export function ModelExperiencePage() {
   };
 
   const isEduModel = model === EDU_MODEL;
+  const currentModelOptions = category === "我的模型" && !CATEGORY_MODELS["我的模型"].includes(model)
+    ? [model, ...CATEGORY_MODELS["我的模型"]]
+    : CATEGORY_MODELS[category];
   const currentCaps = category === "预训练模型"
     ? (isEduModel ? (EDU_CAPS[eduSubModel] ?? []) : (MODEL_CAPS[model] ?? []))
     : [];
@@ -601,7 +615,7 @@ export function ModelExperiencePage() {
           {dropBtn(model, modelOpen, modelRef, () => { setModelOpen(o => !o); setCatOpen(false); })}
           {modelOpen && (
             <div style={{ position: "fixed", top: modelRef.current ? modelRef.current.getBoundingClientRect().bottom + 6 : 120, left: modelRef.current ? modelRef.current.getBoundingClientRect().left : 180, background: "#fff", border: "1px solid #e0e3ed", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.1)", zIndex: 200, minWidth: 220, maxHeight: "60vh", overflowY: "auto" }}>
-              {CATEGORY_MODELS[category].map(m => menuItem(m, m === model, () => switchModel(category, m)))}
+              {currentModelOptions.map(m => menuItem(m, m === model, () => switchModel(category, m)))}
             </div>
           )}
         </div>

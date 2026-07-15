@@ -13,10 +13,14 @@ import { ModelRoutingPage } from "./components/ModelRouting";
 import { ModelEvaluationPage } from "./components/ModelEvaluation";
 import { EvaluationDataPage } from "./components/EvaluationData";
 import { ResourcePermissionPage } from "./components/ResourcePermission";
-import { ModelDeploymentPage, DeployPrefill } from "./components/ModelDeployment";
+import { PromptTemplatePage } from "./components/PromptTemplate";
+import { ModelDeploymentPage } from "./components/ModelDeployment";
 import { ClusterListPage } from "./components/ClusterList";
 import { NodeListPage, ResourceGroupPage } from "./components/NodeResourceGroup";
+import { PromptTuningPage, TplInfo } from "./components/PromptTuning";
 import { ModelExperiencePage } from "./components/ModelExperience";
+import { INITIAL_DEPLOYMENTS, INITIAL_INSTANCES, INITIAL_MODELS } from "./model-management/data";
+import type { DeploymentRecord, ModelInstanceRecord, ModelRecord } from "./model-management/types";
 import {
   Store, FlaskConical, BrainCircuit, ClipboardCheck, Layers,
   Users, Building2, BarChart3, Server, ChevronDown, ChevronRight,
@@ -277,12 +281,41 @@ const STEPS = [
   { id: 5, title: "确认提交" },
 ];
 
-const MODEL_CARDS = [
+type TrainingModelOption = {
+  id: string;
+  name: string;
+  tag: string;
+  info: string;
+  detail: string;
+};
+
+const DEFAULT_TRAINING_MODEL_ID = "qwen2-32b";
+
+const MODEL_CARDS: TrainingModelOption[] = [
   { id: "qwen2-72b", name: "Qwen2-72B", tag: "推荐", info: "参数量: 72B", detail: "最高精度" },
   { id: "qwen2-32b", name: "Qwen2-32B", tag: "最新推荐", info: "参数量: 32B", detail: "均衡性能" },
   { id: "qwen2-7b-a", name: "Qwen2-7B", tag: "推荐", info: "参数量: 7B", detail: "轻量高效" },
   { id: "qwen2-7b-b", name: "Qwen2-7B", tag: "", info: "参数量: 7B", detail: "轻量部署" },
 ];
+
+function toTrainingModelOption(model: ModelRecord): TrainingModelOption {
+  return {
+    id: model.id,
+    name: model.name,
+    tag: "来自模型广场",
+    info: `参数量: ${model.paramSize}B`,
+    detail: `${model.category} · ${model.developer}`,
+  };
+}
+
+function getTrainingModelOptions(initialModel?: ModelRecord | null): TrainingModelOption[] {
+  if (!initialModel) return MODEL_CARDS;
+  const option = toTrainingModelOption(initialModel);
+  const exists = MODEL_CARDS.some(model => model.id === initialModel.id);
+  return exists
+    ? MODEL_CARDS.map(model => model.id === initialModel.id ? { ...model, tag: model.tag || option.tag } : model)
+    : [option, ...MODEL_CARDS];
+}
 
 // Small reusable field label
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
@@ -323,10 +356,11 @@ function NumInput({ value, onChange }: { value: number; onChange: (v: number) =>
   );
 }
 
-function CreateTrainingTaskPage({ onCancel }: { onCancel: () => void }) {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+function CreateTrainingTaskPage({ onCancel, initialModel }: { onCancel: () => void; initialModel?: ModelRecord | null }) {
+  const [currentStep, setCurrentStep] = useState(initialModel ? 2 : 1);
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set(initialModel ? [1] : []));
   const [submitted, setSubmitted] = useState(false);
+  const trainingModelOptions = getTrainingModelOptions(initialModel);
 
   // Step 1 state
   const [taskType, setTaskType] = useState<"finetune" | "pretrain">("finetune");
@@ -334,7 +368,7 @@ function CreateTrainingTaskPage({ onCancel }: { onCancel: () => void }) {
   // Step 2 state
   const [taskName, setTaskName] = useState("");
   const [framework, setFramework] = useState("wenxin");
-  const [selectedModel, setSelectedModel] = useState("qwen2-32b");
+  const [selectedModel, setSelectedModel] = useState(initialModel?.id ?? DEFAULT_TRAINING_MODEL_ID);
   const [uploadMode, setUploadMode] = useState("local");
   const [datasetName, setDatasetName] = useState("");
   const [trainRatio, setTrainRatio] = useState(80);
@@ -595,7 +629,7 @@ function CreateTrainingTaskPage({ onCancel }: { onCancel: () => void }) {
               <div style={{ marginBottom: 20 }}>
                 <FieldLabel required>选择基础模型</FieldLabel>
                 <div className="grid grid-cols-2 gap-3" style={{ maxWidth: 560 }}>
-                  {MODEL_CARDS.map(m => (
+                  {trainingModelOptions.map(m => (
                     <div key={m.id} onClick={() => setSelectedModel(m.id)}
                       style={{
                         border: `2px solid ${selectedModel === m.id ? "#4f6ef7" : "#e0e3ed"}`,
@@ -622,7 +656,7 @@ function CreateTrainingTaskPage({ onCancel }: { onCancel: () => void }) {
                 <div className="flex items-center gap-3 rounded-lg mt-3" style={{ padding: "10px 14px", background: "#f0f4ff", border: "1px solid #d0dcff", maxWidth: 560 }}>
                   <Check size={14} color="#4f6ef7" />
                   <span style={{ fontSize: 13, color: "#4f6ef7", fontWeight: 500 }}>
-                    {MODEL_CARDS.find(m => m.id === selectedModel)?.name}
+                    {trainingModelOptions.find(m => m.id === selectedModel)?.name}
                   </span>
                   <span style={{ fontSize: 12, color: "#6b7280", marginLeft: "auto" }}>已选择推理服务</span>
                 </div>
@@ -870,7 +904,7 @@ function CreateTrainingTaskPage({ onCancel }: { onCancel: () => void }) {
                 {[
                   { label: "任务类型", value: taskType === "finetune" ? "微调训练" : "预调训练" },
                   { label: "任务名称", value: taskName || "（未填写）" },
-                  { label: "基础模型", value: MODEL_CARDS.find(m => m.id === selectedModel)?.name || "—" },
+                  { label: "基础模型", value: trainingModelOptions.find(m => m.id === selectedModel)?.name || "—" },
                   { label: "框架类型", value: framework === "wenxin" ? "文心大文" : "离线方式" },
                   { label: "训练方式", value: trainMode === "normal" ? "常规训练" : "分布式训练" },
                   { label: "Epoch", value: String(epoch) },
@@ -1404,7 +1438,7 @@ function PlaceholderPage({ label }: { label: string }) {
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 function Sidebar({ active, onSelect }: { active: string; onSelect: (key: string) => void }) {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set(["model-training"]));
+  const [expanded, setExpanded] = useState<Set<string>>(new Set(["model-management"]));
 
   const toggle = (key: string) => {
     setExpanded(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
@@ -1470,15 +1504,28 @@ function Sidebar({ active, onSelect }: { active: string; onSelect: (key: string)
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [activeMenu, setActiveMenu] = useState("training-task");
+  const [activeMenu, setActiveMenu] = useState("model-plaza");
   const [trainingView, setTrainingView] = useState<"list" | "create" | "evaluation">("list");
-  const [deployPrefill, setDeployPrefill] = useState<DeployPrefill | null>(null);
+  const [tuningTpl, setTuningTpl]       = useState<TplInfo | null>(null);
+  const [models, setModels] = useState<ModelRecord[]>(INITIAL_MODELS);
+  const [deployments, setDeployments] = useState<DeploymentRecord[]>(INITIAL_DEPLOYMENTS);
+  const [instances, setInstances] = useState<ModelInstanceRecord[]>(INITIAL_INSTANCES);
+  const [deployPrefillModelId, setDeployPrefillModelId] = useState<string | null>(null);
+  const [experiencePrefillModel, setExperiencePrefillModel] = useState<string | null>(null);
+  const [trainingPrefillModelId, setTrainingPrefillModelId] = useState<string | null>(null);
   const [evalTaskName, setEvalTaskName] = useState("");
 
   const handleMenuSelect = (key: string) => {
     setActiveMenu(key);
-    if (key === "training-task") setTrainingView("list");
+    if (key === "training-task") {
+      setTrainingPrefillModelId(null);
+      setTrainingView("list");
+    }
   };
+
+  const trainingPrefillModel = trainingPrefillModelId
+    ? models.find(model => model.id === trainingPrefillModelId) ?? null
+    : null;
 
   const activeParent = menuData.find(m => m.children?.some(c => c.key === activeMenu));
   const activeLabel =
@@ -1501,35 +1548,47 @@ export default function App() {
               <><ChevronRight size={12} /><span style={{ color: "#1a1d23", fontWeight: 500 }}>评估报告</span></>
             )}
           </div>
-          <div className="flex items-center gap-2 rounded-lg" style={{ padding: "5px 10px", background: "#f5f7fa", border: "1px solid #e8ebf2" }}>
-            <Search size={13} color="#9ca3af" />
-            <span style={{ fontSize: 12, color: "#9ca3af" }}>搜索...</span>
-          </div>
         </header>
 
         <div className="flex-1 min-h-0 overflow-hidden">
           {activeMenu === "model-plaza" ? (
-            <ModelPlazaPage onExperience={() => handleMenuSelect("model-experience")} />
+            <ModelPlazaPage
+              models={models}
+              deployments={deployments}
+              onDeploy={model => {
+                setDeployPrefillModelId(model.id);
+                handleMenuSelect("model-deploy");
+              }}
+              onExperience={modelName => {
+                setExperiencePrefillModel(modelName);
+                handleMenuSelect("model-experience");
+              }}
+              onTrain={model => {
+                setTrainingPrefillModelId(model.id);
+                setActiveMenu("training-task");
+                setTrainingView("create");
+              }}
+            />
           ) : activeMenu === "training-task" ? (
             trainingView === "list"
               ? <TrainingTaskList
-                  onCreate={() => setTrainingView("create")}
+                  onCreate={() => { setTrainingPrefillModelId(null); setTrainingView("create"); }}
                   onEvalReport={(name) => { setEvalTaskName(name); setTrainingView("evaluation"); }}
                 />
               : trainingView === "create"
-              ? <CreateTrainingTaskPage onCancel={() => setTrainingView("list")} />
+              ? <CreateTrainingTaskPage key={trainingPrefillModelId ?? "manual"} initialModel={trainingPrefillModel} onCancel={() => { setTrainingPrefillModelId(null); setTrainingView("list"); }} />
               : <EvaluationReportPage taskName={evalTaskName} onBack={() => setTrainingView("list")} />
           ) : activeMenu === "training-data" ? (
             <TrainingDataPage />
           ) : activeMenu === "model-list" ? (
-            <ModelManagementPage onDeploy={card => {
-              setDeployPrefill({ modelName: card.name, modelPath: `/nfs/models/${card.name}`, classify: card.type1 === "通用大模型" ? "LLM" : card.type1 === "向量模型" ? "Embedding" : card.type1 === "图像模型" ? "Vision" : "LLM", paramSize: card.paramSize, contextLen: card.contextLen });
+            <ModelManagementPage models={models} onModelsChange={setModels} onDeploy={model => {
+              setDeployPrefillModelId(model.id);
               handleMenuSelect("model-deploy");
             }} />
           ) : activeMenu === "model-deploy" ? (
-            <ModelDeploymentPage prefill={deployPrefill} />
+            <ModelDeploymentPage models={models} deployments={deployments} onDeploymentsChange={setDeployments} instances={instances} onInstancesChange={setInstances} prefillModelId={deployPrefillModelId} onPrefillConsumed={() => setDeployPrefillModelId(null)} />
           ) : activeMenu === "deploy-instance" ? (
-            <DeployInstancePage />
+            <DeployInstancePage instances={instances} onInstancesChange={setInstances} />
           ) : activeMenu === "inference-service" ? (
             <InferenceServicePage />
           ) : activeMenu === "cluster-list" ? (
@@ -1559,7 +1618,11 @@ export default function App() {
           ) : activeMenu === "user-role" ? (
             <UserRolePage />
           ) : activeMenu === "model-experience" ? (
-            <ModelExperiencePage />
+            <ModelExperiencePage initialModel={experiencePrefillModel} />
+          ) : activeMenu === "prompt-template" ? (
+            <PromptTemplatePage onOpenTuning={(title, version) => { setTuningTpl({ title, version }); handleMenuSelect("prompt-tuning"); }} />
+          ) : activeMenu === "prompt-tuning" ? (
+            <PromptTuningPage initialTemplate={tuningTpl} />
           ) : (
             <PlaceholderPage label={activeLabel} />
           )}

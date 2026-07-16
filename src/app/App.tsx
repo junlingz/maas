@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ModelPlazaPage } from "./components/ModelPlaza";
 import { ModelManagementPage } from "./components/ModelManagement";
 import { DeployInstancePage } from "./components/DeployInstance";
@@ -13,11 +13,9 @@ import { ModelRoutingPage } from "./components/ModelRouting";
 import { ModelEvaluationPage } from "./components/ModelEvaluation";
 import { EvaluationDataPage } from "./components/EvaluationData";
 import { ResourcePermissionPage } from "./components/ResourcePermission";
-import { PromptTemplatePage } from "./components/PromptTemplate";
 import { ModelDeploymentPage } from "./components/ModelDeployment";
 import { ClusterListPage } from "./components/ClusterList";
 import { NodeListPage, ResourceGroupPage } from "./components/NodeResourceGroup";
-import { PromptTuningPage, TplInfo } from "./components/PromptTuning";
 import { ModelExperiencePage } from "./components/ModelExperience";
 import { INITIAL_DEPLOYMENTS, INITIAL_INSTANCES, INITIAL_MODELS } from "./model-management/data";
 import type { DeploymentRecord, ModelInstanceRecord, ModelRecord } from "./model-management/types";
@@ -39,12 +37,7 @@ interface MenuItem { label: string; key: string; icon: React.ReactNode; children
 
 const menuData: MenuItem[] = [
   { label: "模型广场", key: "model-plaza", icon: <Store size={16} /> },
-  {
-    label: "体验中心", key: "experience-center", icon: <FlaskConical size={16} />,
-    children: [
-      { label: "模型体验", key: "model-experience" },
-    ],
-  },
+  { label: "模型体验", key: "model-experience", icon: <FlaskConical size={16} /> },
   {
     label: "模型训练", key: "model-training", icon: <BrainCircuit size={16} />,
     children: [
@@ -281,40 +274,123 @@ const STEPS = [
   { id: 5, title: "确认提交" },
 ];
 
-type TrainingModelOption = {
-  id: string;
-  name: string;
-  tag: string;
-  info: string;
-  detail: string;
-};
+type Modality = "文生文" | "图生文" | "文生图";
+type TaskType = "cpt" | "sft" | "rl";
+type FineTuneMethod = "lora" | "qlora" | "ptuning" | "full";
 
-const DEFAULT_TRAINING_MODEL_ID = "qwen2-32b";
-
-const MODEL_CARDS: TrainingModelOption[] = [
-  { id: "qwen2-72b", name: "Qwen2-72B", tag: "推荐", info: "参数量: 72B", detail: "最高精度" },
-  { id: "qwen2-32b", name: "Qwen2-32B", tag: "最新推荐", info: "参数量: 32B", detail: "均衡性能" },
-  { id: "qwen2-7b-a", name: "Qwen2-7B", tag: "推荐", info: "参数量: 7B", detail: "轻量高效" },
-  { id: "qwen2-7b-b", name: "Qwen2-7B", tag: "", info: "参数量: 7B", detail: "轻量部署" },
+const MODALITY_OPTIONS: { value: Modality; label: string; desc: string }[] = [
+  { value: "文生文", label: "文生文", desc: "文本生成文本，适用于对话、写作等场景" },
+  { value: "图生文", label: "图生文", desc: "图像理解生成文本，适用于图像描述、视觉问答" },
+  { value: "文生图", label: "文生图", desc: "文本生成图像，适用于文生图创作场景" },
 ];
 
-function toTrainingModelOption(model: ModelRecord): TrainingModelOption {
-  return {
-    id: model.id,
-    name: model.name,
-    tag: "来自模型广场",
-    info: `参数量: ${model.paramSize}B`,
-    detail: `${model.category} · ${model.developer}`,
-  };
+// Filter models by generation modality:
+//   文生文 → LLM without vision capability
+//   图生文 → LLM with vision capability
+//   文生图 → Image category models
+function filterModelsByModality(models: ModelRecord[], modality: Modality): ModelRecord[] {
+  switch (modality) {
+    case "文生文":
+      return models.filter(m => m.category === "LLM" && !m.capabilities.includes("vision"));
+    case "图生文":
+      return models.filter(m => m.category === "LLM" && m.capabilities.includes("vision"));
+    case "文生图":
+      return models.filter(m => m.category === "Image");
+  }
 }
 
-function getTrainingModelOptions(initialModel?: ModelRecord | null): TrainingModelOption[] {
-  if (!initialModel) return MODEL_CARDS;
-  const option = toTrainingModelOption(initialModel);
-  const exists = MODEL_CARDS.some(model => model.id === initialModel.id);
-  return exists
-    ? MODEL_CARDS.map(model => model.id === initialModel.id ? { ...model, tag: model.tag || option.tag } : model)
-    : [option, ...MODEL_CARDS];
+// Detect 预训练框架 + 模型架构 from the selected base model (read-only, PRD 1.4.0)
+// Priority: Image → 文-图生成训练框架/扩散模型;
+//   LLM name contains DeepSeek-V/Mixtral/Grok → 自回归/MoE;
+//   T5/BART/Marian/mBART/UL2/Pegasus → 序列到序列/T5-style;
+//   BERT/RoBERTa/ALBERT/DeBERTa → 自回归/BERT-style;
+//   else → 自回归/Decoder-only
+function detectArchitecture(model: ModelRecord | undefined): { framework: string; architecture: string } {
+  if (!model) return { framework: "—", architecture: "—" };
+  if (model.category === "Image") {
+    return { framework: "文-图生成训练框架", architecture: "扩散模型" };
+  }
+  const name = model.name.toLowerCase();
+  if (/deepseek-v|mixtral|grok/.test(name)) {
+    return { framework: "自回归预训练框架", architecture: "混合专家（MoE）" };
+  }
+  if (/t5|bart|marian|mbart|ul2|pegasus/.test(name)) {
+    return { framework: "序列到序列预训练框架", architecture: "T5-style（Encoder-Decoder）" };
+  }
+  if (/bert|roberta|albert|deberta/.test(name)) {
+    return { framework: "自回归预训练框架", architecture: "BERT-style(Encoder-only)" };
+  }
+  return { framework: "自回归预训练框架", architecture: "Decoder-only" };
+}
+
+// SFT fine-tune methods available per modality (文生图: only LoRA/全量微调)
+function getFineTuneMethods(modality: Modality): { value: FineTuneMethod; label: string }[] {
+  if (modality === "文生图") {
+    return [
+      { value: "lora", label: "LoRA" },
+      { value: "full", label: "全量微调" },
+    ];
+  }
+  return [
+    { value: "lora", label: "LoRA" },
+    { value: "qlora", label: "QLoRA" },
+    { value: "ptuning", label: "P-Tuning" },
+    { value: "full", label: "全量微调" },
+  ];
+}
+
+// Evaluation metrics dynamic by modality + taskType
+// core = locked (cannot uncheck), defaultSelected = checked by default
+interface EvalMetricDef { label: string; core?: boolean; defaultSelected?: boolean; }
+
+function getEvalMetrics(modality: Modality, taskType: TaskType): EvalMetricDef[] {
+  if (taskType === "cpt") {
+    // 继续预训练评估指标
+    if (modality === "文生图") return [
+      { label: "训练损失/验证损失", core: true, defaultSelected: true },
+      { label: "生成样例预览", core: true, defaultSelected: true },
+    ];
+    if (modality === "图生文") return [
+      { label: "训练损失/验证损失", core: true, defaultSelected: true },
+      { label: "困惑度(Perplexity)", core: true, defaultSelected: true },
+      { label: "图文对齐损失", core: true, defaultSelected: true },
+      { label: "生成样例对比", defaultSelected: false },
+      { label: "BLEU/ROUGE", defaultSelected: false },
+    ];
+    // 文生文
+    return [
+      { label: "训练损失/验证损失", core: true, defaultSelected: true },
+      { label: "困惑度(Perplexity)", core: true, defaultSelected: true },
+      { label: "生成流畅度(n-gram)", defaultSelected: true },
+      { label: "逻辑一致性(分类器)", defaultSelected: false },
+    ];
+  }
+  // 监督微调评估指标
+  if (modality === "文生图") return [
+    { label: "验证损失", core: true, defaultSelected: true },
+    { label: "生成样例预览", defaultSelected: true },
+  ];
+  if (modality === "图生文") return [
+    { label: "验证损失", core: true, defaultSelected: true },
+    { label: "准确率", defaultSelected: true },
+    { label: "召回率", defaultSelected: true },
+    { label: "BLEU/ROUGE", defaultSelected: true },
+    { label: "生成样例对比", defaultSelected: true },
+    { label: "困惑度", defaultSelected: false },
+  ];
+  // 文生文 SFT
+  return [
+    { label: "验证损失", core: true, defaultSelected: true },
+    { label: "准确率", defaultSelected: true },
+    { label: "召回率", defaultSelected: true },
+    { label: "精确率", defaultSelected: true },
+    { label: "F1", defaultSelected: true },
+    { label: "BLEU", defaultSelected: false },
+    { label: "ROUGE", defaultSelected: false },
+    { label: "困惑度", defaultSelected: false },
+    { label: "生成流畅度", defaultSelected: false },
+    { label: "逻辑一致性", defaultSelected: false },
+  ];
 }
 
 // Small reusable field label
@@ -345,51 +421,218 @@ function Tip({ text }: { text: string }) {
   );
 }
 
-// Number input
-function NumInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+// Number input with optional step/min
+function NumInput({ value, onChange, step = 1, min }: { value: number; onChange: (v: number) => void; step?: number; min?: number }) {
+  const dec = () => {
+    const next = value - step;
+    onChange(min !== undefined ? Math.max(min, next) : next);
+  };
+  const inc = () => onChange(value + step);
   return (
     <div className="flex items-center rounded-md overflow-hidden" style={{ border: "1px solid #e0e3ed", height: 34 }}>
-      <button onClick={() => onChange(Math.max(1, value - 1))} style={{ width: 28, background: "#f8f9fc", border: "none", cursor: "pointer", height: "100%", color: "#6b7280", fontSize: 16 }}>−</button>
-      <input type="number" value={value} onChange={e => onChange(Number(e.target.value))} style={{ width: 60, textAlign: "center", border: "none", outline: "none", fontSize: 13, background: "transparent" }} />
-      <button onClick={() => onChange(value + 1)} style={{ width: 28, background: "#f8f9fc", border: "none", cursor: "pointer", height: "100%", color: "#6b7280", fontSize: 16 }}>+</button>
+      <button onClick={dec} style={{ width: 28, background: "#f8f9fc", border: "none", cursor: "pointer", height: "100%", color: "#6b7280", fontSize: 16 }}>−</button>
+      <input type="number" value={value} step={step} onChange={e => onChange(Number(e.target.value))} style={{ width: 60, textAlign: "center", border: "none", outline: "none", fontSize: 13, background: "transparent" }} />
+      <button onClick={inc} style={{ width: 28, background: "#f8f9fc", border: "none", cursor: "pointer", height: "100%", color: "#6b7280", fontSize: 16 }}>+</button>
     </div>
   );
 }
 
-function CreateTrainingTaskPage({ onCancel, initialModel }: { onCancel: () => void; initialModel?: ModelRecord | null }) {
+// Switch toggle
+function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button onClick={() => onChange(!checked)} type="button"
+      className="flex items-center rounded-full flex-shrink-0"
+      style={{ width: 36, height: 20, padding: 2, background: checked ? "#4f6ef7" : "#d1d5db", transition: "background 0.15s", border: "none", cursor: "pointer" }}>
+      <span className="rounded-full" style={{ width: 16, height: 16, background: "#fff", transform: checked ? "translateX(16px)" : "translateX(0)", transition: "transform 0.15s" }} />
+    </button>
+  );
+}
+
+// Multi-select chips
+function MultiSelect({ options, selected, onChange }: { options: string[]; selected: string[]; onChange: (v: string[]) => void }) {
+  const toggle = (opt: string) => {
+    onChange(selected.includes(opt) ? selected.filter(o => o !== opt) : [...selected, opt]);
+  };
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map(opt => {
+        const on = selected.includes(opt);
+        return (
+          <button key={opt} type="button" onClick={() => toggle(opt)}
+            style={{
+              fontSize: 12.5, fontWeight: 500, padding: "4px 12px", borderRadius: 6,
+              border: `1px solid ${on ? "#4f6ef7" : "#e0e3ed"}`,
+              background: on ? "#eff4ff" : "#fff",
+              color: on ? "#4f6ef7" : "#6b7280", cursor: "pointer", transition: "all 0.15s",
+            }}>{opt}</button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Switch + weight input (for loss-type params)
+function SwitchWithWeight({ checked, onToggle, weight, onWeightChange }: { checked: boolean; onToggle: (v: boolean) => void; weight: string; onWeightChange: (v: string) => void }) {
+  return (
+    <div className="flex items-center gap-3">
+      <Switch checked={checked} onChange={onToggle} />
+      {checked && (
+        <div className="flex items-center gap-2">
+          <span style={{ fontSize: 12.5, color: "#6b7280" }}>权重</span>
+          <input type="text" value={weight} onChange={e => onWeightChange(e.target.value)} style={{ width: 70, height: 30, padding: "0 8px", fontSize: 13, border: "1px solid #e0e3ed", borderRadius: 5, outline: "none" }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CreateTrainingTaskPage({ onCancel, initialModel, models }: { onCancel: () => void; initialModel?: ModelRecord | null; models: ModelRecord[] }) {
   const [currentStep, setCurrentStep] = useState(initialModel ? 2 : 1);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set(initialModel ? [1] : []));
   const [submitted, setSubmitted] = useState(false);
-  const trainingModelOptions = getTrainingModelOptions(initialModel);
 
-  // Step 1 state
-  const [taskType, setTaskType] = useState<"finetune" | "pretrain">("finetune");
+  // Step 1 state — CPT / SFT / RL (RL disabled)
+  const [taskType, setTaskType] = useState<TaskType>("sft");
 
-  // Step 2 state
+  // Step 2 state — 基本信息
   const [taskName, setTaskName] = useState("");
-  const [framework, setFramework] = useState("wenxin");
-  const [selectedModel, setSelectedModel] = useState(initialModel?.id ?? DEFAULT_TRAINING_MODEL_ID);
-  const [uploadMode, setUploadMode] = useState("local");
-  const [datasetName, setDatasetName] = useState("");
-  const [trainRatio, setTrainRatio] = useState(80);
+  const [modality, setModality] = useState<Modality>("文生文");
+  const [modelTab, setModelTab] = useState<"plaza" | "builtin">("plaza");
+  const [selectedModel, setSelectedModel] = useState(initialModel?.id ?? "");
+  const [resourceGroup, setResourceGroup] = useState("");
+  const [outputModelName, setOutputModelName] = useState("");
+  const [outputModelDesc, setOutputModelDesc] = useState("");
+  const [outputModelVersion, setOutputModelVersion] = useState("");
+  const [trainDataset, setTrainDataset] = useState("");
 
-  // Step 3 state
-  const [trainMode, setTrainMode] = useState("normal");
-  const [pretrainFramework, setPretrainFramework] = useState("seq2seq");
-  const [epoch, setEpoch] = useState(1);
-  const [lrMul, setLrMul] = useState(1);
-  const [batchSize, setBatchSize] = useState(1);
-  const [maxSeq, setMaxSeq] = useState(1);
-  const [resourceType, setResourceType] = useState("builtin");
+  // Step 3 state — 训练参数
+  const [fineTuneMethod, setFineTuneMethod] = useState<FineTuneMethod>("lora");
+  // 训练基础参数
+  const [epoch, setEpoch] = useState(3);
+  const [baseLr, setBaseLr] = useState("2e-4");
+  const [batchSize, setBatchSize] = useState(8);
+  const [maxSeq, setMaxSeq] = useState(4096);
+  const [resolution, setResolution] = useState(512);
+  // 微调专属参数 — LoRA/QLoRA
+  const [loraRank, setLoraRank] = useState(8);
+  const [loraAlpha, setLoraAlpha] = useState(16);
+  const [loraTargetLayers, setLoraTargetLayers] = useState<string[]>(["q_proj", "v_proj"]);
+  const [loraDropout, setLoraDropout] = useState("0.05");
+  const [quantBits, setQuantBits] = useState("4bit");
+  // 微调专属参数 — P-Tuning
+  const [prefixLength, setPrefixLength] = useState(20);
+  const [prefixDim, setPrefixDim] = useState(64);
+  const [prefixPosition, setPrefixPosition] = useState("两者都加");
+  // 高级参数
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [optimizer, setOptimizer] = useState("AdamW");
+  const [weightDecay, setWeightDecay] = useState("0.01");
+  const [gradClip, setGradClip] = useState("1.0");
+  const [gradAccumSteps, setGradAccumSteps] = useState(4);
+  const [lrSchedule, setLrSchedule] = useState("cosine decay");
+  const [mixedPrecision, setMixedPrecision] = useState("BF16");
+  const [gradCheckpoint, setGradCheckpoint] = useState(true);
+  const [ckptInterval, setCkptInterval] = useState(500);
+  const [ckptMaxKeep, setCkptMaxKeep] = useState(3);
+  const [saveOptimizerState, setSaveOptimizerState] = useState(false);
+  // 模态专属参数 (CPT)
+  const [textImageContrastOn, setTextImageContrastOn] = useState(true);
+  const [textImageContrastW, setTextImageContrastW] = useState("1.0");
+  const [imageReconOn, setImageReconOn] = useState(true);
+  const [imageReconW, setImageReconW] = useState("1.0");
+  const [noiseSchedule, setNoiseSchedule] = useState("余弦");
+  const [emaDecay, setEmaDecay] = useState("0.9999");
+  // 视觉编码器 (SFT 图生文)
+  const [visionEncoderTrainable, setVisionEncoderTrainable] = useState(false);
 
-  // Step 4 state
+  // Derived: selected base model + architecture (CPT read-only)
+  const selectedModelObj = models.find(m => m.id === selectedModel);
+  const architecture = detectArchitecture(selectedModelObj);
+
+  // Step 4 state — 评估配置
   const [validationMode, setValidationMode] = useState<"none" | "select">("none");
-  const [evalMetrics, setEvalMetrics] = useState<Set<string>>(new Set(["困惑度"]));
-  const [evalFreq, setEvalFreq] = useState("10min/次");
-  const [freqOpen, setFreqOpen] = useState(false);
+  const [splitRatio, setSplitRatio] = useState("1%");
+  const [evalMetrics, setEvalMetrics] = useState<Set<string>>(new Set());
+  const [evalFreqValue, setEvalFreqValue] = useState(1);
+  const [splitOpen, setSplitOpen] = useState(false);
+
+  // Derived: models filtered by selected modality + eval metrics by modality/taskType
+  const filteredModels = filterModelsByModality(models, modality);
+  const evalMetricOptions = getEvalMetrics(modality, taskType);
+  // Eval frequency unit: epoch for 文生文/图生文, 步 for 文生图
+  const evalFreqUnit = modality === "文生图" ? "步" : "epoch";
+
+  // Reset evalMetrics defaults when modality or taskType changes
+  useEffect(() => {
+    const defs = getEvalMetrics(modality, taskType);
+    setEvalMetrics(new Set(defs.filter(d => d.defaultSelected).map(d => d.label)));
+  }, [modality, taskType]);
+
+  // Reset evalFreqValue when modality changes
+  useEffect(() => {
+    setEvalFreqValue(modality === "文生图" ? 500 : 1);
+  }, [modality]);
+
+  // Reset training parameter defaults when taskType / modality / fineTuneMethod changes (PRD 1.4.0)
+  useEffect(() => {
+    if (taskType === "cpt") {
+      // CPT 基础参数 defaults per modality
+      if (modality === "文生文") {
+        setEpoch(3); setBaseLr("2e-5"); setBatchSize(8); setMaxSeq(4096);
+        setOptimizer("AdamW"); setWeightDecay("0.01"); setGradClip("1.0");
+        setGradAccumSteps(4); setLrSchedule("cosine decay"); setMixedPrecision("BF16");
+      } else if (modality === "图生文") {
+        setEpoch(3); setBaseLr("2e-5"); setBatchSize(4); setMaxSeq(4096);
+        setOptimizer("AdamW"); setWeightDecay("0.01"); setGradClip("1.0");
+        setGradAccumSteps(4); setLrSchedule("cosine decay"); setMixedPrecision("BF16");
+        setTextImageContrastOn(true); setTextImageContrastW("1.0");
+      } else { // 文生图
+        setEpoch(100); setBaseLr("1e-4"); setBatchSize(2); setResolution(512);
+        setOptimizer("AdamW"); setWeightDecay("0.01"); setGradClip("1.0");
+        setGradAccumSteps(4); setLrSchedule("cosine decay"); setMixedPrecision("FP16");
+        setTextImageContrastOn(true); setTextImageContrastW("1.0");
+        setImageReconOn(true); setImageReconW("1.0");
+        setNoiseSchedule("余弦"); setEmaDecay("0.9999");
+      }
+      setGradCheckpoint(true); setCkptInterval(500); setCkptMaxKeep(3); setSaveOptimizerState(false);
+    } else { // sft
+      if (modality === "文生图") {
+        setEpoch(100);
+        setBaseLr(fineTuneMethod === "lora" ? "1e-4" : "1e-5");
+        setBatchSize(2); setResolution(512);
+        // 文生图 LoRA 专属默认值
+        setLoraRank(32); setLoraAlpha(32); setLoraDropout("0.0");
+        setLoraTargetLayers(["Cross-Attention"]);
+        setOptimizer("AdamW"); setWeightDecay("0.01"); setGradClip("1.0");
+        setGradAccumSteps(4); setLrSchedule("cosine decay"); setMixedPrecision("FP16");
+      } else {
+        // 文生文 / 图生文
+        const epochMap: Record<FineTuneMethod, number> = { lora: 3, qlora: 3, ptuning: 5, full: 3 };
+        const lrMap: Record<FineTuneMethod, string> = { lora: "2e-4", qlora: "2e-4", ptuning: "1e-3", full: "2e-5" };
+        setEpoch(epochMap[fineTuneMethod]);
+        setBaseLr(lrMap[fineTuneMethod]);
+        setBatchSize(8); setMaxSeq(4096);
+        setLoraRank(8); setLoraAlpha(16); setLoraDropout("0.05");
+        setLoraTargetLayers(["q_proj", "v_proj"]);
+        setOptimizer("AdamW"); setWeightDecay("0.01"); setGradClip("1.0");
+        setGradAccumSteps(4); setLrSchedule("cosine decay"); setMixedPrecision("BF16");
+      }
+      setGradCheckpoint(true); setCkptInterval(500); setCkptMaxKeep(3); setSaveOptimizerState(false);
+      setVisionEncoderTrainable(false);
+    }
+  }, [taskType, modality, fineTuneMethod]);
+
+  // If current fineTuneMethod is not available for the new modality, reset to LoRA
+  useEffect(() => {
+    const methods = getFineTuneMethods(modality);
+    if (!methods.find(m => m.value === fineTuneMethod)) {
+      setFineTuneMethod("lora");
+    }
+  }, [modality]);
 
   const toggleMetric = (m: string) => {
+    const def = evalMetricOptions.find(d => d.label === m);
+    if (def?.core) return; // core metrics cannot be unchecked
     setEvalMetrics(prev => {
       const next = new Set(prev);
       next.has(m) ? next.delete(m) : next.add(m);
@@ -531,56 +774,75 @@ function CreateTrainingTaskPage({ onCancel, initialModel }: { onCancel: () => vo
           {currentStep === 1 && (
             <div style={{ padding: "24px 24px 20px" }}>
               <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>选择任务类型</div>
-              <div className="grid grid-cols-2 gap-4" style={{ maxWidth: 600 }}>
-                {/* 微调训练 */}
+              <div className="grid grid-cols-3 gap-4" style={{ maxWidth: 720 }}>
+                {/* CPT — 继续预训练 */}
                 <div
-                  onClick={() => setTaskType("finetune")}
+                  onClick={() => setTaskType("cpt")}
                   style={{
-                    border: `2px solid ${taskType === "finetune" ? "#4f6ef7" : "#e0e3ed"}`,
+                    border: `2px solid ${taskType === "cpt" ? "#4f6ef7" : "#e0e3ed"}`,
                     borderRadius: 10, padding: 16, cursor: "pointer",
-                    background: taskType === "finetune" ? "#f5f8ff" : "#fff",
+                    background: taskType === "cpt" ? "#f5f8ff" : "#fff",
                     transition: "all 0.15s",
                   }}
                 >
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="rounded flex items-center justify-center flex-shrink-0" style={{ width: 28, height: 28, background: taskType === "finetune" ? "#4f6ef7" : "#f0f2f7" }}>
-                      <BrainCircuit size={14} color={taskType === "finetune" ? "#fff" : "#9ca3af"} />
+                    <div className="rounded flex items-center justify-center flex-shrink-0" style={{ width: 28, height: 28, background: taskType === "cpt" ? "#4f6ef7" : "#f0f2f7" }}>
+                      <Server size={14} color={taskType === "cpt" ? "#fff" : "#9ca3af"} />
                     </div>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: "#1a1d23" }}>微调训练</span>
-                    {taskType === "finetune" && (
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "#1a1d23" }}>继续预训练</span>
+                    {taskType === "cpt" && (
                       <span className="ml-auto flex items-center justify-center rounded-full" style={{ width: 18, height: 18, background: "#4f6ef7" }}>
                         <Check size={11} color="#fff" strokeWidth={3} />
                       </span>
                     )}
                   </div>
                   <div style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.6 }}>
-                    在已有基础模型上进行微调，专注于特定领域，适合下游任务场景使用，成本低，收敛快，推荐使用。
+                    在基础模型上使用领域数据进行继续预训练，增强模型在特定领域的语言理解能力。
                   </div>
                 </div>
 
-                {/* 预调任务 */}
+                {/* SFT — 监督微调 */}
                 <div
-                  onClick={() => setTaskType("pretrain")}
+                  onClick={() => setTaskType("sft")}
                   style={{
-                    border: `2px solid ${taskType === "pretrain" ? "#4f6ef7" : "#e0e3ed"}`,
+                    border: `2px solid ${taskType === "sft" ? "#4f6ef7" : "#e0e3ed"}`,
                     borderRadius: 10, padding: 16, cursor: "pointer",
-                    background: taskType === "pretrain" ? "#f5f8ff" : "#fff",
+                    background: taskType === "sft" ? "#f5f8ff" : "#fff",
                     transition: "all 0.15s",
                   }}
                 >
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="rounded flex items-center justify-center flex-shrink-0" style={{ width: 28, height: 28, background: taskType === "pretrain" ? "#4f6ef7" : "#f0f2f7" }}>
-                      <Server size={14} color={taskType === "pretrain" ? "#fff" : "#9ca3af"} />
+                    <div className="rounded flex items-center justify-center flex-shrink-0" style={{ width: 28, height: 28, background: taskType === "sft" ? "#4f6ef7" : "#f0f2f7" }}>
+                      <BrainCircuit size={14} color={taskType === "sft" ? "#fff" : "#9ca3af"} />
                     </div>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: "#1a1d23" }}>预调任务</span>
-                    {taskType === "pretrain" && (
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "#1a1d23" }}>监督微调</span>
+                    {taskType === "sft" && (
                       <span className="ml-auto flex items-center justify-center rounded-full" style={{ width: 18, height: 18, background: "#4f6ef7" }}>
                         <Check size={11} color="#fff" strokeWidth={3} />
                       </span>
                     )}
                   </div>
                   <div style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.6 }}>
-                    从零开始或基于海量数据进行预训练，构建基础能力模型，适用于特定行业领域，以此获得领域专属模型能力。
+                    使用标注数据对基础模型进行监督微调，使模型学习特定任务的指令遵循能力，推荐使用。
+                  </div>
+                </div>
+
+                {/* RL — 强化学习 (disabled) */}
+                <div
+                  style={{
+                    border: "2px solid #e0e3ed", borderRadius: 10, padding: 16,
+                    cursor: "not-allowed", background: "#f8f9fc", opacity: 0.6,
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="rounded flex items-center justify-center flex-shrink-0" style={{ width: 28, height: 28, background: "#f0f2f7" }}>
+                      <Cpu size={14} color="#9ca3af" />
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "#9ca3af" }}>强化学习</span>
+                    <span className="ml-auto" style={{ fontSize: 10, fontWeight: 600, color: "#9ca3af", background: "#f0f2f7", borderRadius: 4, padding: "2px 6px" }}>暂未开放</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#9ca3af", lineHeight: 1.6 }}>
+                    通过人类反馈强化学习（RLHF）优化模型输出质量，敬请期待。
                   </div>
                 </div>
               </div>
@@ -601,99 +863,166 @@ function CreateTrainingTaskPage({ onCancel, initialModel }: { onCancel: () => vo
               {/* 任务名称 */}
               <div style={{ marginBottom: 20 }}>
                 <FieldLabel required>任务名称</FieldLabel>
-                <input value={taskName} onChange={e => setTaskName(e.target.value)} placeholder="请输入任务名称"
-                  style={{ ...inputStyle, maxWidth: 400 }} />
-              </div>
-
-              {/* 关联资源 */}
-              <div style={{ marginBottom: 20, padding: 16, background: "#f8f9fc", borderRadius: 8 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1d23", marginBottom: 12 }}>关联资源</div>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-12">
-                  <div>
-                    <FieldLabel>框架类型</FieldLabel>
-                    <div className="flex items-center gap-4">
-                      {radioBtn(framework === "wenxin", "文心大文", () => setFramework("wenxin"))}
-                      {radioBtn(framework === "offline", "离线方式", () => setFramework("offline"))}
-                    </div>
-                  </div>
-                  <div>
-                    <FieldLabel>资源队列</FieldLabel>
-                    <select style={{ ...selectStyle, maxWidth: 200 }}>
-                      <option>已选择</option>
-                    </select>
-                  </div>
+                <div className="flex items-center gap-2" style={{ maxWidth: 400 }}>
+                  <input value={taskName} onChange={e => setTaskName(e.target.value.slice(0, 10))} placeholder="请输入任务名称"
+                    maxLength={10} style={{ ...inputStyle, flex: 1 }} />
+                  <span style={{ fontSize: 12, color: "#9ca3af", whiteSpace: "nowrap" }}>{taskName.length} / 10</span>
                 </div>
               </div>
 
-              {/* 选择基础模型 */}
+              {/* 生成模态 */}
               <div style={{ marginBottom: 20 }}>
-                <FieldLabel required>选择基础模型</FieldLabel>
-                <div className="grid grid-cols-2 gap-3" style={{ maxWidth: 560 }}>
-                  {trainingModelOptions.map(m => (
-                    <div key={m.id} onClick={() => setSelectedModel(m.id)}
-                      style={{
-                        border: `2px solid ${selectedModel === m.id ? "#4f6ef7" : "#e0e3ed"}`,
-                        borderRadius: 8, padding: 12, cursor: "pointer",
-                        background: selectedModel === m.id ? "#f5f8ff" : "#fff",
-                        transition: "all 0.15s", position: "relative",
+                <FieldLabel required>生成模态</FieldLabel>
+                <div className="flex items-center gap-4">
+                  {MODALITY_OPTIONS.map(opt => (
+                    <label key={opt.value} className="flex items-center gap-2" style={{ cursor: "pointer", fontSize: 13, color: "#374151" }}>
+                      <span className="flex items-center justify-center rounded-full flex-shrink-0" style={{
+                        width: 16, height: 16, border: `2px solid ${modality === opt.value ? "#4f6ef7" : "#d1d5db"}`,
+                        background: modality === opt.value ? "#4f6ef7" : "#fff", transition: "all 0.15s",
                       }}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1d23" }}>{m.name}</span>
-                        {m.tag && (
-                          <span style={{ fontSize: 10, fontWeight: 600, color: "#4f6ef7", background: "#eff4ff", borderRadius: 4, padding: "1px 6px" }}>{m.tag}</span>
-                        )}
-                        {selectedModel === m.id && (
-                          <span className="absolute top-2 right-2 flex items-center justify-center rounded-full" style={{ width: 16, height: 16, background: "#4f6ef7" }}>
-                            <Check size={10} color="#fff" strokeWidth={3} />
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: 11, color: "#9ca3af" }}>{m.info} · {m.detail}</div>
-                    </div>
+                        {modality === opt.value && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", display: "block" }} />}
+                      </span>
+                      <input type="radio" checked={modality === opt.value} onChange={() => { setModality(opt.value); setSelectedModel(""); }} style={{ display: "none" }} />
+                      {opt.label}
+                    </label>
                   ))}
                 </div>
-                {/* Selected summary */}
-                <div className="flex items-center gap-3 rounded-lg mt-3" style={{ padding: "10px 14px", background: "#f0f4ff", border: "1px solid #d0dcff", maxWidth: 560 }}>
-                  <Check size={14} color="#4f6ef7" />
-                  <span style={{ fontSize: 13, color: "#4f6ef7", fontWeight: 500 }}>
-                    {trainingModelOptions.find(m => m.id === selectedModel)?.name}
-                  </span>
-                  <span style={{ fontSize: 12, color: "#6b7280", marginLeft: "auto" }}>已选择推理服务</span>
+              </div>
+
+              {/* 选择基础模型 with tabs */}
+              <div style={{ marginBottom: 20 }}>
+                <FieldLabel required>选择基础模型</FieldLabel>
+                <div className="flex items-center gap-1 mb-3" style={{ borderBottom: "1px solid #e8ebf2" }}>
+                  {(["plaza", "builtin"] as const).map(tab => (
+                    <button key={tab} onClick={() => setModelTab(tab)}
+                      style={{
+                        fontSize: 13, fontWeight: 500, padding: "8px 16px", border: "none", cursor: "pointer",
+                        borderBottom: modelTab === tab ? "2px solid #4f6ef7" : "2px solid transparent",
+                        color: modelTab === tab ? "#4f6ef7" : "#6b7280", background: "transparent", marginBottom: -1,
+                      }}>
+                      {tab === "plaza" ? "模型库" : "我的模型"}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-3" style={{ maxWidth: 560 }}>
+                  {modelTab === "plaza" ? (
+                    filteredModels.length === 0 ? (
+                      <div style={{ gridColumn: "span 2", padding: "24px 0", textAlign: "center", color: "#9ca3af", fontSize: 13 }}>当前模态暂无可选模型</div>
+                    ) : filteredModels.map(m => (
+                      <div key={m.id} onClick={() => setSelectedModel(m.id)}
+                        style={{
+                          border: `2px solid ${selectedModel === m.id ? "#4f6ef7" : "#e0e3ed"}`,
+                          borderRadius: 8, padding: 12, cursor: "pointer",
+                          background: selectedModel === m.id ? "#f5f8ff" : "#fff",
+                          transition: "all 0.15s", position: "relative",
+                        }}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1d23" }}>{m.name}</span>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: "#4f6ef7", background: "#eff4ff", borderRadius: 4, padding: "1px 6px" }}>来自模型广场</span>
+                          {selectedModel === m.id && (
+                            <span className="absolute top-2 right-2 flex items-center justify-center rounded-full" style={{ width: 16, height: 16, background: "#4f6ef7" }}>
+                              <Check size={10} color="#fff" strokeWidth={3} />
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 11, color: "#9ca3af" }}>参数量: {m.paramSize}B · {m.category} · {m.developer}</div>
+                      </div>
+                    ))
+                  ) : (
+                    [
+                      { id: "my-qwen2-7b", name: "我的Qwen2-7B", info: "参数量: 7B · LLM", version: "v1.0", updatedAt: "2026-07-01 09:00" },
+                      { id: "my-glm-4v", name: "我的GLM-4V", info: "参数量: 9B · LLM · vision", version: "v2.0", updatedAt: "2026-07-03 14:20" },
+                      { id: "my-deepseek", name: "我的DeepSeek-V3", info: "参数量: 671B · LLM", version: "v1.5", updatedAt: "2026-07-05 10:30" },
+                    ].filter(m => {
+                      // Filter by modality for my models too
+                      if (modality === "文生图") return m.info.includes("Image");
+                      if (modality === "图生文") return m.info.includes("vision");
+                      return !m.info.includes("vision") && !m.info.includes("Image");
+                    }).length === 0 ? (
+                      <div style={{ gridColumn: "span 2", padding: "24px 0", textAlign: "center", color: "#9ca3af", fontSize: 13 }}>当前模态暂无可选模型</div>
+                    ) : [
+                      { id: "my-qwen2-7b", name: "我的Qwen2-7B", info: "参数量: 7B · LLM", version: "v1.0", updatedAt: "2026-07-01 09:00" },
+                      { id: "my-glm-4v", name: "我的GLM-4V", info: "参数量: 9B · LLM · vision", version: "v2.0", updatedAt: "2026-07-03 14:20" },
+                      { id: "my-deepseek", name: "我的DeepSeek-V3", info: "参数量: 671B · LLM", version: "v1.5", updatedAt: "2026-07-05 10:30" },
+                    ].filter(m => {
+                      if (modality === "文生图") return m.info.includes("Image");
+                      if (modality === "图生文") return m.info.includes("vision");
+                      return !m.info.includes("vision") && !m.info.includes("Image");
+                    }).map(m => (
+                      <div key={m.id} onClick={() => setSelectedModel(m.id)}
+                        style={{
+                          border: `2px solid ${selectedModel === m.id ? "#4f6ef7" : "#e0e3ed"}`,
+                          borderRadius: 8, padding: 12, cursor: "pointer",
+                          background: selectedModel === m.id ? "#f5f8ff" : "#fff",
+                          transition: "all 0.15s", position: "relative",
+                        }}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1d23" }}>{m.name}</span>
+                          {/* Version number in top-right corner */}
+                          <span className="ml-auto" style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", background: "#f0f2f7", borderRadius: 4, padding: "1px 6px" }}>{m.version}</span>
+                        </div>
+                        <div style={{ fontSize: 11, color: "#9ca3af" }}>{m.info} · {m.updatedAt}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {selectedModel && (
+                  <div className="flex items-center gap-3 rounded-lg mt-3" style={{ padding: "10px 14px", background: "#f0f4ff", border: "1px solid #d0dcff", maxWidth: 560 }}>
+                    <Check size={14} color="#4f6ef7" />
+                    <span style={{ fontSize: 13, color: "#4f6ef7", fontWeight: 500 }}>
+                      {modelTab === "plaza" ? (filteredModels.find(m => m.id === selectedModel)?.name ?? selectedModel) : selectedModel}
+                    </span>
+                    <span style={{ fontSize: 12, color: "#6b7280", marginLeft: "auto" }}>已选择基础模型</span>
+                  </div>
+                )}
+              </div>
+
+              {/* 资源组 */}
+              <div style={{ marginBottom: 20, padding: 16, background: "#f8f9fc", borderRadius: 8 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1d23", marginBottom: 12 }}>资源配置</div>
+                <div style={{ maxWidth: 300 }}>
+                  <FieldLabel required>资源组</FieldLabel>
+                  <select value={resourceGroup} onChange={e => setResourceGroup(e.target.value)} style={selectStyle}>
+                    <option value="">请选择资源组</option>
+                    <option value="4090">4090</option>
+                    <option value="aa">aa</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* 模型输出 */}
+              <div style={{ marginBottom: 20, padding: 16, background: "#f8f9fc", borderRadius: 8 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1d23", marginBottom: 12 }}>模型输出</div>
+                <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                  <div>
+                    <FieldLabel required>新模型名称</FieldLabel>
+                    <input value={outputModelName} onChange={e => setOutputModelName(e.target.value)}
+                      placeholder="请输入新模型名称" style={inputStyle} />
+                  </div>
+                  <div>
+                    <FieldLabel required>版本号</FieldLabel>
+                    <input value={outputModelVersion} onChange={e => setOutputModelVersion(e.target.value)}
+                      placeholder="如 v1.0" style={inputStyle} />
+                  </div>
+                  <div style={{ gridColumn: "span 2" }}>
+                    <FieldLabel>新模型描述</FieldLabel>
+                    <textarea value={outputModelDesc} onChange={e => setOutputModelDesc(e.target.value)}
+                      placeholder="请输入新模型描述" style={{ ...inputStyle, height: 60, paddingTop: 8, resize: "vertical" }} />
+                  </div>
                 </div>
               </div>
 
               {/* 训练数据 */}
-              <div style={{ marginBottom: 20, padding: 16, background: "#f8f9fc", borderRadius: 8 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1d23", marginBottom: 12 }}>训练数据</div>
-                <div style={{ marginBottom: 12 }}>
-                  <FieldLabel>上传方式</FieldLabel>
-                  <div className="flex items-center gap-4">
-                    {radioBtn(uploadMode === "local", "从本地传", () => setUploadMode("local"))}
-                    {radioBtn(uploadMode === "obs", "OBS 上传", () => setUploadMode("obs"))}
-                    {radioBtn(uploadMode === "dataset", "数据集", () => setUploadMode("dataset"))}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-                  <div>
-                    <FieldLabel>数据集名称</FieldLabel>
-                    <input value={datasetName} onChange={e => setDatasetName(e.target.value)}
-                      placeholder="请输入数据集名称" style={inputStyle} />
-                  </div>
-                  <div>
-                    <FieldLabel>增量训练描述</FieldLabel>
-                    <input placeholder="请输入描述" style={inputStyle} />
-                  </div>
-                  <div>
-                    <FieldLabel>训练集比例</FieldLabel>
-                    <div className="flex items-center gap-3">
-                      <input type="range" min={10} max={100} value={trainRatio} onChange={e => setTrainRatio(Number(e.target.value))} style={{ flex: 1, accentColor: "#4f6ef7" }} />
-                      <span style={{ fontSize: 13, color: "#374151", width: 36 }}>{trainRatio}%</span>
-                    </div>
-                  </div>
-                  <div>
-                    <FieldLabel>基本信息</FieldLabel>
-                    <input placeholder="请输入" style={inputStyle} />
-                  </div>
+              <div style={{ marginBottom: 20 }}>
+                <FieldLabel required>训练数据</FieldLabel>
+                <div className="flex items-center gap-3" style={{ maxWidth: 400 }}>
+                  <select value={trainDataset} onChange={e => setTrainDataset(e.target.value)} style={{ ...selectStyle, flex: 1 }}>
+                    <option value="">请选择训练数据集</option>
+                    <option value="ds-sft-001">SFT通用对话数据集</option>
+                    <option value="ds-cpt-001">CPT预训练语料</option>
+                    <option value="ds-vision-001">视觉问答数据集</option>
+                  </select>
+                  <button style={{ fontSize: 12, color: "#4f6ef7", background: "none", border: "none", cursor: "pointer", whiteSpace: "nowrap", fontWeight: 500 }}>+ 新建数据集</button>
                 </div>
               </div>
 
@@ -709,93 +1038,349 @@ function CreateTrainingTaskPage({ onCancel, initialModel }: { onCancel: () => vo
           <AccordionHeader step={3} label="训练参数" />
           {currentStep === 3 && (
             <div style={{ padding: "24px 24px 20px" }}>
-              {/* 训练方式 */}
-              <div style={{ marginBottom: 20 }}>
-                <FieldLabel>训练方式</FieldLabel>
-                <div className="flex items-center gap-6">
-                  {radioBtn(trainMode === "normal", "常规训练", () => setTrainMode("normal"))}
-                  {radioBtn(trainMode === "distributed", "分布式训练", () => setTrainMode("distributed"))}
+              {/* CPT: 只读的预训练框架 + 模型架构 (由基础模型自动判定) */}
+              {taskType === "cpt" && (
+                <div style={{ marginBottom: 20, padding: 16, background: "#f8f9fc", borderRadius: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1d23", marginBottom: 16 }}>预训练框架与模型架构</div>
+                  <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 12 }}>由基础模型自动判定，不可修改</div>
+                  <div className="grid grid-cols-2 gap-x-12 gap-y-4" style={{ maxWidth: 500 }}>
+                    <div>
+                      <FieldLabel>预训练框架</FieldLabel>
+                      <input value={architecture.framework} readOnly style={{ ...inputStyle, background: "#f0f2f7", color: "#6b7280", cursor: "not-allowed" }} />
+                    </div>
+                    <div>
+                      <FieldLabel>模型架构</FieldLabel>
+                      <input value={architecture.architecture} readOnly style={{ ...inputStyle, background: "#f0f2f7", color: "#6b7280", cursor: "not-allowed" }} />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* 预训练框架 */}
-              <div style={{ marginBottom: 20 }}>
-                <FieldLabel>预训练框架</FieldLabel>
-                <div className="flex items-center gap-6">
-                  {radioBtn(pretrainFramework === "custom", "自定训练框架", () => setPretrainFramework("custom"))}
-                  {radioBtn(pretrainFramework === "seq2seq", "序列到序列训练框架", () => setPretrainFramework("seq2seq"))}
-                  {radioBtn(pretrainFramework === "text-gen", "文本生成训练框架", () => setPretrainFramework("text-gen"))}
+              {/* SFT: 微调方法选择 (按模态过滤) */}
+              {taskType === "sft" && (
+                <div style={{ marginBottom: 20 }}>
+                  <FieldLabel required>微调方法</FieldLabel>
+                  <div className="flex items-center gap-3">
+                    {getFineTuneMethods(modality).map(m => (
+                      <button key={m.value} onClick={() => setFineTuneMethod(m.value)}
+                        style={{
+                          fontSize: 13, fontWeight: 500, padding: "6px 18px", borderRadius: 6,
+                          border: `1px solid ${fineTuneMethod === m.value ? "#4f6ef7" : "#e0e3ed"}`,
+                          background: fineTuneMethod === m.value ? "#eff4ff" : "#fff",
+                          color: fineTuneMethod === m.value ? "#4f6ef7" : "#6b7280",
+                          cursor: "pointer", transition: "all 0.15s",
+                        }}>{m.label}</button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* 框架版本选择 */}
-              <div style={{ marginBottom: 20 }}>
-                <FieldLabel>框架版本选择</FieldLabel>
-                <select style={{ ...selectStyle, maxWidth: 200 }}>
-                  <option>Owen</option>
-                  <option>Qwen</option>
-                </select>
-              </div>
+              {/* SFT: 微调专属参数 — 文生图 LoRA (独立参数集) */}
+              {taskType === "sft" && modality === "文生图" && fineTuneMethod === "lora" && (
+                <div style={{ marginBottom: 20, padding: 16, background: "#f8f9fc", borderRadius: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1d23", marginBottom: 16 }}>LoRA 专属参数</div>
+                  <div className="grid grid-cols-2 gap-x-12 gap-y-4" style={{ maxWidth: 560 }}>
+                    <div>
+                      <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                        LoRA 秩 (Rank) <Tip text="低秩矩阵维度，常见值：16/32/64/128" />
+                      </div>
+                      <NumInput value={loraRank} onChange={setLoraRank} />
+                    </div>
+                    <div>
+                      <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                        LoRA Alpha <Tip text="缩放系数" />
+                      </div>
+                      <NumInput value={loraAlpha} onChange={setLoraAlpha} />
+                    </div>
+                    <div style={{ gridColumn: "span 2" }}>
+                      <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                        目标注入层 <Tip text="LoRA 注入到 UNet 的哪些模块，默认 Cross-Attention" />
+                      </div>
+                      <MultiSelect options={["Cross-Attention", "Self-Attention", "FFN"]} selected={loraTargetLayers} onChange={setLoraTargetLayers} />
+                    </div>
+                    <div>
+                      <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                        LoRA Dropout <Tip text="LoRA 层 dropout 率" />
+                      </div>
+                      <input type="text" value={loraDropout} onChange={e => setLoraDropout(e.target.value)} style={inputStyle} />
+                    </div>
+                  </div>
+                </div>
+              )}
 
-              {/* 网络结构参数配置 */}
+              {/* SFT: 微调专属参数 — 文生文/图生文 LoRA & QLoRA */}
+              {taskType === "sft" && modality !== "文生图" && (fineTuneMethod === "lora" || fineTuneMethod === "qlora") && (
+                <div style={{ marginBottom: 20, padding: 16, background: "#f8f9fc", borderRadius: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1d23", marginBottom: 16 }}>
+                    {fineTuneMethod === "qlora" ? "QLoRA 专属参数" : "LoRA 专属参数"}
+                  </div>
+                  {fineTuneMethod === "qlora" && (
+                    <div style={{ marginBottom: 16, maxWidth: 240 }}>
+                      <FieldLabel>量化精度</FieldLabel>
+                      <select value={quantBits} onChange={e => setQuantBits(e.target.value)} style={selectStyle}>
+                        <option value="4bit">4bit</option>
+                        <option value="8bit">8bit</option>
+                      </select>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-x-12 gap-y-4" style={{ maxWidth: 560 }}>
+                    <div>
+                      <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                        LoRA 秩 (Rank) <Tip text="低秩矩阵维度，越大可学习能力越强但显存越多，常见值：4/8/16/32/64" />
+                      </div>
+                      <NumInput value={loraRank} onChange={setLoraRank} />
+                    </div>
+                    <div>
+                      <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                        LoRA Alpha <Tip text="缩放系数，控制 LoRA 更新的强度，通常设为 Rank 的 2 倍" />
+                      </div>
+                      <NumInput value={loraAlpha} onChange={setLoraAlpha} />
+                    </div>
+                    <div style={{ gridColumn: "span 2" }}>
+                      <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                        目标注入层 <Tip text="LoRA 注入到哪些层，默认 q_proj, v_proj" />
+                      </div>
+                      <MultiSelect options={["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]} selected={loraTargetLayers} onChange={setLoraTargetLayers} />
+                    </div>
+                    <div>
+                      <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                        LoRA Dropout <Tip text="LoRA 层的 dropout 率" />
+                      </div>
+                      <input type="text" value={loraDropout} onChange={e => setLoraDropout(e.target.value)} style={inputStyle} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SFT: 微调专属参数 — P-Tuning (仅文生文/图生文) */}
+              {taskType === "sft" && modality !== "文生图" && fineTuneMethod === "ptuning" && (
+                <div style={{ marginBottom: 20, padding: 16, background: "#f8f9fc", borderRadius: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1d23", marginBottom: 16 }}>P-Tuning 专属参数</div>
+                  <div className="grid grid-cols-2 gap-x-12 gap-y-4" style={{ maxWidth: 560 }}>
+                    <div>
+                      <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                        前缀长度 (Prefix Length) <Tip text="虚拟前缀 token 的数量" />
+                      </div>
+                      <NumInput value={prefixLength} onChange={setPrefixLength} />
+                    </div>
+                    <div>
+                      <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                        前缀维度 <Tip text="前缀向量的隐藏维度" />
+                      </div>
+                      <NumInput value={prefixDim} onChange={setPrefixDim} />
+                    </div>
+                    <div style={{ gridColumn: "span 2", maxWidth: 280 }}>
+                      <FieldLabel>前缀注入位置</FieldLabel>
+                      <select value={prefixPosition} onChange={e => setPrefixPosition(e.target.value)} style={selectStyle}>
+                        <option value="编码器">编码器</option>
+                        <option value="解码器">解码器</option>
+                        <option value="两者都加">两者都加</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SFT 全量微调: 无专属参数提示 */}
+              {taskType === "sft" && fineTuneMethod === "full" && (
+                <div style={{ marginBottom: 20, padding: 14, background: "#f8f9fc", borderRadius: 8, fontSize: 12.5, color: "#6b7280" }}>
+                  全量微调：无专属参数，直接训练模型所有参数。
+                </div>
+              )}
+
+              {/* 训练基础参数 (CPT/SFT 通用，按模态动态展示) */}
               <div style={{ marginBottom: 20, padding: 16, background: "#f8f9fc", borderRadius: 8 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1d23", marginBottom: 16 }}>网络结构参数配置</div>
-                <div className="grid grid-cols-2 gap-x-12 gap-y-4" style={{ maxWidth: 500 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1d23", marginBottom: 16 }}>训练基础参数</div>
+                <div className="grid grid-cols-2 gap-x-12 gap-y-4" style={{ maxWidth: 560 }}>
                   <div>
                     <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
-                      Epoch <Tip text="训练的轮次数，每轮遍历一次完整数据集" />
+                      训练轮数 (Epoch) <Tip text={taskType === "cpt" ? "整个数据集重复训练的次数" : "数据集重复训练次数"} />
                     </div>
                     <NumInput value={epoch} onChange={setEpoch} />
                   </div>
                   <div>
                     <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
-                      Learning rate multiplier <Tip text="学习率倍数，用于控制每次参数更新的步长。较大的值可能导致训练不稳定，较小的值收敛慢，建议从 1 开始调整" />
+                      {taskType === "cpt" ? "基础学习率" : "学习率"} <Tip text="控制参数更新步长，支持科学计数法" />
                     </div>
-                    <NumInput value={lrMul} onChange={setLrMul} />
+                    <input type="text" value={baseLr} onChange={e => setBaseLr(e.target.value)} style={inputStyle} />
                   </div>
                   <div>
                     <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
-                      Batch size <Tip text="每次更新参数所用的样本数量" />
+                      批次大小 (Batch Size) <Tip text="每次更新使用的样本数" />
                     </div>
                     <NumInput value={batchSize} onChange={setBatchSize} />
                   </div>
-                  <div>
-                    <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
-                      Max sequence length <Tip text="单条样本最大 token 长度" />
+                  {/* 最大序列长度: 文生文/图生文 显示，文生图隐藏 */}
+                  {modality !== "文生图" && (
+                    <div>
+                      <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                        最大序列长度 <Tip text="单条样本最大 token 数" />
+                      </div>
+                      <select value={maxSeq} onChange={e => setMaxSeq(Number(e.target.value))} style={selectStyle}>
+                        {[1024, 2048, 4096, 8192, 16384, 32768].map(n => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </select>
                     </div>
-                    <NumInput value={maxSeq} onChange={setMaxSeq} />
-                  </div>
+                  )}
+                  {/* 训练分辨率: 仅文生图显示 */}
+                  {modality === "文生图" && (
+                    <div>
+                      <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                        训练分辨率 (Resolution) <Tip text="训练时图像统一缩放的目标尺寸" />
+                      </div>
+                      <select value={resolution} onChange={e => setResolution(Number(e.target.value))} style={selectStyle}>
+                        <option value={512}>512</option>
+                        <option value={768}>768</option>
+                        <option value={1024}>1024</option>
+                      </select>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* 训练数据 高级 */}
+              {/* 训练超参 - 高级 (折叠区，按模态动态展示) */}
               <div style={{ marginBottom: 20, border: "1px solid #e0e3ed", borderRadius: 8, overflow: "hidden" }}>
                 <button onClick={() => setAdvancedOpen(!advancedOpen)}
                   className="w-full flex items-center justify-between"
                   style={{ padding: "11px 16px", background: "#f8f9fc", border: "none", cursor: "pointer" }}>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>训练数据（高级）</span>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>训练超参 - 高级</span>
                   {advancedOpen ? <ChevronUp size={15} color="#6b7280" /> : <ChevronDown size={15} color="#6b7280" />}
                 </button>
                 {advancedOpen && (
                   <div style={{ padding: 16 }}>
-                    <div style={{ fontSize: 12, color: "#9ca3af" }}>高级训练数据配置项...</div>
-                  </div>
-                )}
-              </div>
+                    <div className="grid grid-cols-2 gap-x-12 gap-y-4" style={{ maxWidth: 560 }}>
+                      <div>
+                        <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                          优化器 <Tip text="AdamW / Adam / SGD / Adafactor" />
+                        </div>
+                        <select value={optimizer} onChange={e => setOptimizer(e.target.value)} style={selectStyle}>
+                          {taskType === "cpt"
+                            ? ["AdamW", "Adam", "SGD", "Adafactor"].map(o => <option key={o} value={o}>{o}</option>)
+                            : ["AdamW", "Adam", "SGD"].map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                          权重衰减 (Weight Decay) <Tip text="L2 正则化防止过拟合" />
+                        </div>
+                        <input type="text" value={weightDecay} onChange={e => setWeightDecay(e.target.value)} style={inputStyle} />
+                      </div>
+                      <div>
+                        <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                          梯度裁剪 (Gradient Clipping) <Tip text="防止梯度爆炸" />
+                        </div>
+                        <input type="text" value={gradClip} onChange={e => setGradClip(e.target.value)} style={inputStyle} />
+                      </div>
+                      <div>
+                        <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                          梯度累计步数 <Tip text="梯度累积的步数，等效增大 batch size" />
+                        </div>
+                        <NumInput value={gradAccumSteps} onChange={setGradAccumSteps} />
+                      </div>
+                      <div>
+                        <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                          学习率调度策略 <Tip text="warmup / cosine decay / polynomial decay" />
+                        </div>
+                        <select value={lrSchedule} onChange={e => setLrSchedule(e.target.value)} style={selectStyle}>
+                          <option value="warmup">warmup</option>
+                          <option value="cosine decay">cosine decay</option>
+                          <option value="polynomial decay">polynomial decay</option>
+                        </select>
+                      </div>
+                      <div>
+                        <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                          混合精度训练 <Tip text="BF16 / FP16 / 关闭" />
+                        </div>
+                        <select value={mixedPrecision} onChange={e => setMixedPrecision(e.target.value)} style={selectStyle}>
+                          <option value="BF16">BF16</option>
+                          <option value="FP16">FP16</option>
+                          <option value="关闭">关闭</option>
+                        </select>
+                      </div>
+                      <div>
+                        <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                          梯度检查点 <Tip text="用计算换显存" />
+                        </div>
+                        <Switch checked={gradCheckpoint} onChange={setGradCheckpoint} />
+                      </div>
+                      <div>
+                        <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                          Checkpoint 保存间隔 <Tip text="按步数保存，步进 100" />
+                        </div>
+                        <NumInput value={ckptInterval} onChange={setCkptInterval} step={100} min={100} />
+                      </div>
+                      <div>
+                        <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                          Checkpoint 最大保留数 <Tip text="保留多少个 checkpoint" />
+                        </div>
+                        <NumInput value={ckptMaxKeep} onChange={setCkptMaxKeep} />
+                      </div>
+                      <div>
+                        <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                          是否保存优化器状态 <Tip text="关闭节省存储，开启后可从断点恢复训练" />
+                        </div>
+                        <Switch checked={saveOptimizerState} onChange={setSaveOptimizerState} />
+                      </div>
 
-              {/* 训练资源 */}
-              <div style={{ marginBottom: 20 }}>
-                <FieldLabel>训练资源</FieldLabel>
-                <div className="flex flex-col gap-2">
-                  {radioBtn(resourceType === "builtin", "本机内置数据集", () => setResourceType("builtin"))}
-                  {radioBtn(resourceType === "custom", "自定义资源", () => setResourceType("custom"))}
-                </div>
-                {resourceType === "builtin" && (
-                  <select style={{ ...selectStyle, maxWidth: 300, marginTop: 10 }}>
-                    <option>请选择内置数据集</option>
-                    <option>通用对话数据集</option>
-                    <option>代码生成数据集</option>
-                  </select>
+                      {/* 模态专属参数 — 文本-图像对比损失 (图生文/文生图) */}
+                      {(modality === "图生文" || modality === "文生图") && (
+                        <div style={{ gridColumn: "span 2" }}>
+                          <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                            文本-图像对比损失 <Tip text="开关 + 权重，控制文本与图像的对齐" />
+                          </div>
+                          <SwitchWithWeight checked={textImageContrastOn} onToggle={setTextImageContrastOn} weight={textImageContrastW} onWeightChange={setTextImageContrastW} />
+                        </div>
+                      )}
+
+                      {/* 模态专属参数 — 图像重建损失 (仅文生图) */}
+                      {modality === "文生图" && (
+                        <div style={{ gridColumn: "span 2" }}>
+                          <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                            图像重建损失 <Tip text="控制图像生成质量，开关 + 权重" />
+                          </div>
+                          <SwitchWithWeight checked={imageReconOn} onToggle={setImageReconOn} weight={imageReconW} onWeightChange={setImageReconW} />
+                        </div>
+                      )}
+
+                      {/* 模态专属参数 — 噪声调度策略 (仅文生图) */}
+                      {modality === "文生图" && (
+                        <div>
+                          <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                            噪声调度策略 <Tip text="线性 / 余弦 / 平方根加噪曲线" />
+                          </div>
+                          <select value={noiseSchedule} onChange={e => setNoiseSchedule(e.target.value)} style={selectStyle}>
+                            <option value="线性">线性</option>
+                            <option value="余弦">余弦</option>
+                            <option value="平方根">平方根</option>
+                          </select>
+                        </div>
+                      )}
+
+                      {/* 模态专属参数 — EMA 衰减率 (仅文生图) */}
+                      {modality === "文生图" && (
+                        <div>
+                          <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                            EMA 衰减率 <Tip text="指数移动平均稳定生成，范围 0.9990-0.9999" />
+                          </div>
+                          <input type="text" value={emaDecay} onChange={e => setEmaDecay(e.target.value)} style={inputStyle} />
+                        </div>
+                      )}
+
+                      {/* SFT 图生文: 视觉编码器开关 */}
+                      {taskType === "sft" && modality === "图生文" && (
+                        <div style={{ gridColumn: "span 2" }}>
+                          <div className="flex items-center mb-2" style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+                            视觉编码器 <Tip text="仅图-文模型。开=可训练，关=冻结（默认冻结）" />
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Switch checked={visionEncoderTrainable} onChange={setVisionEncoderTrainable} />
+                            <span style={{ fontSize: 12.5, color: "#9ca3af" }}>{visionEncoderTrainable ? "可训练" : "冻结"}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
 
@@ -811,79 +1396,99 @@ function CreateTrainingTaskPage({ onCancel, initialModel }: { onCancel: () => vo
           <AccordionHeader step={4} label="评估配置" />
           {currentStep === 4 && (
             <div style={{ padding: "24px 24px 20px" }}>
-              {/* 验证数据集 */}
+              {/* 验证数据 */}
               <div style={{ marginBottom: 24 }}>
-                <FieldLabel>验证数据集</FieldLabel>
+                <FieldLabel>验证数据</FieldLabel>
                 <div className="flex items-center gap-6 mb-3">
                   {radioBtn(validationMode === "none", "无", () => setValidationMode("none"))}
                   {radioBtn(validationMode === "select", "选择数据集", () => setValidationMode("select"))}
                 </div>
                 <div style={{ fontSize: 12, color: "#9ca3af", lineHeight: 1.7, marginBottom: 12, maxWidth: 560 }}>
-                  模型训练过程中，用于固定网络结构以及调整模型参数的数据集，末上传时取 1% 训练数据作为验证数据。
+                  模型训练过程中，用于固定网络结构以及调整模型参数的数据集，未上传时取部分训练数据作为验证数据。
                 </div>
-                <div className="flex items-center gap-3" style={{ maxWidth: 400 }}>
-                  <select disabled={validationMode === "none"} style={{ ...selectStyle, flex: 1, opacity: validationMode === "none" ? 0.5 : 1 }}>
-                    <option>请选择</option>
-                    <option>验证集-A</option>
-                    <option>验证集-B</option>
-                  </select>
-                  <button style={{ fontSize: 12, color: "#4f6ef7", background: "none", border: "none", cursor: "pointer", whiteSpace: "nowrap", fontWeight: 500 }}>
-                    + 新建数据集
-                  </button>
-                </div>
+                {/* When "无" selected: show split ratio dropdown */}
+                {validationMode === "none" && (
+                  <div className="flex items-center gap-2" style={{ marginBottom: 8 }}>
+                    <span style={{ fontSize: 13, color: "#374151" }}>切分训练集比例：</span>
+                    <div className="relative" style={{ width: 120 }}>
+                      <button
+                        onClick={() => setSplitOpen(!splitOpen)}
+                        className="w-full flex items-center justify-between"
+                        style={{ height: 32, padding: "0 10px", fontSize: 13, border: "1px solid #e0e3ed", borderRadius: 6, background: "#fff", cursor: "pointer", color: "#1a1d23" }}
+                      >
+                        {splitRatio}
+                        <ChevronDown size={13} color="#6b7280" />
+                      </button>
+                      {splitOpen && (
+                        <div className="absolute w-full rounded-lg shadow-lg z-10 overflow-hidden" style={{ top: "calc(100% + 4px)", border: "1px solid #e0e3ed", background: "#fff" }}>
+                          {["1%", "5%", "10%"].map(r => (
+                            <button key={r} onClick={() => { setSplitRatio(r); setSplitOpen(false); }}
+                              className="w-full flex items-center"
+                              style={{
+                                padding: "8px 12px", fontSize: 13, border: "none", cursor: "pointer", textAlign: "left",
+                                background: splitRatio === r ? "#f0f4ff" : "#fff", color: splitRatio === r ? "#4f6ef7" : "#374151",
+                                fontWeight: splitRatio === r ? 500 : 400,
+                              }}>
+                              {splitRatio === r && <Check size={12} color="#4f6ef7" style={{ marginRight: 6 }} />}
+                              {splitRatio !== r && <span style={{ width: 18 }} />}
+                              {r}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {/* When "选择数据集" selected: show dataset select */}
+                {validationMode === "select" && (
+                  <div className="flex items-center gap-3" style={{ maxWidth: 400 }}>
+                    <select style={{ ...selectStyle, flex: 1 }}>
+                      <option>请选择校验数据集</option>
+                      <option>Eval-文本验证集-A</option>
+                      <option>Eval-图文验证集-B</option>
+                    </select>
+                    <button style={{ fontSize: 12, color: "#4f6ef7", background: "none", border: "none", cursor: "pointer", whiteSpace: "nowrap", fontWeight: 500 }}>
+                      + 新建数据集
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* 评估指标 */}
               <div style={{ marginBottom: 24 }}>
                 <FieldLabel>评估指标（可多选）</FieldLabel>
-                <div className="flex items-center gap-4">
-                  {["困惑度", "生成流畅度", "逻辑一致性"].map(m => {
-                    const checked = evalMetrics.has(m);
+                <div className="flex flex-wrap items-center gap-3">
+                  {evalMetricOptions.map(m => {
+                    const checked = evalMetrics.has(m.label);
                     return (
-                      <label key={m} className="flex items-center gap-2" style={{ cursor: "pointer", fontSize: 13, color: "#374151" }}>
+                      <label key={m.label} className="flex items-center gap-2" style={{ cursor: m.core ? "not-allowed" : "pointer", fontSize: 13, color: m.core ? "#9ca3af" : "#374151" }}>
                         <span className="flex items-center justify-center rounded flex-shrink-0" style={{
                           width: 16, height: 16, border: `2px solid ${checked ? "#4f6ef7" : "#d1d5db"}`,
                           background: checked ? "#4f6ef7" : "#fff", transition: "all 0.15s",
                         }}>
                           {checked && <Check size={10} color="#fff" strokeWidth={3} />}
                         </span>
-                        <input type="checkbox" checked={checked} onChange={() => toggleMetric(m)} style={{ display: "none" }} />
-                        {m}
+                        <input type="checkbox" checked={checked} onChange={() => toggleMetric(m.label)} disabled={m.core} style={{ display: "none" }} />
+                        {m.label}
+                        {m.core && <span style={{ fontSize: 10, color: "#4f6ef7", background: "#eff4ff", borderRadius: 3, padding: "1px 5px", marginLeft: 2 }}>核心</span>}
                       </label>
                     );
                   })}
                 </div>
               </div>
 
-              {/* 评估频率 */}
+              {/* 评估频率 — by modality */}
               <div style={{ marginBottom: 24 }}>
                 <FieldLabel>评估频率</FieldLabel>
-                <div className="relative" style={{ maxWidth: 180 }}>
-                  <button
-                    onClick={() => setFreqOpen(!freqOpen)}
-                    className="w-full flex items-center justify-between"
-                    style={{ height: 34, padding: "0 10px", fontSize: 13, border: "1px solid #e0e3ed", borderRadius: 6, background: "#fff", cursor: "pointer", color: "#1a1d23" }}
-                  >
-                    {evalFreq}
-                    <ChevronDown size={13} color="#6b7280" />
-                  </button>
-                  {freqOpen && (
-                    <div className="absolute w-full rounded-lg shadow-lg z-10 overflow-hidden" style={{ top: "calc(100% + 4px)", border: "1px solid #e0e3ed", background: "#fff" }}>
-                      {["5min/次", "10min/次", "15min/次"].map(f => (
-                        <button key={f} onClick={() => { setEvalFreq(f); setFreqOpen(false); }}
-                          className="w-full flex items-center"
-                          style={{
-                            padding: "9px 12px", fontSize: 13, border: "none", cursor: "pointer", textAlign: "left",
-                            background: evalFreq === f ? "#f0f4ff" : "#fff", color: evalFreq === f ? "#4f6ef7" : "#374151",
-                            fontWeight: evalFreq === f ? 500 : 400,
-                          }}>
-                          {evalFreq === f && <Check size={12} color="#4f6ef7" style={{ marginRight: 6 }} />}
-                          {evalFreq !== f && <span style={{ width: 18 }} />}
-                          {f}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                <div className="flex items-center gap-2">
+                  <span style={{ fontSize: 13, color: "#374151" }}>每</span>
+                  <input
+                    type="number"
+                    value={evalFreqValue}
+                    onChange={e => setEvalFreqValue(Number(e.target.value))}
+                    style={{ width: 80, height: 32, padding: "0 10px", fontSize: 13, border: "1px solid #e0e3ed", borderRadius: 6, outline: "none", textAlign: "center" }}
+                  />
+                  <span style={{ fontSize: 13, color: "#374151" }}>{evalFreqUnit} 一次</span>
                 </div>
               </div>
 
@@ -902,19 +1507,25 @@ function CreateTrainingTaskPage({ onCancel, initialModel }: { onCancel: () => vo
               <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 20 }}>请确认以下配置信息后提交</div>
               <div className="rounded-lg overflow-hidden" style={{ border: "1px solid #e8ebf2", maxWidth: 600 }}>
                 {[
-                  { label: "任务类型", value: taskType === "finetune" ? "微调训练" : "预调训练" },
+                  { label: "任务类型", value: taskType === "cpt" ? "继续预训练" : taskType === "sft" ? "监督微调" : "强化学习" },
                   { label: "任务名称", value: taskName || "（未填写）" },
-                  { label: "基础模型", value: trainingModelOptions.find(m => m.id === selectedModel)?.name || "—" },
-                  { label: "框架类型", value: framework === "wenxin" ? "文心大文" : "离线方式" },
-                  { label: "训练方式", value: trainMode === "normal" ? "常规训练" : "分布式训练" },
-                  { label: "Epoch", value: String(epoch) },
-                  { label: "Batch size", value: String(batchSize) },
-                  { label: "Max sequence length", value: String(maxSeq) },
-                  { label: "验证数据集", value: validationMode === "none" ? "无（使用1%训练数据）" : "已选择" },
+                  { label: "生成模态", value: modality },
+                  { label: "基础模型", value: (modelTab === "plaza" ? (filteredModels.find(m => m.id === selectedModel)?.name ?? selectedModel) : selectedModel) || "—" },
+                  { label: "资源组", value: resourceGroup || "—" },
+                  { label: "模型输出名称", value: outputModelName || "—" },
+                  { label: "训练数据", value: trainDataset || "—" },
+                  ...(taskType === "cpt" ? [{ label: "预训练框架", value: architecture.framework }, { label: "模型架构", value: architecture.architecture }] : []),
+                  ...(taskType === "sft" ? [{ label: "微调方法", value: fineTuneMethod === "lora" ? "LoRA" : fineTuneMethod === "qlora" ? "QLoRA" : fineTuneMethod === "ptuning" ? "P-Tuning" : "全量微调" }] : []),
+                  { label: "训练轮数 (Epoch)", value: String(epoch) },
+                  { label: taskType === "cpt" ? "基础学习率" : "学习率", value: baseLr },
+                  { label: "批次大小 (Batch Size)", value: String(batchSize) },
+                  ...(modality !== "文生图" ? [{ label: "最大序列长度", value: String(maxSeq) }] : []),
+                  ...(modality === "文生图" ? [{ label: "训练分辨率", value: String(resolution) }] : []),
+                  { label: "验证数据", value: validationMode === "none" ? `无（切分${splitRatio}训练数据）` : "已选择数据集" },
                   { label: "评估指标", value: [...evalMetrics].join("、") || "—" },
-                  { label: "评估频率", value: evalFreq },
-                ].map((row, i) => (
-                  <div key={row.label} className="flex" style={{ borderBottom: i < 10 ? "1px solid #f0f2f7" : "none" }}>
+                  { label: "评估频率", value: `每 ${evalFreqValue} ${evalFreqUnit} 一次` },
+                ].map((row, i, arr) => (
+                  <div key={row.label} className="flex" style={{ borderBottom: i < arr.length - 1 ? "1px solid #f0f2f7" : "none" }}>
                     <div style={{ width: 180, padding: "10px 16px", fontSize: 13, color: "#6b7280", background: "#f8f9fc", flexShrink: 0 }}>{row.label}</div>
                     <div style={{ padding: "10px 16px", fontSize: 13, color: "#1a1d23", flex: 1 }}>{row.value}</div>
                   </div>
@@ -1135,26 +1746,31 @@ function EvaluationReportPage({ taskName, onBack }: { taskName: string; onBack: 
 // ─── Training Data Page ───────────────────────────────────────────────────────
 
 interface DatasetRow {
-  id: number; name: string; type: string; source: string; count: string;
-  status: "已就绪" | "处理中" | "失败"; creator: string; space: string; updatedAt: string;
+  id: number; name: string; type: string; desc: string; modality: string;
+  count: string; status: "已校验" | "校验失败" | "待校验"; creator: string; updatedAt: string;
 }
 
 const defaultDatasets: DatasetRow[] = [
-  { id: 1, name: "test", type: "SFT", source: "文本生成", count: "100条", status: "已就绪", creator: "djminghua@partner.c...um", space: "建名企业uc001", updatedAt: "2020-03-24 11:03:10" },
+  { id: 1, name: "sft-chat-dataset", type: "SFT", desc: "对话微调数据集", modality: "文生文", count: "12000条", status: "已校验", creator: "张小明", updatedAt: "2026-07-10 14:22:31" },
+  { id: 2, name: "cpt-corpus-v2", type: "CPT", desc: "通用预训练语料库", modality: "文生文", count: "85000条", status: "已校验", creator: "李华", updatedAt: "2026-07-08 09:15:42" },
+  { id: 3, name: "vlm-sft-images", type: "SFT", desc: "图文理解多模态数据集", modality: "图生文", count: "5600条", status: "待校验", creator: "王芳", updatedAt: "2026-07-12 18:03:09" },
+  { id: 4, name: "t2i-eval-set", type: "Eval", desc: "文生图评测基准集", modality: "文生图", count: "800条", status: "已校验", creator: "陈伟", updatedAt: "2026-07-05 11:48:53" },
+  { id: 5, name: "rl-preference-pairs", type: "RL", desc: "偏好对齐训练数据", modality: "文生文", count: "3200条", status: "校验失败", creator: "刘洋", updatedAt: "2026-07-11 16:30:18" },
+  { id: 6, name: "image-gen-sft", type: "SFT", desc: "文生图微调数据集", modality: "文生图", count: "2400条", status: "待校验", creator: "赵敏", updatedAt: "2026-07-13 10:12:45" },
 ];
 
 const datasetStatusCfg: Record<DatasetRow["status"], { bg: string; text: string; dot: string }> = {
-  "已就绪": { bg: "#f0faf5", text: "#16a34a", dot: "#22c55e" },
-  "处理中": { bg: "#eff6ff", text: "#2563eb", dot: "#3b82f6" },
-  "失败":   { bg: "#fef2f2", text: "#dc2626", dot: "#ef4444" },
+  "已校验":   { bg: "#f0faf5", text: "#16a34a", dot: "#22c55e" },
+  "校验失败": { bg: "#fef2f2", text: "#dc2626", dot: "#ef4444" },
+  "待校验":   { bg: "#fffbeb", text: "#d97706", dot: "#f59e0b" },
 };
 
 interface CreateDatasetForm {
-  name: string; rows: string; type: string; desc: string;
+  name: string; desc: string; type: string; file: string; modality: string;
 }
 
 function CreateDatasetModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: (data: CreateDatasetForm) => void }) {
-  const [form, setForm] = useState<CreateDatasetForm>({ name: "", rows: "", type: "SFT", desc: "" });
+  const [form, setForm] = useState<CreateDatasetForm>({ name: "", desc: "", type: "SFT", file: "", modality: "文生文" });
 
   const setField = (k: keyof CreateDatasetForm, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
@@ -1162,6 +1778,10 @@ function CreateDatasetModal({ onClose, onConfirm }: { onClose: () => void; onCon
     width: "100%", height: 34, padding: "0 10px", fontSize: 13,
     border: "1px solid #e0e3ed", borderRadius: 6, outline: "none",
     color: "#1a1d23", background: "#fff", boxSizing: "border-box",
+  };
+
+  const lockedInputCls: React.CSSProperties = {
+    ...inputCls, background: "#f5f7fa", color: "#9ca3af", cursor: "not-allowed",
   };
 
   return (
@@ -1202,10 +1822,10 @@ function CreateDatasetModal({ onClose, onConfirm }: { onClose: () => void; onCon
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}>数据集行数</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}>数据集简介</div>
             <input
-              type="number" value={form.rows} onChange={e => setField("rows", e.target.value)}
-              placeholder="请输入行数"
+              value={form.desc} onChange={e => setField("desc", e.target.value)}
+              placeholder="请输入数据集简介"
               style={inputCls}
             />
           </div>
@@ -1213,7 +1833,7 @@ function CreateDatasetModal({ onClose, onConfirm }: { onClose: () => void; onCon
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 8 }}>类型</div>
             <div className="flex items-center gap-2">
-              {["SFT", "预训练", "DPO"].map(t => (
+              {["CPT", "SFT", "RL", "Eval"].map(t => (
                 <button
                   key={t}
                   onClick={() => setField("type", t)}
@@ -1231,12 +1851,33 @@ function CreateDatasetModal({ onClose, onConfirm }: { onClose: () => void; onCon
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}>数据集描述</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}>上传数据集</div>
+            <div className="flex items-center gap-2">
+              <input
+                value={form.file} onChange={e => setField("file", e.target.value)}
+                placeholder="请选择数据集文件"
+                style={{ ...inputCls, flex: 1 }}
+              />
+              <button
+                style={{
+                  display: "flex", alignItems: "center", gap: 4, fontSize: 13, fontWeight: 500,
+                  color: "#4f6ef7", background: "#eff4ff", border: "1px solid #4f6ef7", borderRadius: 6,
+                  padding: "0 12px", height: 34, cursor: "pointer", flexShrink: 0,
+                }}
+              >
+                <Upload size={13} /> 选择文件
+              </button>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}>模态</div>
             <input
-              value={form.desc} onChange={e => setField("desc", e.target.value)}
-              placeholder="请输入数据集描述"
-              style={inputCls}
+              value={form.modality} readOnly
+              placeholder="文生文"
+              style={lockedInputCls}
             />
+            <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>模态默认与训练任务保持一致，不可修改</div>
           </div>
         </div>
 
@@ -1276,11 +1917,11 @@ function TrainingDataPage() {
       id: prev.length + 1,
       name: form.name,
       type: form.type,
-      source: "文本生成",
-      count: form.rows ? `${form.rows}条` : "0条",
-      status: "已就绪",
+      desc: form.desc,
+      modality: form.modality,
+      count: "0条",
+      status: "待校验",
       creator: "管理员",
-      space: "建名企业uc001",
       updatedAt: dateStr,
     }]);
   };
@@ -1308,7 +1949,7 @@ function TrainingDataPage() {
             <div className="flex items-center gap-2">
               <div className="flex items-center rounded-md" style={{ border: "1px solid #e0e3ed", height: 32, padding: "0 10px" }}>
                 <input
-                  type="text" placeholder="数...请输入..." value={search}
+                  type="text" placeholder="数据集名称搜索" value={search}
                   onChange={e => setSearch(e.target.value)}
                   style={{ fontSize: 13, border: "none", outline: "none", width: 150, background: "transparent" }}
                 />
@@ -1336,7 +1977,7 @@ function TrainingDataPage() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: "#f8f9fc" }}>
-                  {["数据集名称", "类型", "数据集来源", "数据量", "文件状态", "创建人", "所属空间", "更新时间", "操作"].map(col => (
+                  {["数据集名称", "类型", "模态", "数据集简介", "数据量", "文件状态", "创建人", "更新时间", "操作"].map(col => (
                     <th key={col} style={{ padding: "10px 14px", textAlign: "left", fontWeight: 500, color: "#6b7280", fontSize: 12.5, borderBottom: "1px solid #f0f2f7", whiteSpace: "nowrap" }}>{col}</th>
                   ))}
                 </tr>
@@ -1356,7 +1997,8 @@ function TrainingDataPage() {
                       <td style={{ padding: "12px 14px" }}>
                         <span style={{ fontSize: 12, padding: "2px 8px", background: "#eff4ff", color: "#4f6ef7", fontWeight: 500, borderRadius: 4 }}>{row.type}</span>
                       </td>
-                      <td style={{ padding: "12px 14px", color: "#374151" }}>{row.source}</td>
+                      <td style={{ padding: "12px 14px", color: "#374151" }}>{row.modality}</td>
+                      <td style={{ padding: "12px 14px", color: "#6b7280", fontSize: 12 }}>{row.desc}</td>
                       <td style={{ padding: "12px 14px", color: "#374151" }}>{row.count}</td>
                       <td style={{ padding: "12px 14px" }}>
                         <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5" style={{ background: sc.bg, fontSize: 12 }}>
@@ -1365,7 +2007,6 @@ function TrainingDataPage() {
                         </span>
                       </td>
                       <td style={{ padding: "12px 14px", color: "#6b7280", fontSize: 12 }}>{row.creator}</td>
-                      <td style={{ padding: "12px 14px", color: "#6b7280", fontSize: 12 }}>{row.space}</td>
                       <td style={{ padding: "12px 14px", color: "#6b7280", fontSize: 12, whiteSpace: "nowrap" }}>{row.updatedAt}</td>
                       <td style={{ padding: "12px 14px" }}>
                         <div className="flex items-center gap-3">
@@ -1506,7 +2147,6 @@ function Sidebar({ active, onSelect }: { active: string; onSelect: (key: string)
 export default function App() {
   const [activeMenu, setActiveMenu] = useState("model-plaza");
   const [trainingView, setTrainingView] = useState<"list" | "create" | "evaluation">("list");
-  const [tuningTpl, setTuningTpl]       = useState<TplInfo | null>(null);
   const [models, setModels] = useState<ModelRecord[]>(INITIAL_MODELS);
   const [deployments, setDeployments] = useState<DeploymentRecord[]>(INITIAL_DEPLOYMENTS);
   const [instances, setInstances] = useState<ModelInstanceRecord[]>(INITIAL_INSTANCES);
@@ -1576,7 +2216,7 @@ export default function App() {
                   onEvalReport={(name) => { setEvalTaskName(name); setTrainingView("evaluation"); }}
                 />
               : trainingView === "create"
-              ? <CreateTrainingTaskPage key={trainingPrefillModelId ?? "manual"} initialModel={trainingPrefillModel} onCancel={() => { setTrainingPrefillModelId(null); setTrainingView("list"); }} />
+              ? <CreateTrainingTaskPage key={trainingPrefillModelId ?? "manual"} initialModel={trainingPrefillModel} models={models} onCancel={() => { setTrainingPrefillModelId(null); setTrainingView("list"); }} />
               : <EvaluationReportPage taskName={evalTaskName} onBack={() => setTrainingView("list")} />
           ) : activeMenu === "training-data" ? (
             <TrainingDataPage />
@@ -1618,11 +2258,7 @@ export default function App() {
           ) : activeMenu === "user-role" ? (
             <UserRolePage />
           ) : activeMenu === "model-experience" ? (
-            <ModelExperiencePage initialModel={experiencePrefillModel} />
-          ) : activeMenu === "prompt-template" ? (
-            <PromptTemplatePage onOpenTuning={(title, version) => { setTuningTpl({ title, version }); handleMenuSelect("prompt-tuning"); }} />
-          ) : activeMenu === "prompt-tuning" ? (
-            <PromptTuningPage initialTemplate={tuningTpl} />
+            <ModelExperiencePage deployments={deployments} models={models} initialModel={experiencePrefillModel} />
           ) : (
             <PlaceholderPage label={activeLabel} />
           )}

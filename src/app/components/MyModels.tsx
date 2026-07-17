@@ -71,7 +71,7 @@ const STATUS_CFG = {
   "部署中": { bg: "#eff6ff", text: "#2563eb", border: "#bfdbfe" },
 };
 
-function CardMenu({ onDelete }: { onDelete: () => void }) {
+function CardMenu({ onDownload, onDelete }: { onDownload: () => void; onDelete: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -88,6 +88,10 @@ function CardMenu({ onDelete }: { onDelete: () => void }) {
       </button>
       {open && (
         <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "#fff", border: "1px solid #e0e3ed", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", zIndex: 50, minWidth: 100, overflow: "hidden" }}>
+          <button onClick={() => { onDownload(); setOpen(false); }}
+            style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 14px", fontSize: 13, border: "none", background: "none", cursor: "pointer", color: "#374151" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#f5f7fa")}
+            onMouseLeave={e => (e.currentTarget.style.background = "none")}>下载</button>
           <button onClick={() => { onDelete(); setOpen(false); }}
             style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 14px", fontSize: 13, border: "none", background: "none", cursor: "pointer", color: "#ef4444" }}
             onMouseEnter={e => (e.currentTarget.style.background = "#fff5f5")}
@@ -98,7 +102,7 @@ function CardMenu({ onDelete }: { onDelete: () => void }) {
   );
 }
 
-function ModelCard({ model, onDelete }: { model: MyModel; onDelete: () => void }) {
+function ModelCard({ model, onDownload, onDelete }: { model: MyModel; onDownload: () => void; onDelete: () => void }) {
   const sc = STATUS_CFG[model.status];
   const [version, setVersion] = useState<string>(model.versions[model.versions.length - 1]);
   const [vOpen, setVOpen] = useState(false);
@@ -190,6 +194,14 @@ function ModelCard({ model, onDelete }: { model: MyModel; onDelete: () => void }
               部署
             </button>
           )}
+          {(model.status === "部署中" || model.status === "已部署") && (
+            <button
+              style={{ fontSize: 12, fontWeight: 500, color: "#4f6ef7", background: "#fff", border: "1px solid #4f6ef7", borderRadius: 5, padding: "2px 12px", cursor: "pointer" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#eff4ff")}
+              onMouseLeave={e => (e.currentTarget.style.background = "#fff")}>
+              查看
+            </button>
+          )}
         </div>
       </div>
 
@@ -202,9 +214,9 @@ function ModelCard({ model, onDelete }: { model: MyModel; onDelete: () => void }
             style={{ fontSize: 12.5, fontWeight: 500, color: "#4f6ef7", background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 2 }}
             onMouseEnter={e => (e.currentTarget.style.color = "#3b5de8")}
             onMouseLeave={e => (e.currentTarget.style.color = "#4f6ef7")}>
-            查看 <ChevronRight size={12} />
+            查看训练任务 <ChevronRight size={12} />
           </button>
-          <CardMenu onDelete={onDelete} />
+          <CardMenu onDownload={onDownload} onDelete={onDelete} />
         </div>
       </div>
     </div>
@@ -266,7 +278,7 @@ export function MyModelsPage() {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
             {filtered.map(m => (
-              <ModelCard key={m.id} model={m} onDelete={() => setModels(prev => prev.filter(x => x.id !== m.id))} />
+              <ModelCard key={m.id} model={m} onDownload={() => {}} onDelete={() => setModels(prev => prev.filter(x => x.id !== m.id))} />
             ))}
           </div>
         )}

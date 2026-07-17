@@ -121,12 +121,8 @@ function ModelCard({ model, onDownload, onDelete }: { model: MyModel; onDownload
       onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.boxShadow = "0 6px 20px rgba(79,110,247,0.12)"}
       onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.boxShadow = "0 2px 8px rgba(79,110,247,0.06)"}>
 
-      {/* Header: icon + name + version */}
+      {/* Header: name + version */}
       <div className="flex items-center gap-2 mb-3">
-        <div className="flex items-center justify-center rounded-lg flex-shrink-0"
-          style={{ width: 32, height: 32, background: "linear-gradient(135deg,#4f6ef7,#7c5cf6)" }}>
-          <Cpu size={15} color="#fff" />
-        </div>
         <span style={{ fontSize: 15, fontWeight: 700, color: "#1a1d23", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
           {model.name}
         </span>

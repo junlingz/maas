@@ -10,7 +10,7 @@ import { AuditEventsPage } from "./components/AuditEvents";
 import { UsageStatsPage } from "./components/UsageStats";
 import { LogMiningPage } from "./components/LogMining";
 import { ModelRoutingPage } from "./components/ModelRouting";
-import { ModelEvaluationPage } from "./components/ModelEvaluation";
+import { EvaluationConfigPage, ModelComparePage, ModelEvaluationPage } from "./components/ModelEvaluation";
 import { EvaluationDataPage } from "./components/EvaluationData";
 import { ResourcePermissionPage } from "./components/ResourcePermission";
 import { ModelDeploymentPage } from "./components/ModelDeployment";
@@ -49,8 +49,10 @@ const menuData: MenuItem[] = [
   {
     label: "模型评测", key: "model-evaluation", icon: <ClipboardCheck size={16} />,
     children: [
-      { label: "模型评测", key: "evaluation-task" },
+      { label: "评测任务", key: "evaluation-task" },
       { label: "评测数据", key: "evaluation-data" },
+      { label: "模型对比", key: "evaluation-compare" },
+      { label: "配置方案", key: "evaluation-config" },
     ],
   },
   {
@@ -2253,6 +2255,10 @@ export default function App() {
             <ModelEvaluationPage />
           ) : activeMenu === "evaluation-data" ? (
             <EvaluationDataPage />
+          ) : activeMenu === "evaluation-compare" ? (
+            <ModelComparePage />
+          ) : activeMenu === "evaluation-config" ? (
+            <EvaluationConfigPage />
           ) : activeMenu === "workspace" ? (
             <ResourcePermissionPage />
           ) : activeMenu === "user-role" ? (

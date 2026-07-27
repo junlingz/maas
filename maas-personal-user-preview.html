@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MaaS 个人视角 - API Key 密钥管理</title>
+<style>
+:root{
+  --primary:#165DFF;
+  --bg:#F5F7FA;
+  --card:#fff;
+  --line:#E5E6EB;
+  --line2:#F2F3F5;
+  --text:#1D2129;
+  --muted:#4E5969;
+  --soft:#86909C;
+  --green:#00B42A;
+  --orange:#FF7D00;
+  --red:#F53F3F;
+  --purple:#722ED1;
+}
+*{box-sizing:border-box}
+body{margin:0;min-width:1180px;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Arial,sans-serif}
+.layout{display:flex;min-height:100vh}
+.side{width:224px;background:#fff;border-right:1px solid var(--line2);padding:18px 0}
+.brand{padding:0 22px 18px;border-bottom:1px solid var(--line2);font-weight:750;color:var(--primary);font-size:17px}
+.nav{padding:14px 0}
+.nav div{height:42px;display:flex;align-items:center;padding:0 22px;color:var(--muted);font-size:14px;cursor:pointer}
+.nav div.active{color:var(--primary);background:#F0F7FF;border-right:3px solid var(--primary);font-weight:650}
+.main{flex:1;min-width:0}
+.top{height:54px;background:#fff;border-bottom:1px solid var(--line2);display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;color:var(--muted)}
+.content{padding:24px 28px 30px}
+.title-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
+h1{font-size:24px;margin:0 0 6px;font-weight:700}
+.sub{color:var(--soft);font-size:13px}
+.api-hero{background:#fff;border:1px solid var(--line2);border-radius:6px;padding:22px 24px;margin-bottom:14px;display:flex;align-items:flex-start;justify-content:space-between;gap:24px}
+.api-hero h1{font-size:26px;margin-bottom:8px}
+.api-hero .sub{max-width:720px;line-height:1.7}
+.api-actions{display:flex;gap:10px;align-items:center;white-space:nowrap}
+.api-section{background:#fff;border:1px solid var(--line2);border-radius:6px;padding:18px;margin-bottom:14px}
+.api-table th,.api-table td{padding:14px 12px}
+.muted-line{color:var(--soft);font-size:12px;margin-top:5px}
+.code-box{border:1px solid var(--line);background:#FAFBFC;border-radius:6px;padding:13px 14px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:12px;color:#1D2129;line-height:1.8;word-break:break-all}
+.api-guide{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.api-guide .card{margin:0}
+.btn{height:34px;border:1px solid var(--line);border-radius:4px;background:#fff;padding:0 14px;font-size:13px;color:var(--text);cursor:pointer}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.danger{color:var(--red);border-color:#FFD8D8}
+.btn + .btn{margin-left:8px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--line2);border-radius:6px;padding:16px}
+.metric .label{font-size:13px;color:var(--muted);margin-bottom:8px}
+.metric .value{font-size:28px;font-weight:700}
+.metric .value small{font-size:13px;color:var(--soft);font-weight:400;margin-left:4px}
+.metric .foot{font-size:12px;color:var(--soft);border-top:1px solid var(--line2);margin-top:10px;padding-top:9px}
+.panel-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.panel-title b{font-size:16px}
+.notice{background:#F0F7FF;border:1px solid #BEDAFF;border-left:4px solid var(--primary);border-radius:6px;padding:12px 14px;color:var(--muted);font-size:13px;line-height:1.7;margin-bottom:14px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#F7F8FA;color:var(--muted);font-weight:500;text-align:left;padding:11px 12px;border-bottom:1px solid var(--line)}
+td{padding:12px;border-bottom:1px solid var(--line2);vertical-align:middle}
+.tag{display:inline-flex;height:22px;align-items:center;border-radius:4px;padding:0 8px;font-size:12px;background:#E8F3FF;color:#0E42D2}
+.tag.green{background:#E8FFEA;color:#15803D}
+.tag.orange{background:#FFF7E8;color:#C2410C}
+.tag.red{background:#FFECE8;color:#B91C1C}
+.tag.gray{background:#F2F3F5;color:var(--muted)}
+.key{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:12px;color:#1D2129}
+.link{color:var(--primary);cursor:pointer;margin-right:10px}
+.link.danger{color:var(--red)}
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px}
+.toolbar input,.toolbar select{height:34px;border:1px solid var(--line);border-radius:4px;padding:0 10px;background:#fff;font:inherit;color:var(--muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.progress{height:8px;border-radius:999px;background:#F2F3F5;overflow:hidden}
+.progress i{display:block;height:100%;background:var(--primary)}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:13px;color:var(--muted)}
+.field input,.field select,.field textarea{border:1px solid var(--line);border-radius:4px;height:36px;padding:0 10px;font:inherit;background:#fff}
+.field textarea{height:82px;padding:9px 10px;resize:none}
+.wide{grid-column:1 / -1}
+.check-row{display:flex;gap:14px;flex-wrap:wrap}
+.check{display:inline-flex;align-items:center;gap:8px;height:34px;border:1px solid var(--line);border-radius:18px;padding:0 14px;background:#fff;color:var(--text)}
+.check input{accent-color:var(--primary)}
+.check:has(input:checked){border-color:#8FB1FF;background:#F0F7FF;color:var(--primary)}
+.modal-mask{position:fixed;inset:0;background:rgba(29,33,41,.45);display:none;align-items:center;justify-content:center;z-index:20}
+.modal-mask.show{display:flex}
+.modal{width:680px;max-width:92vw;background:#fff;border-radius:8px;box-shadow:0 18px 48px rgba(0,0,0,.18);overflow:hidden}
+.modal-head{height:54px;border-bottom:1px solid var(--line2);display:flex;align-items:center;justify-content:space-between;padding:0 18px}
+.modal-head b{font-size:17px}
+.close{width:28px;height:28px;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--soft)}
+.close:hover{background:#F2F3F5;color:var(--text)}
+.modal-body{padding:18px}
+.modal-foot{height:58px;border-top:1px solid var(--line2);display:flex;justify-content:flex-end;align-items:center;padding:0 18px;background:#FAFBFC}
+.secret-box{border:1px dashed #8FB1FF;background:#F0F7FF;border-radius:6px;padding:14px;font-family:"SF Mono",Menlo,Consolas,monospace;word-break:break-all;color:#0E42D2}
+.toast{position:fixed;right:24px;top:70px;background:#1D2129;color:#fff;border-radius:6px;padding:11px 14px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.18);display:none;z-index:30}
+.toast.show{display:block}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="side">
+    <div class="brand">MaaS 个人中心</div>
+    <div class="nav">
+      <div class="active" data-page="keys">API Key 密钥管理</div>
+      <div data-page="usage">调用用量</div>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="top">
+      <div id="breadcrumb">首页 / 个人中心 / API Key 密钥管理</div>
+      <div>当前账号：li.user · 普通用户</div>
+    </div>
+    <div class="content" id="content"></div>
+  </main>
+</div>
+
+<div class="modal-mask" id="modalMask">
+  <div class="modal">
+    <div class="modal-head"><b id="modalTitle">弹窗</b><span class="close" id="modalClose">×</span></div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot"><button class="btn" id="modalCancel">取消</button><button class="btn primary" id="modalOk">确定</button></div>
+  </div>
+</div>
+<div class="toast" id="toast">操作成功</div>
+
+<script>
+const content = document.getElementById('content');
+const breadcrumb = document.getElementById('breadcrumb');
+const mask = document.getElementById('modalMask');
+const modalTitle = document.getElementById('modalTitle');
+const modalBody = document.getElementById('modalBody');
+const toast = document.getElementById('toast');
+
+function showToast(text){
+  toast.textContent = text;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1800);
+}
+function openModal(title, body, okText='确定'){
+  modalTitle.textContent = title;
+  modalBody.innerHTML = body;
+  document.getElementById('modalOk').textContent = okText;
+  mask.classList.add('show');
+}
+function closeModal(){
+  mask.classList.remove('show');
+  document.getElementById('modalOk').textContent = '确定';
+}
+
+const pages = {
+  overview: {
+    crumb:'首页 / 个人中心 / 个人概览',
+    html:`<div class="title-row"><div><h1>个人概览</h1><div class="sub">个人视角只展示自己可用的模型、额度、密钥和任务状态。</div></div><button class="btn primary" data-page-link="keys">管理 API Key</button></div>
+    <div class="grid-4">
+      <div class="card metric"><div class="label">API Key</div><div class="value">2<small>个</small></div><div class="foot">启用 1 · 禁用 1</div></div>
+      <div class="card metric"><div class="label">本月调用</div><div class="value">32<small>万 Token</small></div><div class="foot">额度剩余 18 万</div></div>
+      <div class="card metric"><div class="label">训练任务</div><div class="value">2<small>个</small></div><div class="foot">运行中 1 · 排队中 1</div></div>
+      <div class="card metric"><div class="label">安全提醒</div><div class="value">1<small>项</small></div><div class="foot">有 Key 90 天未轮换</div></div>
+    </div>
+    <div class="card"><div class="panel-title"><b>最近调用</b><button class="btn" data-action="refresh">刷新</button></div>
+      <table><thead><tr><th>时间</th><th>模型</th><th>调用来源</th><th>消耗</th><th>状态</th></tr></thead>
+      <tbody><tr><td>2026-07-18 15:42</td><td>GLM-4-Flash</td><td>默认调用 Key</td><td>2,340 Token</td><td><span class="tag green">成功</span></td></tr>
+      <tr><td>2026-07-18 14:18</td><td>GLM-4-Plus</td><td>文档助手 Key</td><td>8,920 Token</td><td><span class="tag green">成功</span></td></tr></tbody></table>
+    </div>`
+  },
+  keys: {
+    crumb:'首页 / 个人中心 / API Key 密钥管理',
+    html:`<div class="api-hero">
+      <div>
+        <h1>API Keys</h1>
+      </div>
+      <div class="api-actions"><button class="btn primary" data-modal="createKey">创建 API key</button></div>
+    </div>
+    <div class="api-section">
+      <div class="panel-title"><b>API Keys</b><button class="btn" data-action="refresh">刷新</button></div>
+      <div class="toolbar">
+        <input placeholder="搜索名称" aria-label="搜索名称">
+        <select aria-label="状态筛选"><option>全部状态</option><option>启用</option><option>禁用</option></select>
+        <button class="btn" data-action="refresh">查询</button>
+        <button class="btn" data-action="reset">重置</button>
+      </div>
+      <table class="api-table"><thead><tr><th>名称</th><th>Key</th><th>创建时间</th><th>最后使用</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr><td><b>默认调用 Key</b></td><td><span class="key">sk-************************9f2a</span></td><td>2026-06-20 10:24</td><td>2026-07-18 15:42</td><td><span class="tag green">启用</span></td><td><span class="link" data-action="copy">复制</span><span class="link" data-modal="keyDetail">查看</span><span class="link" data-modal="editKey">重命名</span><span class="link danger" data-modal="deleteKey">删除</span></td></tr>
+        <tr><td><b>文档助手 Key</b></td><td><span class="key">sk-************************7a8c</span></td><td>2026-04-02 09:11</td><td>2026-07-10 09:11</td><td><span class="tag gray">禁用</span></td><td><span class="link" data-action="copy">复制</span><span class="link" data-modal="keyDetail">查看</span><span class="link" data-modal="editKey">重命名</span><span class="link danger" data-modal="deleteKey">删除</span></td></tr>
+      </tbody></table>
+    </div>`
+  },
+  usage: {
+    crumb:'首页 / 个人中心 / 调用用量',
+    html:`<div class="title-row"><div><h1>调用用量</h1><div class="sub">按 API Key、模型和时间查看个人调用消耗。</div></div><button class="btn" data-action="export">导出明细</button></div>
+    <div class="card"><div class="panel-title"><b>调用明细</b><button class="btn" data-action="refresh">刷新</button></div>
+      <table><thead><tr><th>时间</th><th>API Key</th><th>模型</th><th>输入 Token</th><th>输出 Token</th><th>状态</th></tr></thead>
+      <tbody><tr><td>2026-07-18 15:42</td><td>默认调用 Key</td><td>GLM-4-Flash</td><td>1,820</td><td>520</td><td><span class="tag green">成功</span></td></tr>
+      <tr><td>2026-07-18 14:18</td><td>文档助手 Key</td><td>GLM-4-Plus</td><td>6,200</td><td>2,720</td><td><span class="tag green">成功</span></td></tr>
+      <tr><td>2026-07-17 18:02</td><td>默认调用 Key</td><td>GLM-4-Flash</td><td>430</td><td>180</td><td><span class="tag red">失败</span></td></tr></tbody></table>
+    </div>`
+  },
+  tasks: {
+    crumb:'首页 / 个人中心 / 我的任务',
+    html:`<div class="title-row"><div><h1>我的任务</h1><div class="sub">查看自己提交的训练、评测和调用任务状态。</div></div><button class="btn primary" data-action="createTask">新建任务</button></div>
+    <div class="card"><table><thead><tr><th>任务</th><th>类型</th><th>资源身份</th><th>状态</th><th>预计等待</th><th>操作</th></tr></thead>
+    <tbody><tr><td>客服语料 LoRA 微调</td><td>训练</td><td>普通用户</td><td><span class="tag orange">排队中</span></td><td>45 分钟</td><td><span class="link">取消</span></td></tr>
+    <tr><td>客服模型评测</td><td>评测</td><td>普通用户</td><td><span class="tag green">已完成</span></td><td>--</td><td><span class="link">查看报告</span></td></tr></tbody></table></div>`
+  },
+  security: {
+    crumb:'首页 / 个人中心 / 安全设置',
+    html:`<div class="title-row"><div><h1>安全设置</h1><div class="sub">管理登录安全、API Key 轮换提醒和调用来源限制。</div></div></div>
+    <div class="card"><div class="panel-title"><b>安全项</b></div>
+      <table><thead><tr><th>项目</th><th>状态</th><th>说明</th><th>操作</th></tr></thead>
+      <tbody><tr><td>API Key 轮换提醒</td><td><span class="tag orange">建议开启</span></td><td>超过 90 天未轮换时提醒</td><td><span class="link">开启</span></td></tr>
+      <tr><td>调用来源限制</td><td><span class="tag gray">未配置</span></td><td>可限制 IP 或业务系统来源</td><td><span class="link">配置</span></td></tr></tbody></table>
+    </div>`
+  }
+};
+
+function modalTemplate(type){
+  if(type === 'createKey'){
+    return {
+      title:'创建 API key',
+      body:`<div class="form">
+        <div class="field wide"><label>名称</label><input value="my-api-key" aria-label="API key 名称"></div>
+      </div>
+      <div class="notice" style="margin:14px 0 0">创建成功后完整 API Key 只显示一次，请立即复制保存。</div>`,
+      ok:'创建'
+    };
+  }
+  if(type === 'keyCreated'){
+    return {
+      title:'API key 创建成功',
+      body:`<div class="notice"><b>请立即复制保存。</b>关闭后将无法再次查看完整 Key，只能重新创建。</div>
+      <div class="secret-box">sk-7a5e91c2d09f4b8aa7e3c1f0demo6f4c9b2</div>
+      <div class="right-actions"><button class="btn primary" data-action="copy">复制 Key</button></div>`,
+      ok:'我已保存'
+    };
+  }
+  if(type === 'keyDetail'){
+    return {title:'API key 详情', body:`<table><tbody><tr><td>名称</td><td>默认调用 Key</td></tr><tr><td>Key</td><td><span class="key">sk-************************9f2a</span></td></tr><tr><td>创建时间</td><td>2026-06-20 10:24</td></tr><tr><td>最后使用</td><td>2026-07-18 15:42</td></tr><tr><td>状态</td><td><span class="tag green">启用</span></td></tr></tbody></table>`};
+  }
+  if(type === 'editKey'){
+    return {title:'重命名 API key', body:`<div class="form"><div class="field wide"><label>名称</label><input value="默认调用 Key"></div></div><div class="notice" style="margin:14px 0 0">仅可修改名称，Key 本身不可修改。</div>`, ok:'保存'};
+  }
+  if(type === 'deleteKey'){
+    return {title:'删除 API key', body:`<div class="notice" style="border-color:#FFD8D8;background:#FFF7F7;border-left-color:var(--red)">删除后使用该 Key 的业务调用会立即失败，且无法恢复。</div><p>确认删除 API Key「默认调用 Key」？</p>`, ok:'确认删除'};
+  }
+  if(type === 'rotateTip'){
+    return {title:'轮换说明', body:'建议生产环境 API Key 每 90 天轮换一次。新建 Key 后先切换业务系统配置，再删除旧 Key，避免调用中断。'};
+  }
+  return {title:'提示', body:'操作成功'};
+}
+
+function render(page='keys'){
+  const data = pages[page] || pages.keys;
+  content.innerHTML = data.html;
+  breadcrumb.textContent = data.crumb;
+  document.querySelectorAll('.nav div').forEach(item => item.classList.toggle('active', item.dataset.page === page));
+}
+
+document.addEventListener('click', e => {
+  const nav = e.target.closest('[data-page]');
+  if(nav){ render(nav.dataset.page); return; }
+  const link = e.target.closest('[data-page-link]');
+  if(link){ render(link.dataset.pageLink); return; }
+  const modal = e.target.closest('[data-modal]');
+  if(modal){
+    const m = modalTemplate(modal.dataset.modal);
+    openModal(m.title, m.body, m.ok || '确定');
+    return;
+  }
+  const action = e.target.closest('[data-action]');
+  if(action){
+    const map = {copy:'API Key 已复制（演示）', refresh:'已刷新', reset:'筛选条件已重置', export:'已导出调用明细（演示）', createTask:'进入新建任务流程（演示）'};
+    showToast(map[action.dataset.action] || '操作成功');
+  }
+});
+document.getElementById('modalClose').addEventListener('click', closeModal);
+document.getElementById('modalCancel').addEventListener('click', closeModal);
+document.getElementById('modalOk').addEventListener('click', () => {
+  const isCreate = modalTitle.textContent === '创建 API key';
+  closeModal();
+  if(isCreate){
+    const m = modalTemplate('keyCreated');
+    openModal(m.title, m.body, m.ok);
+  } else {
+    showToast('操作已确认（演示）');
+  }
+});
+mask.addEventListener('click', e => { if(e.target === mask) closeModal(); });
+render('keys');
+</script>
+</body>
+</html>

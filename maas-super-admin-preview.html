@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MaaS 超级管理员资源调度预览</title>
+<style>
+:root{
+  --primary:#165DFF;
+  --primary-2:#0E42D2;
+  --bg:#F5F7FA;
+  --card:#FFFFFF;
+  --line:#E5E6EB;
+  --line-2:#F2F3F5;
+  --text:#1D2129;
+  --muted:#4E5969;
+  --soft:#86909C;
+  --green:#00B42A;
+  --orange:#FF7D00;
+  --red:#F53F3F;
+  --purple:#722ED1;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-width:1180px;
+}
+.layout{display:flex; min-height:100vh}
+.side{
+  width:232px;
+  background:linear-gradient(180deg,#151A24 0%,#1D2129 100%);
+  color:#C9CDD4;
+  padding:16px 0;
+}
+.brand{display:flex; align-items:center; gap:12px; padding:0 18px 18px; border-bottom:1px solid rgba(255,255,255,.08)}
+.brand-icon{width:34px;height:34px;border-radius:8px;background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800}
+.brand b{color:#fff;font-size:17px;letter-spacing:.2px}
+.nav{padding-top:18px}
+.nav-item{height:42px;padding:0 20px;display:flex;gap:10px;align-items:center;font-size:15px;color:#D7DBE3;cursor:pointer}
+.nav-item:hover{background:rgba(255,255,255,.04);color:#fff}
+.nav-item.active{background:linear-gradient(90deg,rgba(22,93,255,.38),rgba(22,93,255,.06));color:#fff;border-left:4px solid #8FB1FF;padding-left:16px}
+.nav-icon{width:18px;color:#8FB1FF;text-align:center;flex-shrink:0}
+.nav-group-title{height:42px;padding:0 20px;display:flex;gap:10px;align-items:center;color:#fff;font-size:16px;font-weight:650;margin-top:4px}
+.nav-group-title .chev{margin-left:auto;color:#86909C}
+.nav-sub{padding:2px 0 8px;background:rgba(0,0,0,.10)}
+.nav-sub .nav-item{height:42px;padding-left:50px;color:#A9B0BC;font-size:15px}
+.nav-sub .nav-item.active{padding-left:46px;color:#A9C2FF;border-left:4px solid #8FB1FF;background:linear-gradient(90deg,rgba(22,93,255,.42),rgba(22,93,255,.10))}
+.nav-sep{height:1px;background:rgba(255,255,255,.06);margin:10px 0}
+.main{flex:1;min-width:0}
+.topbar{height:52px;background:#fff;border-bottom:1px solid var(--line-2);display:flex;align-items:center;justify-content:space-between;padding:0 24px}
+.topbar .meta{display:flex;gap:18px;align-items:center;color:var(--muted);font-size:13px}
+.content{padding:20px 24px 28px}
+.title-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
+h1{font-size:22px;margin:0 0 6px;font-weight:650}
+.desc{font-size:13px;color:var(--soft)}
+.btn{height:32px;border:1px solid var(--line);background:#fff;border-radius:4px;padding:0 13px;font-size:13px;cursor:pointer;color:var(--text)}
+.btn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn.small{height:26px;padding:0 10px;font-size:12px}
+.btn + .btn{margin-left:8px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+.card{background:#fff;border:1px solid var(--line-2);border-radius:6px;padding:16px}
+.stat .label{font-size:13px;color:var(--muted);margin-bottom:8px}
+.stat .value{font-size:28px;font-weight:650}
+.stat .value small{font-size:13px;color:var(--soft);font-weight:400;margin-left:4px}
+.stat .foot{font-size:12px;color:var(--soft);border-top:1px solid var(--line-2);padding-top:9px;margin-top:10px}
+.panel-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.panel-title b{font-size:15px}
+.notice{background:#F0F7FF;border:1px solid #BEDAFF;border-left:4px solid var(--primary);border-radius:6px;padding:12px 14px;font-size:13px;line-height:1.7;color:var(--muted);margin-bottom:14px}
+.pipeline{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.step{border:1px solid var(--line);border-radius:6px;background:#fff;padding:12px;position:relative}
+.step:not(:last-child)::after{content:"";position:absolute;right:-10px;top:50%;width:10px;border-top:2px solid #C9CDD4}
+.step .k{font-size:12px;color:var(--soft);margin-bottom:6px}
+.step b{font-size:14px}
+.step p{font-size:12px;color:var(--muted);line-height:1.5;margin:6px 0 0}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#F7F8FA;color:var(--muted);font-weight:500;text-align:left;padding:11px 12px;border-bottom:1px solid var(--line)}
+td{padding:11px 12px;border-bottom:1px solid var(--line-2);vertical-align:top}
+.tag{display:inline-flex;align-items:center;height:22px;border-radius:4px;padding:0 8px;font-size:12px;background:#E8F3FF;color:var(--primary-2);margin-right:4px;margin-bottom:3px}
+.tag.green{background:#E8FFEA;color:#15803D}
+.tag.orange{background:#FFF7E8;color:#C2410C}
+.tag.purple{background:#F7EFFF;color:var(--purple)}
+.tag.gray{background:#F2F3F5;color:var(--muted)}
+.tag.red{background:#FFECE8;color:#B91C1C}
+.status{display:inline-flex;align-items:center;height:22px;border-radius:4px;padding:0 8px;font-size:12px;background:#E8FFEA;color:#15803D}
+.status.warn{background:#FFF7E8;color:#C2410C}
+.status.red{background:#FFECE8;color:#B91C1C}
+.two-col{display:grid;grid-template-columns:1.2fr .8fr;gap:14px;margin-top:14px}
+.queue-row{display:grid;grid-template-columns:110px 1fr 80px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line-2)}
+.bar{height:8px;border-radius:999px;background:#F2F3F5;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--primary)}
+.bar.green i{background:var(--green)}
+.bar.orange i{background:var(--orange)}
+.bar.purple i{background:var(--purple)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.field{border:1px solid var(--line);border-radius:6px;padding:10px;background:#FAFBFC}
+.field span{display:block;font-size:12px;color:var(--soft);margin-bottom:5px}
+.field b{font-size:13px}
+.actions{white-space:nowrap}
+.link{color:var(--primary);cursor:pointer;margin-right:10px}
+.link.danger{color:#F53F3F}
+.nav-item,.btn,.link,.step{user-select:none}
+.modal-mask{position:fixed;inset:0;background:rgba(29,33,41,.45);display:none;align-items:center;justify-content:center;z-index:20}
+.modal-mask.show{display:flex}
+.modal{width:720px;max-width:92vw;background:#fff;border-radius:8px;box-shadow:0 18px 48px rgba(0,0,0,.18);overflow:hidden}
+.modal-mask.drawer{justify-content:flex-end;align-items:stretch}
+.modal-mask.drawer .modal{width:620px;max-width:88vw;height:100vh;border-radius:0;transform:translateX(100%);animation:drawerIn .18s ease-out forwards}
+.modal-mask.drawer .modal-body{height:calc(100vh - 108px);overflow:auto;padding:0 24px 18px}
+@keyframes drawerIn{to{transform:translateX(0)}}
+.modal-head{height:52px;border-bottom:1px solid var(--line-2);display:flex;align-items:center;justify-content:space-between;padding:0 18px}
+.modal-head b{font-size:16px}
+.close{width:28px;height:28px;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--soft)}
+.close:hover{background:#F2F3F5;color:var(--text)}
+.modal-body{padding:18px}
+.modal-foot{height:56px;border-top:1px solid var(--line-2);display:flex;justify-content:flex-end;align-items:center;padding:0 18px;background:#FAFBFC}
+.toast{position:fixed;right:24px;top:68px;background:#1D2129;color:#fff;border-radius:6px;padding:11px 14px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.18);display:none;z-index:30}
+.toast.show{display:block}
+.mini-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mini-field{display:flex;flex-direction:column;gap:6px}
+.mini-field label{font-size:13px;color:var(--muted)}
+.field-label-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.mini-field input,.mini-field select,.mini-field textarea{border:1px solid var(--line);border-radius:4px;height:34px;padding:0 10px;font:inherit;background:#fff}
+.mini-field textarea{height:78px;padding:9px 10px;resize:none}
+.mini-field.wide{grid-column:1 / -1}
+.custom-role-box{position:relative}
+.custom-role-popover{position:absolute;right:0;top:28px;width:260px;background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:12px;z-index:5}
+.custom-role-popover input{width:100%;margin:7px 0 10px}
+.popover-actions{display:flex;justify-content:flex-end}
+.register-steps{display:flex;flex-direction:column;gap:0}
+.reg-step{border-bottom:1px solid var(--line-2);padding:18px 2px}
+.reg-step:last-child{border-bottom:0}
+.reg-head{display:flex;justify-content:space-between;align-items:center;font-weight:650;font-size:18px;color:var(--text)}
+.reg-head span{color:var(--soft);font-size:18px}
+.reg-body{display:none;padding-top:18px;color:var(--muted)}
+.reg-step.active .reg-body{display:block}
+.radio-row{display:flex;gap:34px;align-items:center;margin:18px 0 22px}
+.radio-item{display:flex;gap:10px;align-items:center;font-weight:650;color:var(--text);font-size:16px}
+.radio-dot{width:18px;height:18px;border:3px solid #C9CDD4;border-radius:50%;display:inline-block}
+.code-block{background:#1D2230;color:#F7F8FA;border-radius:8px;padding:18px 20px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:14px;line-height:1.7;white-space:pre-wrap}
+.reg-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+.choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:10px}
+.choice-card{border:1px solid var(--line);border-radius:8px;padding:18px;background:#fff;min-height:138px}
+.choice-card.active{border:2px solid #597BFF;background:#F7FAFF}
+.choice-title{display:flex;gap:10px;align-items:center;font-weight:650;font-size:16px;color:var(--text);margin-bottom:12px}
+.choice-dot{width:18px;height:18px;border-radius:50%;border:3px solid #C9CDD4;display:inline-block}
+.choice-card.active .choice-dot{border:6px solid #597BFF}
+.choice-card p{margin:0;color:var(--muted);line-height:1.7;font-size:13px}
+.wizard-tabs{display:flex;align-items:center;gap:14px;margin-bottom:18px;font-size:15px;font-weight:650;color:var(--soft)}
+.wizard-tabs span{cursor:pointer}
+.wizard-tabs span.active{color:var(--primary);text-decoration:underline;text-underline-offset:4px}
+.wizard-tabs i{height:1px;flex:1;background:#C9CDD4}
+.pool-step-panel{display:none}
+.pool-step-panel.active{display:block}
+.tag-choice-row{display:flex;flex-wrap:wrap;gap:10px}
+.tag-choice{display:inline-flex;align-items:center;gap:8px;height:34px;border:1px solid var(--line);border-radius:18px;padding:0 14px;background:#fff;cursor:pointer;color:var(--text)}
+.tag-choice input{width:14px;height:14px;accent-color:var(--primary)}
+.tag-choice:has(input:checked){border-color:#8FB1FF;background:#F0F7FF;color:var(--primary)}
+.mini-field input[readonly]{background:#F7F8FA;color:var(--text);cursor:default}
+.node-select-table input[type="checkbox"]{width:16px;height:16px}
+.gpu-stepper{display:inline-flex;align-items:center;gap:8px}
+.gpu-stepper button{width:24px;height:24px;border:1px solid var(--line);background:#fff;border-radius:4px;cursor:pointer}
+.gpu-stepper input{width:44px;height:28px;border:1px solid var(--line);border-radius:4px;text-align:center;font:inherit}
+.summary-line{margin-top:12px;color:var(--muted);font-size:14px}
+.section-title{font-size:14px;font-weight:650;margin:18px 0 10px}
+.compact-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.compact-stat{border:1px solid var(--line-2);border-radius:6px;background:#fff;padding:14px}
+.compact-stat span{display:block;font-size:12px;color:var(--soft);margin-bottom:8px}
+.compact-stat b{font-size:22px}
+.toolbar{display:flex;gap:10px;align-items:center;padding:14px 0}
+.toolbar input,.toolbar select{height:34px;border:1px solid var(--line);border-radius:4px;padding:0 10px;font:inherit;background:#fff;color:var(--muted)}
+.member-head{display:flex;justify-content:flex-end;align-items:center;margin-bottom:10px;min-height:18px}
+.member-head .member-role{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
+.member-head .member-count{font-size:13px;color:var(--soft)}
+.member-filters{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+.member-filters input,.member-filters select{height:34px;border:1px solid var(--line);border-radius:4px;padding:0 10px;font:inherit;background:#fff;color:var(--muted)}
+.member-filters input{width:260px}
+.member-filters select{width:180px}
+.member-add-panel{border:1px solid var(--line-2);border-radius:6px;background:#FAFBFC;padding:12px;margin-bottom:12px}
+.auth-user-title{font-weight:650;color:var(--muted);margin-bottom:10px}
+.auth-user-search{margin-bottom:12px}
+.auth-user-search input{width:100%;height:38px;border:1px solid var(--line);border-radius:6px;padding:0 12px;font:inherit;background:#fff}
+.auth-user-table th:first-child,.auth-user-table td:first-child{width:42px}
+.auth-user-table input[type="checkbox"]{width:16px;height:16px}
+.member-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+.member-actions{display:flex;gap:10px;align-items:center}
+.member-actions .btn:disabled{cursor:not-allowed;color:var(--soft);background:#F7F8FA}
+.drawer-tip{background:#FAFBFC;border:1px solid var(--line-2);border-radius:6px;padding:12px 14px;color:var(--muted);font-size:13px;line-height:1.7}
+.readonly-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.readonly-summary div{background:#F7F8FA;border:1px solid var(--line-2);border-radius:6px;padding:12px 14px}
+.readonly-summary span{display:block;font-size:12px;color:var(--soft);margin-bottom:6px}
+.readonly-summary b{font-size:15px}
+.readonly-field{height:34px;border:1px solid var(--line-2);border-radius:4px;padding:0 10px;background:#F7F8FA;display:flex;align-items:center;color:var(--text)}
+.seg-tabs{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#fff;margin-bottom:14px}
+.seg-tabs button{height:34px;border:0;border-right:1px solid var(--line);background:#fff;padding:0 16px;font:inherit;cursor:pointer;color:var(--muted)}
+.seg-tabs button:last-child{border-right:0}
+.seg-tabs button.active{background:var(--primary);color:#fff}
+.queue-panel{display:none}
+.queue-panel.active{display:block}
+.pie-wrap{display:flex;align-items:center;gap:28px;min-height:210px}
+.pie-chart{width:168px;height:168px;border-radius:50%;background:conic-gradient(var(--primary) 0 6.25%, var(--orange) 6.25% 25%, var(--purple) 25% 25%, #E5E6EB 25% 100%);position:relative;flex-shrink:0}
+.pie-chart.developer{background:conic-gradient(var(--primary) 0 12.5%, var(--orange) 12.5% 37.5%, var(--purple) 37.5% 62.5%, #E5E6EB 62.5% 100%)}
+.pie-chart.dedicated{background:conic-gradient(var(--primary) 0 50%, var(--orange) 50% 75%, #E5E6EB 75% 100%)}
+.pie-chart.guaranteed{background:conic-gradient(var(--primary) 0 50%, var(--purple) 50% 100%)}
+.pie-chart.burstable{background:conic-gradient(var(--orange) 0 50%, var(--primary) 50% 75%, #E5E6EB 75% 100%)}
+.pie-chart.allocation{background:conic-gradient(var(--orange) 0 25%, var(--primary) 25% 50%, var(--purple) 50% 75%, #C9CDD4 75% 100%)}
+.pie-chart::after{content:"";position:absolute;inset:34px;border-radius:50%;background:#fff}
+.pie-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1}
+.pie-center b{font-size:24px}
+.pie-center span{font-size:12px;color:var(--soft);margin-top:4px}
+.pie-legend{flex:1;display:flex;flex-direction:column;gap:12px}
+.legend-row{display:grid;grid-template-columns:14px 1fr auto;gap:10px;align-items:center;font-size:14px}
+.legend-dot{width:10px;height:10px;border-radius:50%;background:var(--primary)}
+.legend-dot.orange{background:var(--orange)}
+.legend-dot.purple{background:var(--purple)}
+.legend-dot.gray{background:#E5E6EB}
+.legend-dot.unavailable{background:#6B7280}
+.legend-row span{color:var(--muted)}
+.legend-row b{font-size:15px}
+.quota-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.quota-card{border:1px solid var(--line-2);border-radius:6px;background:#fff;padding:14px}
+.quota-card h3{margin:0 0 12px;font-size:15px}
+.quota-head{display:flex;justify-content:flex-start;align-items:center;gap:12px;margin-bottom:12px}
+.quota-head h3{margin:0}
+.quota-head select{height:34px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--muted);padding:0 10px;font:inherit}
+.quota-card.locked{border-left:4px solid var(--primary)}
+.quota-card.burst{border-left:4px solid var(--orange)}
+.quota-row{display:grid;grid-template-columns:120px 1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line-2)}
+.quota-row:last-child{border-bottom:0}
+.quota-bar{height:8px;border-radius:999px;background:#F2F3F5;overflow:hidden}
+.quota-bar i{display:block;height:100%;background:var(--primary)}
+.quota-bar.orange i{background:var(--orange)}
+.quota-bar.purple i{background:var(--purple)}
+.metric-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.metric-box{background:#FAFBFC;border:1px solid var(--line-2);border-radius:6px;padding:12px}
+.metric-box span{display:block;font-size:12px;color:var(--soft);margin-bottom:6px}
+.metric-box b{font-size:20px}
+.rule-list{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.rule-item{background:#FAFBFC;border:1px solid var(--line-2);border-radius:6px;padding:12px;font-size:13px;line-height:1.6;color:var(--muted)}
+.rule-item b{display:block;color:var(--text);margin-bottom:4px}
+.readonly-input{height:30px;border:1px solid var(--line-2);border-radius:4px;background:#F7F8FA;padding:0 9px;display:inline-flex;align-items:center;color:var(--muted)}
+.quota-input{width:64px;height:30px;border:1px solid var(--line);border-radius:4px;padding:0 8px;font:inherit}
+.queue-table th{white-space:nowrap}
+.queue-table td{vertical-align:middle}
+.queue-table .task-name{font-weight:650;margin-bottom:4px}
+.queue-table td.long-wait{border-radius:5px;background:#FFF1F0;color:#D93026;font-weight:650}
+.queue-table .actions{display:flex;gap:8px;align-items:center;white-space:nowrap}
+.queue-table .actions .btn{margin-left:0}
+.queue-table .muted-action{color:var(--soft)}
+.queue-table-scroll{max-height:300px;overflow:auto;border-top:1px solid var(--line-2);scrollbar-gutter:stable}
+.queue-table-scroll table{margin-top:0}
+.queue-table-scroll thead th{position:sticky;top:0;z-index:2}
+.queue-table-scroll::-webkit-scrollbar{width:8px;height:8px}
+.queue-table-scroll::-webkit-scrollbar-track{background:#F4F6F9;border-radius:999px}
+.queue-table-scroll::-webkit-scrollbar-thumb{background:#C9D3E1;border-radius:999px}
+.queue-table-scroll::-webkit-scrollbar-thumb:hover{background:#AEBACB}
+.table-tools{display:flex;gap:10px;align-items:center}
+.table-tools select{height:38px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--muted);padding:0 10px;font:inherit}
+.sort-switch{display:inline-flex;gap:2px;border:1px solid #D9E0EA;border-radius:8px;background:#F5F7FA;padding:3px;box-shadow:inset 0 1px 2px rgba(15,23,42,.04)}
+.sort-switch button{height:30px;border:0;border-radius:5px;background:transparent;color:var(--muted);padding:0 12px;font:inherit;cursor:pointer}
+.sort-switch button.active{background:#fff;color:var(--primary);font-weight:650;box-shadow:0 1px 4px rgba(30,96,255,.16)}
+.table-pager{display:flex;justify-content:flex-end;align-items:center;gap:10px;padding:12px 0 0;color:var(--muted);font-size:13px}
+.table-pager button{height:30px;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--muted);padding:0 10px;font:inherit;cursor:pointer}
+.table-pager button.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.table-pager button:disabled{cursor:not-allowed;color:var(--soft);background:#F7F8FA}
+.reason-row td{background:#FBFCFF;color:var(--muted);font-size:12px;line-height:1.6;padding:0 16px 12px;border-bottom:1px solid var(--line)}
+.reason-box{border-left:3px solid #BEDAFF;background:#F7FAFF;border-radius:4px;padding:8px 10px}
+.reason-row b{color:var(--text)}
+.is-hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="side">
+    <div class="brand"><div class="brand-icon">M</div><b>MaaS 超级管理员</b></div>
+    <div class="nav">
+      <div class="nav-group-title"><span class="nav-icon">▤</span><span>资源管理</span><span class="chev">⌄</span></div>
+      <div class="nav-sub">
+        <div class="nav-item" data-page="cluster">集群</div>
+        <div class="nav-item" data-page="nodes">节点</div>
+        <div class="nav-item" data-page="pool">资源组</div>
+      </div>
+      <div class="nav-sep"></div>
+      <div class="nav-group-title"><span class="nav-icon">▥</span><span>权限与调度</span><span class="chev">⌄</span></div>
+      <div class="nav-sub">
+        <div class="nav-item" data-page="identity">角色配置</div>
+        <div class="nav-item active" data-page="roleQueue">角色队列</div>
+      </div>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <div>首页 / 资源管理 / 调度配置</div>
+      <div class="meta"><span>超级管理员：admin</span><span>北京时间 15:30</span></div>
+    </div>
+    <div class="content">
+      <div class="title-row">
+        <div>
+          <h1>超级管理员资源调度配置</h1>
+          <div class="desc">统一查看集群、资源组、角色队列与调度状态。</div>
+        </div>
+        <div>
+          <button class="btn" data-action="export">导出配置</button>
+          <button class="btn primary" data-modal="cluster">接入集群</button>
+        </div>
+      </div>
+
+      <div class="grid-4">
+        <div class="card stat"><div class="label">已接入集群</div><div class="value">3<small>个</small></div><div class="foot">K8s 2 个 · 物理集群 1 个</div></div>
+        <div class="card stat"><div class="label">纳管 GPU</div><div class="value">16<small>张</small></div><div class="foot">示例分配：开发人员 8 / 普通 2 / VIP 6</div></div>
+        <div class="card stat"><div class="label">运行任务</div><div class="value">9<small>个</small></div><div class="foot">训练 5 · 推理 3 · 评测 1</div></div>
+        <div class="card stat"><div class="label">平均等待</div><div class="value">18<small>分钟</small></div><div class="foot">普通 45 分钟 · VIP 2 分钟</div></div>
+      </div>
+
+      <div class="card">
+        <div class="panel-title"><b>资源链路</b><button class="btn primary" data-modal="pool">新增资源组</button></div>
+        <div class="pipeline">
+          <div class="step"><div class="k">Step 1</div><b>集群接入</b><p>3 个集群在线，最近同步 15:30。</p></div>
+          <div class="step"><div class="k">Step 2</div><b>节点纳管</b><p>4 个节点正常，1 个节点高负载。</p></div>
+          <div class="step"><div class="k">Step 3</div><b>资源组</b><p>5 个资源组，17 张 GPU 可调度。</p></div>
+          <div class="step"><div class="k">Step 4</div><b>角色绑定</b><p>5 个角色已绑定资源组。</p></div>
+          <div class="step"><div class="k">Step 5</div><b>队列调度</b><p>16 个任务排队，平均等待 18 分钟。</p></div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="panel-title"><b>集群与资源组</b><button class="btn" data-action="refresh">刷新</button></div>
+          <table>
+            <thead><tr><th>集群</th><th>节点 / GPU</th><th>资源组</th><th>服务角色</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td><b>a100-prod-cluster</b><br><span class="tag gray">Nvidia A100</span></td><td>2 节点 / 8 卡</td><td>VIP推理资源组 / 机构共享资源组</td><td><span class="tag purple">VIP</span><span class="tag">机构共享</span></td><td><span class="status">Ready</span></td><td class="actions"><span class="link" data-modal="nodes">节点</span><span class="link" data-modal="pool">配置</span></td></tr>
+              <tr><td><b>h20-node-cluster</b><br><span class="tag gray">Nvidia H20</span></td><td>1 节点 / 4 卡</td><td>普通用户训练资源组</td><td><span class="tag green">普通用户</span></td><td><span class="status warn">高负载</span></td><td class="actions"><span class="link" data-modal="nodes">节点</span><span class="link" data-modal="scheduler">调度</span></td></tr>
+              <tr><td><b>gpu-dev-cluster</b><br><span class="tag gray">Nvidia L20</span></td><td>1 节点 / 4 卡</td><td>开发人员训练资源组</td><td><span class="tag orange">开发人员</span></td><td><span class="status">Ready</span></td><td class="actions"><span class="link" data-modal="nodes">节点</span><span class="link" data-modal="cluster">编辑</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="panel-title"><b>全局 GPU 占比</b><button class="btn" data-action="refresh">刷新</button></div>
+          <div class="desc" style="margin-bottom:10px">不再预留固定卡位，弹性最大占比上限统一为 80%。</div>
+          <div class="pie-wrap">
+            <div class="pie-chart" style="background:conic-gradient(var(--primary) 0 75%, #C9CDD4 75% 100%)">
+              <div class="pie-center"><b>75%</b><span>已占用</span></div>
+            </div>
+            <div class="pie-legend">
+              <div class="legend-row"><i class="legend-dot"></i><span>开发人员占用</span><b>75%</b></div>
+              <div class="legend-row"><i class="legend-dot" style="background:#C9CDD4"></i><span>空闲 GPU</span><b>25%</b></div>
+              <div class="legend-row"><i class="legend-dot unavailable"></i><span>不可用 GPU</span><b>0%</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="panel-title"><b>角色配置</b><button class="btn primary" data-modal="identity">配置角色</button></div>
+        <table>
+          <thead><tr><th>角色</th><th>资源组</th><th>可用任务</th><th>单任务上限</th><th>调度策略</th><th>资源不足处理</th><th>人员</th></tr></thead>
+          <tbody>
+            <tr><td><span class="tag green">普通用户</span></td><td>普通用户训练资源组</td><td>调用 / 训练 / 评测</td><td>1 卡 · 64G</td><td>普通排队 · 最长 2 小时</td><td>资源不足排队</td><td>1 <span class="link" data-modal="roleMembers" data-role-members="普通用户">查看人员</span></td></tr>
+            <tr><td><span class="tag purple">VIP</span></td><td>VIP推理资源组</td><td>训练 / 部署 / 推理</td><td>4 卡 · 128G</td><td>优先排队</td><td>空闲时可加速</td><td>1 <span class="link" data-modal="roleMembers" data-role-members="VIP">查看人员</span></td></tr>
+            <tr><td><span class="tag">独立机构</span></td><td>独立机构训练资源组</td><td>训练 / 部署 / 推理 / 评测</td><td>80% 占比上限</td><td>机构内 FIFO</td><td>不抢占，资源不足排队</td><td>2 <span class="link" data-modal="roleMembers" data-role-members="独立机构">查看人员</span></td></tr>
+            <tr><td><span class="tag orange">开发人员</span></td><td>开发人员训练资源组</td><td>调用 / 训练 / 评测 / 部署</td><td>2 卡 · 96G</td><td>开发人员队列</td><td>资源不足排队</td><td>3 <span class="link" data-modal="roleMembers" data-role-members="开发人员">查看人员</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="panel-title"><b>资源组配置</b><button class="btn primary" data-action="save">保存策略</button></div>
+        <div class="form-grid">
+          <div class="field"><span>角色</span><b>VIP</b></div>
+          <div class="field"><span>用途</span><b>推理部署</b></div>
+          <div class="field"><span>资源组名称</span><b>VIP推理资源组</b></div>
+          <div class="field"><span>所属集群</span><b>a100-prod-cluster</b></div>
+          <div class="field"><span>节点 / GPU</span><b>a100-node-01 · 4 卡</b></div>
+          <div class="field"><span>调度优先级</span><b>VIP 优先</b></div>
+          <div class="field"><span>是否可借出</span><b>低峰可借出</b></div>
+          <div class="field"><span>可借入来源</span><b>普通用户空闲资源</b></div>
+          <div class="field"><span>资源不足处理</span><b>不抢占 · 排队等待</b></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<div class="modal-mask" id="modalMask">
+  <div class="modal">
+    <div class="modal-head"><b id="modalTitle">弹窗</b><span class="close" id="modalClose">×</span></div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot"><button class="btn" id="modalCancel">取消</button><button class="btn primary" id="modalOk">确定</button></div>
+  </div>
+</div>
+<div class="toast" id="toast">已完成</div>
+<script>
+const modalMap = {
+  cluster: {
+    title: '创建集群',
+    body: `<div class="mini-form">
+      <div class="mini-field wide"><label>当前环境</label><input value="Kubernetes" readonly></div>
+      <div class="mini-field wide"><label>名称 <span style="color:#F53F3F">*</span></label><input placeholder="请输入集群名称"></div>
+      <div class="mini-field wide"><label>描述</label><input placeholder="请输入集群描述"></div>
+      <div class="mini-field wide"><label>集群底座 <span style="color:#F53F3F">*</span></label>
+        <div class="choice-grid">
+          <div class="choice-card active">
+            <div class="choice-title"><span class="choice-dot"></span>GPU 服务</div>
+            <p>适用于按需分配 GPU 计算资源的场景，例如交互式开发、训练任务或自定义运行环境。</p>
+          </div>
+          <div class="choice-card">
+            <div class="choice-title"><span class="choice-dot"></span>模型服务</div>
+            <p>适用于大模型推理与 API 服务化场景，例如对外提供模型 API 与 Token 服务能力。</p>
+          </div>
+        </div>
+      </div>
+    </div>`
+  },
+  registerCluster: {
+    title: '注册集群',
+    body: `<div class="register-steps" id="registerSteps">
+      <div class="reg-step active" data-step="1">
+        <div class="reg-head">1. 选择GPU厂商 <span>⌃</span></div>
+        <div class="reg-body">
+          <div class="desc">适于选择以用于该 GPU 的集群</div>
+          <div class="radio-row">
+            <label class="radio-item"><span class="radio-dot"></span>NVIDIA</label>
+            <label class="radio-item"><span class="radio-dot"></span>AMD</label>
+          </div>
+          <div class="reg-actions"><button class="btn primary" data-register-step="2">下一步</button></div>
+        </div>
+      </div>
+      <div class="reg-step" data-step="2">
+        <div class="reg-head">2. 检查环境 <span>⌄</span></div>
+        <div class="reg-body">
+          <div class="desc">在继续之前，请先确认当前环境已满足运行条件</div>
+          <div class="code-block">kubectl get containers -n kube-system -o yaml | grep -i "nvidia.runtime.class" | awk -F: '{print $2}' | head -n 2
+&
+nodes_without_nvidia=$(kubectl get nodes -o json | jq -r '.items[] | select(.status.allocatable["nvidia.com/gpu"] == null) | .metadata.name'); echo "$nodes_without_nvidia"</div>
+          <div class="reg-actions"><button class="btn" data-register-step="1">上一步</button><button class="btn primary" data-register-step="3">下一步</button></div>
+        </div>
+      </div>
+      <div class="reg-step" data-step="3">
+        <div class="reg-head">3. 运行指令 <span>⌄</span></div>
+        <div class="reg-body">
+          <div class="desc">在完成安装之前，请先完成以下步骤。在 Kubernetes 上运行，然后选择 Kubernetes 设置，并将以下指令粘贴到终端执行：</div>
+          <div class="code-block">curl -L "http://10.96.166.121:1234/api/v1/Clusters/tokens" -H "Authorization: Bearer &lt;...&gt;" -d '{"kubernetes_cluster_id":"..."}' | kubectl apply -f -
+gpustack_20271727847476_7c3 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</div>
+          <div class="reg-actions"><button class="btn" data-register-step="2">上一步</button><button class="btn primary" data-register-done="true">完成</button></div>
+        </div>
+      </div>
+    </div>`
+  },
+  pool: {
+    title: '新增资源组',
+    body: `<div class="wizard-tabs" data-pool-tabs>
+      <span class="active" data-pool-step="basic">1 基本信息</span><i></i>
+      <span data-pool-step="nodes">2 选择节点</span>
+    </div>
+    <div class="pool-step-panel active" data-pool-panel="basic">
+      <div class="section-title">1. 基本信息</div>
+      <div class="mini-form">
+        <div class="mini-field"><div class="field-label-row"><label>服务角色</label><div class="custom-role-box"><button type="button" class="btn small" data-custom-role-toggle>新增自定义角色</button><div class="custom-role-popover is-hidden" data-custom-role-panel><label>角色名称</label><input placeholder="请输入角色名称" data-custom-role-input><div class="popover-actions"><button type="button" class="btn primary small" data-custom-role-save>确定</button></div></div></div></div><select data-service-role-select><option>管理员</option><option>VIP</option><option>开发人员</option><option>普通用户</option><option>独立机构</option></select></div>
+        <div class="mini-field"><label>所属集群</label><select><option>h20-node1</option><option>a100-prod-cluster</option><option>ascend-dev-cluster</option></select></div>
+        <div class="mini-field wide"><label>用途标签</label><div class="tag-choice-row">
+          <label class="tag-choice"><input type="radio" name="pool-purpose" checked>推理</label>
+          <label class="tag-choice"><input type="radio" name="pool-purpose">训练</label>
+          <label class="tag-choice"><input type="radio" name="pool-purpose">业务</label>
+        </div></div>
+        <div class="mini-field wide"><label>资源组名称</label><input value="管理员推理资源组" data-pool-name-input readonly></div>
+      </div>
+    </div>
+    <div class="pool-step-panel" data-pool-panel="nodes">
+      <div class="section-title">2. 选择节点</div>
+      <table class="node-select-table"><thead><tr><th style="width:48px"><input type="checkbox" aria-label="全选"></th><th>节点名称</th><th>节点IP</th><th>状态</th><th>可用GPU</th><th>分配卡数</th></tr></thead>
+      <tbody>
+        <tr><td><input type="checkbox" disabled></td><td><b style="color:#86909C">node02</b></td><td>10.2.0.2</td><td><span class="tag gray">已分配</span></td><td>8</td><td>-</td></tr>
+        <tr><td><input type="checkbox" data-node-check></td><td><b>node03</b></td><td>10.2.0.3</td><td><span class="tag green">未分配</span></td><td>8</td><td><span class="gpu-stepper"><button data-gpu-minus>-</button><input value="4" data-gpu-count><button data-gpu-plus>+</button></span></td></tr>
+        <tr><td><input type="checkbox" data-node-check></td><td><b>node04</b></td><td>10.2.0.4</td><td><span class="tag green">未分配</span></td><td>8</td><td><span class="gpu-stepper"><button data-gpu-minus>-</button><input value="4" data-gpu-count><button data-gpu-plus>+</button></span></td></tr>
+        <tr><td><input type="checkbox" data-node-check></td><td><b>node05</b></td><td>10.2.0.5</td><td><span class="tag green">未分配</span></td><td>8</td><td><span class="gpu-stepper"><button data-gpu-minus>-</button><input value="4" data-gpu-count><button data-gpu-plus>+</button></span></td></tr>
+      </tbody></table>
+      <div class="summary-line" id="poolSummary">已选：0 个节点，0 个GPU</div>
+    </div>
+    `
+  },
+  identity: {
+    title: '新增角色',
+    body: `<div class="mini-form">
+      <div class="mini-field"><label>角色名称</label><input value="专项项目成员"></div>
+      <div class="mini-field"><label>绑定资源组</label><select><option>管理员推理资源组</option><option>VIP推理资源组</option><option>开发人员训练资源组</option><option>普通用户训练资源组</option><option>独立机构训练资源组</option></select></div>
+      <div class="mini-field"><label>资源组资源</label><div class="readonly-field">h20-node1 · 2 GPU · 64G 显存</div></div>
+      <div class="mini-field"><label>排队策略</label><select><option>普通排队</option><option>优先排队</option><option>机构内 FIFO</option></select></div>
+      <div class="mini-field wide"><label>任务标签</label><div class="tag-choice-row">
+        <label class="tag-choice"><input type="radio" name="roleUsage" checked>推理</label>
+        <label class="tag-choice"><input type="radio" name="roleUsage">训练</label>
+      </div></div>
+    </div>`
+  },
+  roleMembers: {
+    title: '角色下人员',
+    body: `<div class="member-toolbar">
+      <div class="member-filters" style="margin-bottom:0"><input data-member-search placeholder="搜索姓名或账号" aria-label="搜索姓名或账号"><button class="btn primary" data-member-add>添加用户</button></div>
+      <div class="member-count" data-member-count>0 个用户</div>
+    </div>
+    <div class="member-add-panel is-hidden" data-member-add-panel>
+      <div class="auth-user-title">添加用户</div>
+      <div class="auth-user-search"><input data-candidate-search placeholder="搜索用户/邮箱地址" aria-label="搜索用户/邮箱地址"></div>
+      <table class="auth-user-table"><thead><tr><th></th><th>用户账号</th><th>昵称</th><th style="width:110px">操作</th></tr></thead>
+      <tbody>
+        <tr data-candidate-account="testuser1@demo.com" data-candidate-name="user001" data-candidate-org="-"><td><input type="checkbox" data-candidate-check aria-label="选择 testuser1@demo.com"></td><td>testuser1@demo.com</td><td>user001</td><td><span class="link" data-candidate-add>添加</span></td></tr>
+        <tr data-candidate-account="testuser2@demo.com" data-candidate-name="user002" data-candidate-org="-"><td><input type="checkbox" data-candidate-check aria-label="选择 testuser2@demo.com"></td><td>testuser2@demo.com</td><td>user002</td><td><span class="link" data-candidate-add>添加</span></td></tr>
+        <tr data-candidate-account="testuser3@demo.com" data-candidate-name="user003" data-candidate-org="-"><td><input type="checkbox" data-candidate-check aria-label="选择 testuser3@demo.com"></td><td>testuser3@demo.com</td><td>user003</td><td><span class="link" data-candidate-add>添加</span></td></tr>
+        <tr data-candidate-account="admin@demo.com" data-candidate-name="admin" data-candidate-org="-"><td><input type="checkbox" data-candidate-check aria-label="选择 admin@demo.com"></td><td>admin@demo.com</td><td>admin</td><td><span class="link" data-candidate-add>添加</span></td></tr>
+      </tbody></table>
+    </div>
+    <table><thead><tr><th>姓名</th><th>账号</th><th>归属</th><th style="width:90px">操作</th></tr></thead>
+    <tbody data-member-list>
+      <tr data-member-role="管理员" data-member-enterprise="-"><td>管理员</td><td>admin</td><td>-</td><td><span class="link danger" data-member-row-remove>删除</span></td></tr>
+      <tr data-member-role="独立机构" data-member-enterprise="机构A"><td>张明</td><td>zhangming</td><td>机构A</td><td><span class="link danger" data-member-row-remove>删除</span></td></tr>
+      <tr data-member-role="独立机构" data-member-enterprise="机构B"><td>李雯</td><td>liwen</td><td>机构B</td><td><span class="link danger" data-member-row-remove>删除</span></td></tr>
+      <tr data-member-role="VIP" data-member-enterprise="-"><td>陈浩</td><td>chenhao</td><td>-</td><td><span class="link danger" data-member-row-remove>删除</span></td></tr>
+      <tr data-member-role="普通用户" data-member-enterprise="-"><td>王琪</td><td>wangqi</td><td>-</td><td><span class="link danger" data-member-row-remove>删除</span></td></tr>
+      <tr data-member-role="开发人员" data-member-enterprise="深势"><td>刘洋</td><td>liuyang</td><td>深势</td><td><span class="link danger" data-member-row-remove>删除</span></td></tr>
+      <tr data-member-role="开发人员" data-member-enterprise="智谱"><td>周航</td><td>zhouhang</td><td>智谱</td><td><span class="link danger" data-member-row-remove>删除</span></td></tr>
+      <tr data-member-role="开发人员" data-member-enterprise="超算"><td>孙悦</td><td>sunyue</td><td>超算</td><td><span class="link danger" data-member-row-remove>删除</span></td></tr>
+      <tr data-member-role="专项项目成员" data-member-enterprise="-"><td>赵宁</td><td>zhaoning</td><td>-</td><td><span class="link danger" data-member-row-remove>删除</span></td></tr>
+    </tbody></table>`
+  },
+  scheduler: {
+    title: '调度策略配置',
+    body: `<div class="mini-form">
+      <div class="mini-field"><label>机构资源组</label><select><option>org-shared-group · 32卡</option></select></div>
+      <div class="mini-field"><label>租户配额模式</label><select><option>最大占比上限 80%</option></select></div>
+      <div class="mini-field"><label>队列规则</label><select><option>机构内 FIFO</option></select></div>
+      <div class="mini-field"><label>资源不足处理</label><select><option>不抢占，进入队列</option><option>管理员手动调整</option></select></div>
+    </div>`
+  },
+  enterprise: {
+    title: '新增机构',
+    body: `<div class="readonly-summary">
+      <div><span>默认进入资源组</span><b>机构共享资源组</b></div>
+      <div><span>资源组总量</span><b>32 卡 · 2048G 显存</b></div>
+    </div>
+    <div class="mini-form">
+      <div class="mini-field"><label>机构名称</label><input value="机构D"></div>
+      <div class="mini-field"><label>机构最大占比上限</label><div class="readonly-field">80%</div></div>
+    </div>`
+  },
+  nodes: {
+    title: '节点列表',
+    body: `<table><thead><tr><th>节点</th><th>GPU</th><th>归属资源组</th><th>状态</th></tr></thead>
+    <tbody><tr><td>a100-node-01</td><td>4 x A100</td><td>VIP推理资源组</td><td><span class="status">Ready</span></td></tr>
+    <tr><td>a100-node-02</td><td>4 x A100</td><td>机构共享资源组</td><td><span class="status">Ready</span></td></tr></tbody></table>`
+  },
+  normalQueueTasks: {
+    title: '普通用户队列明细',
+    body: `<table><thead><tr><th>队列</th><th>任务</th><th>用户</th><th>任务类型</th><th>申请 GPU</th><th>用量次数</th><th>提交时间</th><th>等待原因</th></tr></thead>
+    <tbody>
+      <tr><td>普通用户队列</td><td>普通用户训练资源组1001</td><td>王琪</td><td>训练</td><td>1卡</td><td>18 / 20</td><td>15:10</td><td>普通用户训练资源组已占满</td></tr>
+      <tr><td>普通用户队列</td><td>普通用户评测资源组1002</td><td>李明</td><td>评测</td><td>1卡</td><td>18 / 20</td><td>15:14</td><td>普通用户训练资源组已占满</td></tr>
+      <tr><td>普通用户队列</td><td>普通用户调用资源组1003</td><td>周然</td><td>调用</td><td>1卡</td><td>19 / 20</td><td>15:18</td><td>普通用户训练资源组已占满</td></tr>
+    </tbody></table>`
+  },
+  vipQueueTasks: {
+    title: 'VIP 队列明细',
+    body: `<table><thead><tr><th>队列</th><th>任务</th><th>用户</th><th>任务类型</th><th>申请 GPU</th><th>用量次数</th><th>提交时间</th><th>等待原因</th></tr></thead>
+    <tbody>
+      <tr><td>VIP 队列</td><td>VIP推理资源组2031</td><td>陈浩</td><td>推理</td><td>2卡</td><td>42 / 100</td><td>15:16</td><td>等待 VIP推理资源组释放</td></tr>
+    </tbody></table>`
+  },
+  enterpriseQueueTasks: {
+    title: '机构队列明细',
+    body: `<table><thead><tr><th>机构</th><th>任务</th><th>任务类型</th><th>申请 GPU</th><th>当前占比</th><th>最大占比上限</th><th>提交时间</th><th>等待原因</th></tr></thead>
+    <tbody>
+      <tr><td>机构B</td><td>机构共享资源组1024</td><td>训练</td><td>2卡</td><td>80%</td><td>80%</td><td>15:12</td><td>机构B已达最大占比上限</td></tr>
+      <tr><td>机构B</td><td>机构共享资源组1025</td><td>推理</td><td>1卡</td><td>80%</td><td>80%</td><td>15:18</td><td>机构B已达最大占比上限</td></tr>
+    </tbody></table>`
+  }
+};
+const mask = document.getElementById('modalMask');
+const modalBody = document.getElementById('modalBody');
+const modalTitle = document.getElementById('modalTitle');
+const toast = document.getElementById('toast');
+function showToast(text){ toast.textContent = text; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'), 1800); }
+function openModal(type){
+  const m = modalMap[type];
+  if(!m) return;
+  mask.classList.toggle('drawer', type === 'registerCluster' || type === 'cluster' || type === 'pool');
+  modalTitle.textContent = m.title;
+  modalBody.innerHTML = m.body;
+  delete modalBody.dataset.currentRole;
+  document.getElementById('modalOk').textContent = type === 'cluster' || type === 'pool' ? '保存' : '确定';
+  mask.classList.add('show');
+}
+function openRoleMembersModal(role){
+  openModal('roleMembers');
+  modalBody.dataset.currentRole = role;
+  modalTitle.textContent = role;
+  const enterpriseFilter = modalBody.querySelector('[data-enterprise-filter]');
+  if (enterpriseFilter && !['独立机构', '开发人员'].includes(role)) enterpriseFilter.remove();
+  filterRoleMembers(role);
+}
+function openTaskActionModal(action, taskName){
+  mask.classList.remove('drawer');
+  if (action === 'downgrade') {
+    modalTitle.textContent = '拆分卡数降级';
+    modalBody.innerHTML = `<div class="notice"><b>降级影响：</b>任务将调整为单卡规格，并重新进入调度队列。</div>
+    <div class="mini-form">
+      <div class="mini-field"><label>任务名称</label><div class="readonly-field">${taskName}</div></div>
+      <div class="mini-field"><label>调整后规格</label><select><option>2卡 → 1卡</option><option>4卡 → 1卡</option></select></div>
+      <div class="mini-field wide"><label>调度结果</label><div class="drawer-tip">确认后任务将重新进入 GPUStack 加权队列，按优先级、等待时长和租户占用重新打分。</div></div>
+    </div>`;
+    document.getElementById('modalOk').textContent = '确认降级';
+  } else {
+    modalTitle.textContent = '取消任务';
+    modalBody.innerHTML = `<div class="notice"><b>取消确认：</b>取消后任务会从等待队列移除，已占用资源不受影响。</div>
+    <div class="mini-form">
+      <div class="mini-field wide"><label>任务名称</label><div class="readonly-field">${taskName}</div></div>
+      <div class="mini-field wide"><label>取消原因</label><select><option>用户主动取消</option><option>等待超时</option><option>资源规格调整</option></select></div>
+    </div>`;
+    document.getElementById('modalOk').textContent = '确认取消';
+  }
+  mask.classList.add('show');
+}
+function closeModal(){ mask.classList.remove('show'); mask.classList.remove('drawer'); document.getElementById('modalOk').textContent = '确定'; }
+function showRegisterStep(step){
+  modalBody.querySelectorAll('.reg-step').forEach(el => {
+    const active = el.dataset.step === String(step);
+    el.classList.toggle('active', active);
+    const icon = el.querySelector('.reg-head span');
+    if (icon) icon.textContent = active ? '⌃' : '⌄';
+  });
+}
+function updatePoolSummary(){
+  const summary = modalBody.querySelector('#poolSummary');
+  if(!summary) return;
+  let nodes = 0;
+  let gpus = 0;
+  modalBody.querySelectorAll('[data-node-check]').forEach(check => {
+    if(check.checked){
+      nodes += 1;
+      const input = check.closest('tr').querySelector('[data-gpu-count]');
+      gpus += Number(input.value) || 0;
+    }
+  });
+  summary.textContent = `已选：${nodes} 个节点，${gpus} 个GPU`;
+}
+function syncPoolName(){
+  const poolName = modalBody.querySelector('[data-pool-name-input]');
+  if (!poolName) return;
+  const roleSelect = modalBody.querySelector('[data-service-role-select]');
+  const purpose = modalBody.querySelector('input[name="pool-purpose"]:checked')?.parentElement.textContent.trim() || '';
+  poolName.value = `${roleSelect ? roleSelect.value : '管理员'}${purpose}资源组`;
+}
+function filterRoleMembers(role){
+  const enterpriseFilter = modalBody.querySelector('[data-enterprise-filter]');
+  const enterprise = enterpriseFilter ? enterpriseFilter.value : 'all';
+  const searchInput = modalBody.querySelector('[data-member-search]');
+  const keyword = searchInput ? searchInput.value.trim().toLowerCase() : '';
+  modalBody.querySelectorAll('[data-member-role]').forEach(row => {
+    const roleMatched = role === 'all' || row.dataset.memberRole === role;
+    const enterpriseMatched = enterprise === 'all' || row.dataset.memberEnterprise === enterprise;
+    const textMatched = !keyword || row.textContent.toLowerCase().includes(keyword);
+    row.style.display = roleMatched && enterpriseMatched && textMatched ? '' : 'none';
+  });
+  updateMemberState();
+}
+function tagClassForRole(role){
+  if(role === 'VIP') return ' purple';
+  if(role === '普通用户') return ' green';
+  if(role === '开发人员') return ' orange';
+  if(role === '管理员' || role === '专项项目成员') return ' gray';
+  return '';
+}
+function addCandidateMember(row){
+  const fixedRole = modalBody.dataset.currentRole;
+  const roleSelect = modalBody.querySelector('[data-role-filter]');
+  const role = fixedRole || (roleSelect && roleSelect.value !== 'all' ? roleSelect.value : '普通用户');
+  const org = row.dataset.candidateOrg || '-';
+  const tbody = modalBody.querySelector('[data-member-list]');
+  tbody.insertAdjacentHTML('beforeend', `<tr data-member-role="${role}" data-member-enterprise="${org}"><td>${row.dataset.candidateName}</td><td>${row.dataset.candidateAccount}</td><td>${org}</td><td><span class="link danger" data-member-row-remove>删除</span></td></tr>`);
+  row.remove();
+  filterRoleMembers(role);
+  filterCandidateMembers();
+}
+function addSelectedMember(){
+  const select = modalBody.querySelector('[data-candidate-select]');
+  if(!select || !select.value) {
+    showToast('请先选择用户');
+    return;
+  }
+  const [account, name, org] = select.value.split('|');
+  const fixedRole = modalBody.dataset.currentRole || '普通用户';
+  const tbody = modalBody.querySelector('[data-member-list]');
+  tbody.insertAdjacentHTML('beforeend', `<tr data-member-role="${fixedRole}" data-member-enterprise="${org || '-'}"><td>${name}</td><td>${account}</td><td>${org || '-'}</td><td><span class="link danger" data-member-row-remove>删除</span></td></tr>`);
+  select.selectedIndex = 0;
+  filterRoleMembers(fixedRole);
+  showToast('已添加用户（演示）');
+}
+function updateMemberState(){
+  const rows = Array.from(modalBody.querySelectorAll('[data-member-role]')).filter(row => row.style.display !== 'none');
+  const selected = rows.filter(row => row.querySelector('[data-member-check]')?.checked);
+  const count = modalBody.querySelector('[data-member-count]');
+  const selectedText = modalBody.querySelector('[data-member-selected]');
+  const removeButton = modalBody.querySelector('[data-member-remove]');
+  const checkAll = modalBody.querySelector('[data-member-check-all]');
+  if(count) count.textContent = `${rows.length} 个用户`;
+  if(selectedText) selectedText.textContent = selected.length ? `已选择 ${selected.length} 个用户` : '未选择用户';
+  if(removeButton) removeButton.disabled = selected.length === 0;
+  if(checkAll) checkAll.checked = rows.length > 0 && selected.length === rows.length;
+}
+function filterCandidateMembers(){
+  const input = modalBody.querySelector('[data-candidate-search]');
+  const keyword = input ? input.value.trim().toLowerCase() : '';
+  modalBody.querySelectorAll('[data-candidate-account]').forEach(row => {
+    row.style.display = !keyword || row.textContent.toLowerCase().includes(keyword) ? '' : 'none';
+  });
+}
+function formatWaitTime(seconds){
+  const days = Math.floor(seconds / 86400);
+  const rest = seconds % 86400;
+  const h = String(Math.floor(rest / 3600)).padStart(2, '0');
+  const m = String(Math.floor((rest % 3600) / 60)).padStart(2, '0');
+  const s = String(seconds % 60).padStart(2, '0');
+  const time = `${h}:${m}:${s}`;
+  return days > 0 ? `${days}天 ${time}` : time;
+}
+function updateWaitTimers(shouldTick = true){
+  document.querySelectorAll('[data-wait-seconds]').forEach(cell => {
+    const current = Number(cell.dataset.waitSeconds || 0);
+    const next = shouldTick ? current + 1 : current;
+    cell.dataset.waitSeconds = String(next);
+    cell.classList.toggle('long-wait', next >= 86400);
+    cell.textContent = formatWaitTime(next);
+  });
+}
+function minutesFromTime(text){
+  const [hour, minute] = text.trim().split(':').map(Number);
+  return (hour || 0) * 60 + (minute || 0);
+}
+function sortQueueTable(button){
+  const card = button.closest('.card');
+  const tbody = card && card.querySelector('.queue-table tbody');
+  if(!tbody) return;
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  const mode = button.dataset.queueSort;
+  rows.sort((a, b) => {
+    if(mode === 'wait-desc'){
+      return Number(b.cells[3].dataset.waitSeconds || 0) - Number(a.cells[3].dataset.waitSeconds || 0);
+    }
+    if(mode === 'submit-asc'){
+      return minutesFromTime(a.cells[2].textContent) - minutesFromTime(b.cells[2].textContent);
+    }
+    return 0;
+  });
+  rows.forEach(row => tbody.appendChild(row));
+}
+function setupOwnerFilters(scope = document){
+  scope.querySelectorAll('[data-owner-filter]').forEach(select => {
+    const card = select.closest('.card');
+    const rows = card ? Array.from(card.querySelectorAll('.queue-table tbody tr')) : [];
+    const owners = [...new Set(rows.map(row => row.cells[0].textContent.trim()))];
+    select.innerHTML = '<option value="all">全部归属</option>' + owners.map(owner => `<option value="${owner}">${owner}</option>`).join('');
+    filterQueueByOwner(select);
+  });
+}
+function filterQueueByOwner(select){
+  const card = select.closest('.card');
+  if(!card) return;
+  const rows = Array.from(card.querySelectorAll('.queue-table tbody tr'));
+  const owner = select.value;
+  let count = 0;
+  rows.forEach(row => {
+    const matched = owner === 'all' || row.cells[0].textContent.trim() === owner;
+    row.style.display = matched ? '' : 'none';
+    if(matched) count += 1;
+  });
+  const pagerCount = card.querySelector('.table-pager span');
+  if(pagerCount) pagerCount.textContent = `共 ${count} 条`;
+}
+const adminGpuViews = {
+  global: {
+    total: '75%',
+    gradient: '#7C3AED 0 10%, #8B5CF6 10% 25%, #F97316 25% 45%, #2563EB 45% 60%, #10B981 60% 75%, #C9CDD4 75% 100%',
+    rows: [
+      ['#7C3AED', '管理员占用', '10%'],
+      ['#8B5CF6', 'VIP占用', '15%'],
+      ['var(--orange)', '开发人员占用', '20%'],
+      ['var(--primary)', '普通用户占用', '15%'],
+      ['#10B981', '独立机构占用', '15%'],
+      ['#C9CDD4', '空闲 GPU', '25%'],
+      ['#6B7280', '不可用 GPU', '0%']
+    ]
+  },
+  admin: {
+    total: '75%',
+    gradient: 'var(--primary) 0 75%, #C9CDD4 75% 100%',
+    rows: [['var(--primary)', '管理员占用', '75%'], ['#C9CDD4', '空闲 GPU', '25%'], ['#6B7280', '不可用 GPU', '0%']]
+  },
+  vip: {
+    total: '75%',
+    gradient: 'var(--primary) 0 75%, #C9CDD4 75% 100%',
+    rows: [['var(--primary)', 'VIP占用', '75%'], ['#C9CDD4', '空闲 GPU', '25%'], ['#6B7280', '不可用 GPU', '0%']]
+  },
+  developer: {
+    total: '75%',
+    gradient: 'var(--primary) 0 75%, #C9CDD4 75% 100%',
+    rows: [['var(--primary)', '开发人员占用', '75%'], ['#C9CDD4', '空闲 GPU', '25%'], ['#6B7280', '不可用 GPU', '0%']]
+  },
+  normal: {
+    total: '75%',
+    gradient: 'var(--primary) 0 75%, #C9CDD4 75% 100%',
+    rows: [['var(--primary)', '普通用户占用', '75%'], ['#C9CDD4', '空闲 GPU', '25%'], ['#6B7280', '不可用 GPU', '0%']]
+  },
+  org: {
+    total: '75%',
+    gradient: 'var(--orange) 0 25%, var(--primary) 25% 50%, var(--purple) 50% 75%, #C9CDD4 75% 100%',
+    rows: [['var(--orange)', '超算占用', '25%'], ['var(--primary)', '智谱占用', '25%'], ['var(--purple)', '深势占用', '25%'], ['#C9CDD4', '空闲 GPU', '25%'], ['#6B7280', '不可用 GPU', '0%']]
+  }
+};
+function renderAdminGpuView(select){
+  const card = select.closest('[data-admin-gpu-card]');
+  const view = adminGpuViews[select.value] || adminGpuViews.global;
+  const pie = card.querySelector('[data-admin-gpu-pie]');
+  const total = card.querySelector('[data-admin-gpu-total]');
+  const legend = card.querySelector('[data-admin-gpu-legend]');
+  pie.style.background = `conic-gradient(${view.gradient})`;
+  total.textContent = view.total;
+  legend.innerHTML = view.rows.map(([color, label, value]) => `<div class="legend-row"><i class="legend-dot" style="background:${color}"></i><span>${label}</span><b>${value}</b></div>`).join('');
+}
+function setupAdminGpuViews(scope = document){
+  scope.querySelectorAll('[data-resource-scope]').forEach(select => renderAdminGpuView(select));
+}
+document.querySelectorAll('[data-modal]').forEach(el => el.addEventListener('click', () => openModal(el.dataset.modal)));
+document.querySelectorAll('[data-action]').forEach(el => el.addEventListener('click', () => {
+  const map = { export:'已生成配置导出文件（演示）', refresh:'集群与队列状态已刷新', save:'调度策略已保存' };
+  showToast(map[el.dataset.action] || '操作成功');
+}));
+document.querySelectorAll('.nav-item').forEach(item => item.addEventListener('click', () => {
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  item.classList.add('active');
+  showToast('已切换到：' + item.textContent.trim());
+}));
+document.querySelectorAll('.step').forEach(step => step.addEventListener('click', () => showToast(step.querySelector('b').textContent + '：查看详情')));
+document.getElementById('modalClose').addEventListener('click', closeModal);
+document.getElementById('modalCancel').addEventListener('click', closeModal);
+document.getElementById('modalOk').addEventListener('click', () => { closeModal(); showToast('配置已保存（演示）'); });
+mask.addEventListener('click', e => { if(e.target === mask) closeModal(); });
+
+const pageContent = document.querySelector('.content');
+const overviewHTML = pageContent.innerHTML;
+const adminPages = {
+  cluster: `
+    <div class="title-row"><div><div class="desc">首页 / 资源管理 / 集群</div><h1>集群</h1></div><button class="btn primary" data-modal="cluster">添加集群</button></div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="display:flex;gap:12px;align-items:center;padding:18px 20px;border-bottom:1px solid var(--line-2)">
+        <input aria-label="搜索集群名称" placeholder="搜索集群名称" style="width:280px;height:38px;border:1px solid var(--line);border-radius:6px;padding:0 12px;font:inherit;background:#fff">
+        <button class="btn" data-action="refresh">搜索</button>
+        <button class="btn" data-action="reset">重置</button>
+        <div style="flex:1"></div>
+        <button class="btn primary" data-modal="cluster">+ 添加集群</button>
+      </div>
+      <table><thead><tr><th>集群名称</th><th>GPU卡数</th><th>已部署服务</th><th>节点数</th><th>已划分资源组</th><th>集群状态</th><th>集群底座</th><th>创建时间</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>h20-node-cluster</b> <span class="tag">默认</span></td>
+          <td>8</td>
+          <td>1</td>
+          <td>1 / 1 <span class="link" data-page-link="nodes">管理</span></td>
+          <td>1 <span class="link" data-modal="pool">管理</span></td>
+          <td><span class="status">Ready</span></td>
+          <td>Kubernetes</td>
+          <td>2026-06-24 10:00</td>
+          <td class="actions"><span class="link" data-modal="cluster">编辑</span><span class="link" data-modal="registerCluster">注册集群</span><span class="link" data-action="save">设为默认</span><span class="link danger" data-action="delete">删除</span></td>
+        </tr>
+        <tr>
+          <td><b>a100-prod-cluster</b></td>
+          <td>16</td>
+          <td>3</td>
+          <td>1 / 2 <span class="link" data-page-link="nodes">管理</span></td>
+          <td>3 <span class="link" data-modal="pool">管理</span></td>
+          <td><span class="status">Ready</span></td>
+          <td>Kubernetes</td>
+          <td>2026-05-10 09:30</td>
+          <td class="actions"><span class="link" data-modal="cluster">编辑</span><span class="link" data-modal="registerCluster">注册集群</span><span class="link" data-action="save">设为默认</span><span class="link danger" data-action="delete">删除</span></td>
+        </tr>
+      </tbody></table>
+    </div>`,
+  nodes: `
+    <div class="title-row"><div><div class="desc">首页 / 资源管理 / 节点</div><h1>节点</h1></div><button class="btn" data-action="refresh">刷新状态</button></div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="display:flex;gap:12px;align-items:center;padding:18px 20px;border-bottom:1px solid var(--line-2)">
+        <input aria-label="名称搜索" placeholder="名称搜索" style="width:220px;height:38px;border:1px solid var(--line);border-radius:6px;padding:0 12px;font:inherit;background:#fff">
+        <select aria-label="所属集群" style="width:220px;height:38px;border:1px solid var(--line);border-radius:6px;padding:0 12px;font:inherit;background:#fff;color:var(--muted)"><option>所属集群</option><option>h20-node1</option><option>a100-prod-cluster</option></select>
+        <select aria-label="所属资源组" style="width:220px;height:38px;border:1px solid var(--line);border-radius:6px;padding:0 12px;font:inherit;background:#fff;color:var(--muted)"><option>所属资源组</option><option>资源组1</option><option>推理组-A</option></select>
+        <button class="btn" data-action="refresh">搜索</button>
+        <button class="btn" data-action="reset">重置</button>
+      </div>
+      <table><thead><tr><th>节点名称</th><th>所属集群</th><th>所属资源组</th><th>节点状态</th><th>节点IP</th><th>CPU</th><th>内存</th><th>GPU</th><th>显存</th><th>磁盘</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>node3</b></td>
+          <td>h20-node1</td>
+          <td><b>资源组1</b></td>
+          <td><span class="status">Ready</span></td>
+          <td>10.12.1.10</td>
+          <td>0%</td>
+          <td>19%</td>
+          <td>[0]0%<br>[1]0%<br>[2]0%<br>[3]0%<br>[4]0%<br>[5]0%<br>[6]0%<br>[7]0%</td>
+          <td>[0]96%<br>[1]96%<br>[2]96%<br>[3]86%<br>[4]95%<br>[5]85%<br>[6]95%<br>[7]94%</td>
+          <td>52%</td>
+        </tr>
+        <tr>
+          <td><b>node4</b></td>
+          <td>h20-node1</td>
+          <td><b>资源组1</b></td>
+          <td><span class="status">Ready</span></td>
+          <td>10.12.1.11</td>
+          <td>12%</td>
+          <td>34%</td>
+          <td>[0]45%<br>[1]62%<br>[2]38%<br>[3]71%</td>
+          <td>[0]72%<br>[1]85%<br>[2]61%<br>[3]90%</td>
+          <td>37%</td>
+        </tr>
+        <tr>
+          <td><b>node1</b></td>
+          <td>a100-prod-cluster</td>
+          <td><b>推理组-A</b></td>
+          <td><span class="status">Ready</span></td>
+          <td>192.168.1.10</td>
+          <td>8%</td>
+          <td>45%</td>
+          <td>[0]88%<br>[1]92%</td>
+          <td>[0]95%<br>[1]98%</td>
+          <td>61%</td>
+        </tr>
+      </tbody></table>
+    </div>`,
+  pool: `
+    <div class="title-row"><div><div class="desc">首页 / 资源管理 / 资源组</div><h1>资源组</h1></div></div>
+    <div class="card">
+      <div class="panel-title"><b>资源组</b><div><button class="btn primary" data-modal="pool">新增资源组</button></div></div>
+      <div class="toolbar">
+        <input placeholder="搜索资源组名称" aria-label="搜索资源组名称">
+        <select aria-label="来源集群"><option>全部集群</option><option>h20-node-cluster</option><option>a100-prod-cluster</option><option>ascend-dev-cluster</option></select>
+        <select aria-label="服务角色"><option>全部角色</option><option>管理员</option><option>VIP</option><option>开发人员</option><option>普通用户</option><option>独立机构</option></select>
+        <button class="btn" data-action="refresh">查询</button>
+        <button class="btn" data-action="reset">重置</button>
+      </div>
+      <table><thead><tr><th>资源组</th><th>来源集群</th><th>用途</th><th>服务角色</th><th>节点数</th><th>GPU</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr><td><b>管理员推理资源组</b></td><td>a100-prod-cluster</td><td>推理</td><td><span class="tag gray">管理员</span></td><td>2 <span class="link" data-modal="nodes">查看</span></td><td>0 / 4</td><td><span class="status">可调度</span></td><td class="actions"><span class="link" data-modal="nodes">查看</span><span class="link" data-modal="pool">编辑</span><span class="link danger" data-action="delete">删除</span></td></tr>
+        <tr><td><b>普通用户训练资源组</b></td><td>h20-node-cluster</td><td>训练</td><td><span class="tag green">普通用户</span></td><td>1 <span class="link" data-modal="nodes">查看</span></td><td>2 / 2</td><td><span class="status warn">已占满</span></td><td class="actions"><span class="link" data-modal="nodes">查看</span><span class="link" data-modal="pool">编辑</span><span class="link danger" data-action="delete">删除</span></td></tr>
+        <tr><td><b>VIP推理资源组</b></td><td>a100-prod-cluster</td><td>推理</td><td><span class="tag purple">VIP</span></td><td>3 <span class="link" data-modal="nodes">查看</span></td><td>2 / 6</td><td><span class="status">可调度</span></td><td class="actions"><span class="link" data-modal="nodes">查看</span><span class="link" data-modal="pool">编辑</span><span class="link danger" data-action="delete">删除</span></td></tr>
+        <tr><td><b>独立机构训练资源组</b></td><td>a100-prod-cluster</td><td>训练</td><td><span class="tag">独立机构</span></td><td>2 <span class="link" data-modal="nodes">查看</span></td><td>22 / 32</td><td><span class="status">可调度</span></td><td class="actions"><span class="link" data-modal="nodes">查看</span><span class="link" data-modal="pool">编辑</span><span class="link danger" data-action="delete">删除</span></td></tr>
+        <tr><td><b>开发人员训练资源组</b></td><td>ascend-dev-cluster</td><td>训练</td><td><span class="tag orange">开发人员</span></td><td>1 <span class="link" data-modal="nodes">查看</span></td><td>5 / 8</td><td><span class="status">可调度</span></td><td class="actions"><span class="link" data-modal="nodes">查看</span><span class="link" data-modal="pool">编辑</span><span class="link danger" data-action="delete">删除</span></td></tr>
+        <tr><td><b>专项项目训练资源组</b></td><td>a100-prod-cluster</td><td>训练</td><td><span class="tag gray">自定义角色</span></td><td>1 <span class="link" data-modal="nodes">查看</span></td><td>0 / 4</td><td><span class="status">可调度</span></td><td class="actions"><span class="link" data-modal="nodes">查看</span><span class="link" data-modal="pool">编辑</span><span class="link danger" data-action="delete">删除</span></td></tr>
+      </tbody></table>
+    </div>`,
+  identity: `
+    <div class="title-row"><div><h1>角色配置</h1></div></div>
+    <div class="card"><div class="panel-title"><b>角色配置</b></div>
+      <table><thead><tr><th>资源角色</th><th>绑定资源组</th><th>任务标签</th><th>资源组资源</th><th>人员</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag gray">管理员</span></td><td>管理员推理资源组</td><td>推理</td><td>4卡·256G</td><td>1 <span class="link" data-modal="roleMembers" data-role-members="管理员">查看人员</span></td></tr>
+        <tr><td><span class="tag purple">VIP</span></td><td>VIP推理资源组</td><td>推理</td><td>6卡·384G</td><td>1 <span class="link" data-modal="roleMembers" data-role-members="VIP">查看人员</span></td></tr>
+        <tr><td><span class="tag orange">开发人员</span></td><td>开发人员训练资源组</td><td>训练</td><td>8卡·512G</td><td>3 <span class="link" data-modal="roleMembers" data-role-members="开发人员">查看人员</span></td></tr>
+        <tr><td><span class="tag green">普通用户</span></td><td>普通用户训练资源组</td><td>训练</td><td>2卡·128G</td><td>1 <span class="link" data-modal="roleMembers" data-role-members="普通用户">查看人员</span></td></tr>
+        <tr><td><span class="tag">独立机构</span></td><td>独立机构训练资源组</td><td>训练</td><td>32卡·2048G</td><td>2 <span class="link" data-modal="roleMembers" data-role-members="独立机构">查看人员</span></td></tr>
+        <tr><td><span class="tag gray">专项项目成员</span></td><td>专项项目训练资源组</td><td>训练</td><td>4卡·256G</td><td>1 <span class="link" data-modal="roleMembers" data-role-members="专项项目成员">查看人员</span></td></tr>
+      </tbody></table>
+    </div>`,
+  roleQueue: `
+    <div class="title-row"><div><h1>角色队列</h1></div><button class="btn" data-action="refresh">刷新</button></div>
+    <div class="seg-tabs" data-queue-tabs><button data-queue-tab="admin">管理员</button><button data-queue-tab="vip">VIP</button><button class="active" data-queue-tab="developer">开发人员</button><button data-queue-tab="normal">普通用户</button><button data-queue-tab="org">独立机构</button></div>
+    <div class="queue-panel" data-queue-panel="admin">
+    <div class="card"><div class="panel-title"><b>GPU 占比</b></div>
+      <div class="quota-grid">
+        <div class="quota-card burst" style="grid-column:1 / -1" data-admin-gpu-card><div class="quota-head"><select data-resource-scope aria-label="资源组筛选"><option value="global">全局</option><option value="admin">管理员推理资源组</option><option value="vip">VIP推理资源组</option><option value="developer">开发人员训练资源组</option><option value="normal">普通用户训练资源组</option><option value="org">独立机构训练资源组</option></select><h3>GPU 占比</h3></div>
+          <div class="pie-wrap">
+            <div class="pie-chart" data-admin-gpu-pie style="background:conic-gradient(#7C3AED 0 10%, #8B5CF6 10% 25%, #F97316 25% 45%, #2563EB 45% 60%, #10B981 60% 75%, #C9CDD4 75% 100%)"><div class="pie-center"><b data-admin-gpu-total>75%</b><span>已占用</span></div></div>
+            <div class="pie-legend" data-admin-gpu-legend>
+              <div class="legend-row"><i class="legend-dot" style="background:#7C3AED"></i><span>管理员占用</span><b>10%</b></div>
+              <div class="legend-row"><i class="legend-dot" style="background:#8B5CF6"></i><span>VIP占用</span><b>15%</b></div>
+              <div class="legend-row"><i class="legend-dot orange"></i><span>开发人员占用</span><b>20%</b></div>
+              <div class="legend-row"><i class="legend-dot"></i><span>普通用户占用</span><b>15%</b></div>
+              <div class="legend-row"><i class="legend-dot" style="background:#10B981"></i><span>独立机构占用</span><b>15%</b></div>
+              <div class="legend-row"><i class="legend-dot" style="background:#C9CDD4"></i><span>空闲 GPU</span><b>25%</b></div>
+              <div class="legend-row"><i class="legend-dot unavailable"></i><span>不可用 GPU</span><b>0%</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px"><div class="panel-title"><b>任务队列</b><div class="table-tools"><select data-owner-filter aria-label="归属筛选"><option value="all">全部归属</option></select><div class="sort-switch" aria-label="排序方式"><button class="active" data-queue-sort="wait-desc">等待↓</button><button data-queue-sort="submit-asc">时间↑</button></div><button class="btn" data-action="refresh">刷新</button></div></div>
+      <div class="queue-table-scroll"><table class="queue-table"><thead><tr><th style="width:78px">归属</th><th>任务名称</th><th style="width:90px">提交时间</th><th style="width:110px">已等待时长</th><th>阻塞分类标签</th><th>等待原因</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag gray">管理员</span></td><td><div class="task-name">管理员推理资源组0001</div></td><td>16:18</td><td data-wait-seconds="420">00:07:00</td><td><span class="tag orange">占比上限已达</span></td><td>管理员推理资源组当前占比已达到 80% 上限，等待资源释放。</td></tr>
+        <tr><td><span class="tag purple">VIP</span></td><td><div class="task-name">VIP推理资源组2031</div></td><td>15:16</td><td data-wait-seconds="3300">00:55:00</td><td><span class="tag orange">占比上限已达</span></td><td>VIP 当前占比已达到 80% 上限，等待资源释放。</td></tr>
+        <tr><td><span class="tag orange">开发人员</span></td><td><div class="task-name">开发人员训练资源组1011</div></td><td>15:42</td><td data-wait-seconds="93600">1天 02:00:00</td><td><span class="tag gray">空闲 GPU 不足</span></td><td>当前空闲 GPU 占比不足，建议拆分为单卡任务。</td></tr>
+        <tr><td><span class="tag">独立机构</span></td><td><div class="task-name">机构共享资源组1025</div></td><td>15:18</td><td data-wait-seconds="4500">01:15:00</td><td><span class="tag gray">空闲 GPU 不足</span></td><td>当前空闲 GPU 占比不足，暂不满足任务规格。</td></tr>
+        <tr><td><span class="tag orange">开发人员</span></td><td><div class="task-name">开发人员训练资源组1012</div></td><td>15:36</td><td data-wait-seconds="7520">02:05:20</td><td><span class="tag orange">全局资源不足</span></td><td>开发人员资源等待全局资源释放。</td></tr>
+        <tr><td><span class="tag">独立机构</span></td><td><div class="task-name">机构共享资源组2100</div></td><td>15:44</td><td data-wait-seconds="2940">00:49:00</td><td><span class="tag orange">全局资源不足</span></td><td>全局 GPU 空闲占比不足，等待全局资源释放。</td></tr>
+        <tr><td><span class="tag green">普通用户</span></td><td><div class="task-name">普通用户训练资源组1003</div></td><td>15:18</td><td data-wait-seconds="3900">01:05:00</td><td><span class="tag orange">全局资源不足</span></td><td>全局 GPU 空闲占比不足，等待全局资源释放。</td></tr>
+      </tbody></table></div>
+      <div class="table-pager"><span>共 9 条</span><button disabled>上一页</button><button class="active">1</button><button disabled>下一页</button></div>
+    </div>
+    </div>
+    <div class="queue-panel" data-queue-panel="vip">
+    <div class="card"><div class="panel-title"><b>VIP占用</b></div>
+      <div class="quota-grid">
+        <div class="quota-card burst" style="grid-column:1 / -1"><h3>VIP占用</h3>
+          <div class="pie-wrap">
+            <div class="pie-chart" style="background:conic-gradient(var(--primary) 0 75%, #C9CDD4 75% 100%)"><div class="pie-center"><b>75%</b><span>已占用</span></div></div>
+            <div class="pie-legend">
+              <div class="legend-row"><i class="legend-dot"></i><span>VIP占用</span><b>75%</b></div>
+              <div class="legend-row"><i class="legend-dot" style="background:#C9CDD4"></i><span>空闲 GPU</span><b>25%</b></div>
+              <div class="legend-row"><i class="legend-dot unavailable"></i><span>不可用 GPU</span><b>0%</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px"><div class="panel-title"><b>任务队列</b><div class="table-tools"><select data-owner-filter aria-label="归属筛选"><option value="all">全部归属</option></select><div class="sort-switch" aria-label="排序方式"><button class="active" data-queue-sort="wait-desc">等待↓</button><button data-queue-sort="submit-asc">时间↑</button></div><button class="btn" data-action="refresh">刷新</button></div></div>
+      <div class="queue-table-scroll"><table class="queue-table"><thead><tr><th style="width:78px">归属</th><th>任务名称</th><th style="width:90px">提交时间</th><th style="width:110px">已等待时长</th><th>阻塞分类标签</th><th>等待原因</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag purple">VIP</span></td><td><div class="task-name">VIP推理资源组2031</div></td><td>15:16</td><td data-wait-seconds="3300">00:55:00</td><td><span class="tag orange">占比上限已达</span></td><td>VIP 当前占比已达到 80% 上限，等待资源释放。</td></tr>
+        <tr><td><span class="tag purple">VIP</span></td><td><div class="task-name">VIP训练资源组2042</div></td><td>15:48</td><td data-wait-seconds="1380">00:23:00</td><td><span class="tag gray">空闲 GPU 不足</span></td><td>当前空闲 GPU 占比不足，暂不满足任务规格。</td></tr>
+      </tbody></table></div>
+      <div class="table-pager"><span>共 2 条</span><button disabled>上一页</button><button class="active">1</button><button disabled>下一页</button></div>
+    </div>
+    </div>
+    <div class="queue-panel" data-queue-panel="normal">
+    <div class="card"><div class="panel-title"><b>GPU 占比</b></div>
+      <div class="quota-grid">
+        <div class="quota-card burst" style="grid-column:1 / -1"><h3>GPU 占比</h3>
+          <div class="pie-wrap">
+            <div class="pie-chart" style="background:conic-gradient(var(--primary) 0 75%, #C9CDD4 75% 100%)"><div class="pie-center"><b>75%</b><span>已占用</span></div></div>
+            <div class="pie-legend">
+              <div class="legend-row"><i class="legend-dot"></i><span>普通用户占用</span><b>75%</b></div>
+              <div class="legend-row"><i class="legend-dot" style="background:#C9CDD4"></i><span>空闲 GPU</span><b>25%</b></div>
+              <div class="legend-row"><i class="legend-dot unavailable"></i><span>不可用 GPU</span><b>0%</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px"><div class="panel-title"><b>任务队列</b><div class="table-tools"><select data-owner-filter aria-label="归属筛选"><option value="all">全部归属</option></select><div class="sort-switch" aria-label="排序方式"><button class="active" data-queue-sort="wait-desc">等待↓</button><button data-queue-sort="submit-asc">时间↑</button></div><button class="btn" data-action="refresh">刷新</button></div></div>
+      <div class="queue-table-scroll"><table class="queue-table"><thead><tr><th style="width:78px">归属</th><th>任务名称</th><th style="width:90px">提交时间</th><th style="width:110px">已等待时长</th><th>阻塞分类标签</th><th>等待原因</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag green">普通用户</span></td><td><div class="task-name">普通用户训练资源组1001</div></td><td>15:10</td><td data-wait-seconds="4380">01:13:00</td><td><span class="tag orange">占比上限已达</span></td><td>普通用户当前占比已达到 80% 上限，等待资源释放。</td></tr>
+        <tr><td><span class="tag green">普通用户</span></td><td><div class="task-name">普通用户推理资源组1002</div></td><td>15:14</td><td data-wait-seconds="4140">01:09:00</td><td><span class="tag gray">空闲 GPU 不足</span></td><td>当前空闲 GPU 占比不足，暂不满足任务规格。</td></tr>
+        <tr><td><span class="tag green">普通用户</span></td><td><div class="task-name">普通用户训练资源组1003</div></td><td>15:18</td><td data-wait-seconds="3900">01:05:00</td><td><span class="tag orange">全局资源不足</span></td><td>全局 GPU 空闲占比不足，等待全局资源释放。</td></tr>
+      </tbody></table></div>
+      <div class="table-pager"><span>共 3 条</span><button disabled>上一页</button><button class="active">1</button><button disabled>下一页</button></div>
+    </div>
+    </div>
+    <div class="queue-panel" data-queue-panel="org">
+    <div class="card"><div class="panel-title"><b>GPU 占比</b></div>
+      <div class="quota-grid">
+        <div class="quota-card burst" style="grid-column:1 / -1"><h3>GPU 占比</h3>
+          <div class="pie-wrap">
+            <div class="pie-chart allocation"><div class="pie-center"><b>75%</b><span>已占用</span></div></div>
+            <div class="pie-legend">
+              <div class="legend-row"><i class="legend-dot orange"></i><span>超算占用</span><b>25%</b></div>
+              <div class="legend-row"><i class="legend-dot"></i><span>智谱占用</span><b>25%</b></div>
+              <div class="legend-row"><i class="legend-dot purple"></i><span>深势占用</span><b>25%</b></div>
+              <div class="legend-row"><i class="legend-dot" style="background:#C9CDD4"></i><span>空闲 GPU</span><b>25%</b></div>
+              <div class="legend-row"><i class="legend-dot unavailable"></i><span>不可用 GPU</span><b>0%</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px"><div class="panel-title"><b>任务队列</b><div class="table-tools"><select data-owner-filter aria-label="归属筛选"><option value="all">全部归属</option></select><div class="sort-switch" aria-label="排序方式"><button class="active" data-queue-sort="wait-desc">等待↓</button><button data-queue-sort="submit-asc">时间↑</button></div><button class="btn" data-action="refresh">刷新</button></div></div>
+      <div class="queue-table-scroll"><table class="queue-table"><thead><tr><th style="width:78px">归属</th><th>任务名称</th><th style="width:90px">提交时间</th><th style="width:110px">已等待时长</th><th>阻塞分类标签</th><th>等待原因</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag">机构B</span></td><td><div class="task-name">机构共享资源组1024</div></td><td>15:12</td><td data-wait-seconds="4860">01:21:00</td><td><span class="tag orange">占比上限已达</span></td><td>机构B 当前占比已达到 80% 上限，等待资源释放。</td></tr>
+        <tr><td><span class="tag">机构B</span></td><td><div class="task-name">机构共享资源组1025</div></td><td>15:18</td><td data-wait-seconds="4500">01:15:00</td><td><span class="tag gray">空闲 GPU 不足</span></td><td>当前空闲 GPU 占比不足，暂不满足任务规格。</td></tr>
+        <tr><td><span class="tag">机构C</span></td><td><div class="task-name">机构共享资源组2100</div></td><td>15:44</td><td data-wait-seconds="2940">00:49:00</td><td><span class="tag orange">全局资源不足</span></td><td>全局 GPU 空闲占比不足，等待全局资源释放。</td></tr>
+      </tbody></table></div>
+      <div class="table-pager"><span>共 3 条</span><button disabled>上一页</button><button class="active">1</button><button disabled>下一页</button></div>
+    </div>
+    </div>
+    <div class="queue-panel active" data-queue-panel="developer">
+    <div class="card"><div class="panel-title"><b>开发人员占用</b></div>
+      <div class="quota-grid">
+        <div class="quota-card burst" style="grid-column:1 / -1"><h3>开发人员占用</h3>
+          <div class="pie-wrap">
+            <div class="pie-chart" style="background:conic-gradient(var(--primary) 0 75%, #C9CDD4 75% 100%)">
+              <div class="pie-center"><b>75%</b><span>已占用</span></div>
+            </div>
+            <div class="pie-legend">
+              <div class="legend-row"><i class="legend-dot"></i><span>开发人员占用</span><b>75%</b></div>
+              <div class="legend-row"><i class="legend-dot" style="background:#C9CDD4"></i><span>空闲 GPU</span><b>25%</b></div>
+              <div class="legend-row"><i class="legend-dot unavailable"></i><span>不可用 GPU</span><b>0%</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px"><div class="panel-title"><b>任务队列</b><div class="table-tools"><select data-owner-filter aria-label="归属筛选"><option value="all">全部归属</option></select><div class="sort-switch" aria-label="排序方式"><button class="active" data-queue-sort="wait-desc">等待↓</button><button data-queue-sort="submit-asc">时间↑</button></div><button class="btn" data-action="refresh">刷新</button></div></div>
+      <div class="queue-table-scroll"><table class="queue-table"><thead><tr><th style="width:78px">归属</th><th>任务名称</th><th style="width:90px">提交时间</th><th style="width:110px">已等待时长</th><th>阻塞分类标签</th><th>等待原因</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag orange">开发人员</span></td><td><div class="task-name">开发人员推理资源组1000</div></td><td>16:05</td><td data-wait-seconds="1210">00:20:10</td><td><span class="tag orange">占比上限已达</span></td><td>开发人员当前占比已达到 80% 上限，等待资源释放。</td></tr>
+        <tr><td><span class="tag orange">开发人员</span></td><td><div class="task-name">开发人员训练资源组1011</div></td><td>15:42</td><td data-wait-seconds="93600">1天 02:00:00</td><td><span class="tag gray">空闲 GPU 不足</span></td><td>当前空闲 GPU 占比不足，建议拆分为单卡任务。</td></tr>
+        <tr><td><span class="tag orange">开发人员</span></td><td><div class="task-name">开发人员训练资源组1012</div></td><td>15:36</td><td data-wait-seconds="7520">02:05:20</td><td><span class="tag orange">全局资源不足</span></td><td>开发人员当前占用已接近 80% 上限，等待全局资源释放。</td></tr>
+      </tbody></table></div>
+      <div class="table-pager"><span>共 3 条</span><button disabled>上一页</button><button class="active">1</button><button disabled>下一页</button></div>
+    </div>
+    </div>
+    <div class="queue-panel" data-queue-panel="dedicated">
+    <div class="notice"><b>资源状态：</b>智谱自带 H100 资源组当前使用 3 / 4 卡，1 个任务等待资源释放。</div>
+    <div class="two-col">
+      <div class="card"><div class="panel-title"><b>智谱自带 H100 资源组</b><button class="btn" data-action="refresh">刷新</button></div>
+        <div class="pie-wrap">
+          <div class="pie-chart dedicated">
+            <div class="pie-center"><b>3/4</b><span>当前使用</span></div>
+          </div>
+          <div class="pie-legend">
+            <div class="legend-row"><i class="legend-dot"></i><span>训练任务</span><b>2卡</b></div>
+            <div class="legend-row"><i class="legend-dot orange"></i><span>推理任务</span><b>1卡</b></div>
+            <div class="legend-row"><i class="legend-dot gray"></i><span>空闲</span><b>1卡</b></div>
+          </div>
+        </div>
+      </div>
+      <div class="card"><div class="panel-title"><b>自带资源组清单</b><button class="btn" data-modal="pool">新增资源组</button></div>
+        <table><thead><tr><th>归属</th><th>资源组</th><th>总量</th><th>当前使用</th><th>排队任务</th></tr></thead>
+        <tbody>
+          <tr><td>智谱</td><td>智谱自带 H100 资源组</td><td>4卡</td><td>3卡</td><td><span class="tag orange">1个</span></td></tr>
+          <tr><td>深势</td><td>深势自带 A100 资源组</td><td>8卡</td><td>2卡</td><td>0</td></tr>
+        </tbody></table>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px"><div class="panel-title"><b>自带资源组队列明细</b><button class="btn" data-action="refresh">刷新</button></div>
+      <table><thead><tr><th>归属</th><th>资源组</th><th>任务</th><th>申请 GPU</th><th>提交时间</th><th>等待原因</th></tr></thead>
+      <tbody>
+        <tr><td>智谱</td><td>智谱自带 H100 资源组</td><td>开发人员训练资源组0032</td><td>1卡</td><td>16:22</td><td>自带资源组剩余 1 卡，不满足任务规格</td></tr>
+      </tbody></table>
+    </div>
+    </div>`,
+  enterpriseQueue: `
+    <div class="title-row"><div><h1>机构占比上限</h1><div class="desc">机构共享资源组采用“80% 最大占比上限 + 机构内 FIFO 排队”的轻量调度机制。</div></div><button class="btn primary" data-modal="scheduler">策略配置</button></div>
+    <div class="notice"><b>队列状态：</b>机构B已达到 80% 占比上限，2 个任务正在等待。</div>
+    <div class="two-col">
+      <div class="card"><div class="panel-title"><b>机构共享资源组</b><button class="btn" data-action="refresh">刷新</button></div>
+        <div class="pie-wrap">
+          <div class="pie-chart">
+            <div class="pie-center"><b>8/32</b><span>当前使用</span></div>
+          </div>
+          <div class="pie-legend">
+            <div class="legend-row"><i class="legend-dot"></i><span>机构A</span><b>2卡</b></div>
+            <div class="legend-row"><i class="legend-dot orange"></i><span>机构B</span><b>6卡</b></div>
+            <div class="legend-row"><i class="legend-dot purple"></i><span>机构C</span><b>0卡</b></div>
+            <div class="legend-row"><i class="legend-dot gray"></i><span>未使用</span><b>24卡</b></div>
+          </div>
+        </div>
+      </div>
+      <div class="card"><div class="panel-title"><b>机构占比上限</b><button class="btn" data-modal="enterprise">新增机构</button></div>
+        <table><thead><tr><th>机构</th><th>最大占比上限</th><th>当前占比</th><th>排队任务</th></tr></thead>
+        <tbody>
+          <tr><td>机构A</td><td>80%</td><td>25%</td><td>0</td></tr>
+          <tr><td>机构B</td><td>80%</td><td>80%</td><td><span class="tag orange">2个</span></td></tr>
+          <tr><td>机构C</td><td>80%</td><td>0%</td><td>0</td></tr>
+          <tr><td>新机构D</td><td>80%</td><td>0%</td><td>0</td></tr>
+        </tbody></table>
+        <div class="notice" style="margin:14px 0 0">最大占比上限不是固定占用；机构无任务时不会预留固定卡位。</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px"><div class="panel-title"><b>机构队列明细</b><button class="btn" data-action="refresh">刷新</button></div>
+      <table><thead><tr><th>机构</th><th>任务</th><th>申请 GPU</th><th>提交时间</th><th>等待原因</th></tr></thead>
+      <tbody>
+        <tr><td>机构B</td><td>机构共享资源组1024</td><td>2卡</td><td>15:12</td><td>机构B已达 6 卡上限</td></tr>
+        <tr><td>机构B</td><td>机构共享资源组1025</td><td>1卡</td><td>15:18</td><td>机构B已达 6 卡上限</td></tr>
+      </tbody></table>
+    </div>`
+};
+function renderAdminPage(page){
+  pageContent.innerHTML = page === 'overview' ? overviewHTML : adminPages[page];
+  updateWaitTimers(false);
+  setupOwnerFilters(pageContent);
+  setupAdminGpuViews(pageContent);
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+document.addEventListener('click', e => {
+  const sortButton = e.target.closest('[data-queue-sort]');
+  if (sortButton) {
+    sortButton.parentElement.querySelectorAll('[data-queue-sort]').forEach(button => {
+      button.classList.toggle('active', button === sortButton);
+    });
+    sortQueueTable(sortButton);
+    return;
+  }
+  const memberAdd = e.target.closest('[data-member-add]');
+  if (memberAdd) {
+    const panel = modalBody.querySelector('[data-member-add-panel]');
+    if (panel) panel.classList.toggle('is-hidden');
+    return;
+  }
+  const memberCancelAdd = e.target.closest('[data-member-cancel-add]');
+  if (memberCancelAdd) {
+    memberCancelAdd.closest('[data-member-add-panel]').classList.add('is-hidden');
+    return;
+  }
+  const memberSelectAdd = e.target.closest('[data-member-select-add]');
+  if (memberSelectAdd) {
+    addSelectedMember();
+    return;
+  }
+  const memberRowRemove = e.target.closest('[data-member-row-remove]');
+  if (memberRowRemove) {
+    memberRowRemove.closest('tr').remove();
+    updateMemberState();
+    showToast('已删除用户（演示）');
+    return;
+  }
+  const candidateAdd = e.target.closest('[data-candidate-add]');
+  if (candidateAdd) {
+    addCandidateMember(candidateAdd.closest('[data-candidate-account]'));
+    showToast('已添加用户（演示）');
+    return;
+  }
+  const memberBatchAdd = e.target.closest('[data-member-batch-add]');
+  if (memberBatchAdd) {
+    const selected = Array.from(modalBody.querySelectorAll('[data-candidate-check]:checked'));
+    if (!selected.length) {
+      showToast('请先选择待添加用户');
+      return;
+    }
+    selected.forEach(check => addCandidateMember(check.closest('[data-candidate-account]')));
+    showToast('已添加选中用户（演示）');
+    return;
+  }
+  const memberRemove = e.target.closest('[data-member-remove]');
+  if (memberRemove) {
+    const selected = Array.from(modalBody.querySelectorAll('[data-member-check]:checked'));
+    if (!selected.length) {
+      showToast('请先选择用户');
+      return;
+    }
+    selected.forEach(check => check.closest('tr').remove());
+    const checkAll = modalBody.querySelector('[data-member-check-all]');
+    if (checkAll) checkAll.checked = false;
+    updateMemberState();
+    showToast('已移除选中用户（演示）');
+    return;
+  }
+  const memberCheckAll = e.target.closest('[data-member-check-all]');
+  if (memberCheckAll) {
+    modalBody.querySelectorAll('[data-member-check]').forEach(check => {
+      if (check.closest('tr').style.display !== 'none') check.checked = memberCheckAll.checked;
+    });
+    updateMemberState();
+    return;
+  }
+  const candidateCheckAll = e.target.closest('[data-candidate-check-all]');
+  if (candidateCheckAll) {
+    modalBody.querySelectorAll('[data-candidate-check]').forEach(check => {
+      if (check.closest('tr').style.display !== 'none') check.checked = candidateCheckAll.checked;
+    });
+    return;
+  }
+  const registerStep = e.target.closest('[data-register-step]');
+  if (registerStep) {
+    showRegisterStep(registerStep.dataset.registerStep);
+    return;
+  }
+  const registerDone = e.target.closest('[data-register-done]');
+  if (registerDone) {
+    closeModal();
+    showToast('集群注册指令已确认（演示）');
+    return;
+  }
+  const gpuMinus = e.target.closest('[data-gpu-minus]');
+  if (gpuMinus) {
+    const input = gpuMinus.parentElement.querySelector('[data-gpu-count]');
+    input.value = Math.max(1, Number(input.value || 1) - 1);
+    updatePoolSummary();
+    return;
+  }
+  const gpuPlus = e.target.closest('[data-gpu-plus]');
+  if (gpuPlus) {
+    const input = gpuPlus.parentElement.querySelector('[data-gpu-count]');
+    input.value = Math.min(8, Number(input.value || 0) + 1);
+    updatePoolSummary();
+    return;
+  }
+  const enterpriseGpuMinus = e.target.closest('[data-enterprise-gpu-minus]');
+  if (enterpriseGpuMinus) {
+    const input = enterpriseGpuMinus.parentElement.querySelector('[data-enterprise-gpu-count]');
+    input.value = Math.max(1, Number(input.value || 1) - 1);
+    return;
+  }
+  const enterpriseGpuPlus = e.target.closest('[data-enterprise-gpu-plus]');
+  if (enterpriseGpuPlus) {
+    const input = enterpriseGpuPlus.parentElement.querySelector('[data-enterprise-gpu-count]');
+    input.value = Math.min(32, Number(input.value || 0) + 1);
+    return;
+  }
+  if (e.target.matches('[data-node-check]')) {
+    updatePoolSummary();
+    return;
+  }
+  if (e.target.matches('[data-role-filter]')) {
+    filterRoleMembers(e.target.value);
+    return;
+  }
+  if (e.target.matches('[data-enterprise-filter]')) {
+    const roleFilter = modalBody.querySelector('[data-role-filter]');
+    filterRoleMembers(modalBody.dataset.currentRole || (roleFilter ? roleFilter.value : 'all'));
+    return;
+  }
+  const customRoleToggle = e.target.closest('[data-custom-role-toggle]');
+  if (customRoleToggle) {
+    const panel = customRoleToggle.parentElement.querySelector('[data-custom-role-panel]');
+    panel.classList.toggle('is-hidden');
+    const input = panel.querySelector('[data-custom-role-input]');
+    if (!panel.classList.contains('is-hidden')) input.focus();
+    return;
+  }
+  const customRoleSave = e.target.closest('[data-custom-role-save]');
+  if (customRoleSave) {
+    const panel = customRoleSave.closest('[data-custom-role-panel]');
+    const input = panel.querySelector('[data-custom-role-input]');
+    const roleName = input.value.trim();
+    if (!roleName) {
+      showToast('请填写角色名称');
+      return;
+    }
+    const select = modalBody.querySelector('[data-service-role-select]');
+    const exists = Array.from(select.options).some(option => option.textContent === roleName);
+    if (!exists) select.add(new Option(roleName, roleName));
+    select.value = roleName;
+    syncPoolName();
+    input.value = '';
+    panel.classList.add('is-hidden');
+    showToast('自定义角色已添加');
+    return;
+  }
+  const downgradeTarget = e.target.closest('[data-task-downgrade]');
+  if (downgradeTarget) {
+    openTaskActionModal('downgrade', downgradeTarget.dataset.taskName || '当前任务');
+    return;
+  }
+  const cancelTaskTarget = e.target.closest('[data-task-cancel]');
+  if (cancelTaskTarget) {
+    openTaskActionModal('cancel', cancelTaskTarget.dataset.taskName || '当前任务');
+    return;
+  }
+  const poolStep = e.target.closest('[data-pool-step]');
+  if (poolStep) {
+    const step = poolStep.dataset.poolStep;
+    modalBody.querySelectorAll('[data-pool-step]').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.poolStep === step);
+    });
+    modalBody.querySelectorAll('[data-pool-panel]').forEach(panel => {
+      panel.classList.toggle('active', panel.dataset.poolPanel === step);
+    });
+    return;
+  }
+  const queueTab = e.target.closest('[data-queue-tab]');
+  if (queueTab) {
+    const tab = queueTab.dataset.queueTab;
+    document.querySelectorAll('.seg-tabs [data-queue-tab]').forEach(item => {
+      item.classList.toggle('active', item.dataset.queueTab === tab);
+    });
+    document.querySelectorAll('[data-queue-panel]').forEach(panel => {
+      panel.classList.toggle('active', panel.dataset.queuePanel === tab);
+    });
+    return;
+  }
+  const pageTarget = e.target.closest('[data-page-link]');
+  if (pageTarget) {
+    const nextPage = pageTarget.dataset.pageLink;
+    document.querySelectorAll('.nav-item').forEach(i => {
+      i.classList.toggle('active', i.dataset.page === nextPage);
+    });
+    renderAdminPage(nextPage);
+    return;
+  }
+  const roleMembersTarget = e.target.closest('[data-role-members]');
+  if (roleMembersTarget) {
+    const role = roleMembersTarget.dataset.roleMembers;
+    openRoleMembersModal(role);
+    return;
+  }
+  const modalTarget = e.target.closest('[data-modal]');
+  if (modalTarget) openModal(modalTarget.dataset.modal);
+  const actionTarget = e.target.closest('[data-action]');
+  if (actionTarget) {
+    const map = { export:'已生成配置导出文件（演示）', refresh:'查询结果已刷新', reset:'筛选条件已重置', save:'配置已保存', delete:'删除操作已拦截（演示）' };
+    showToast(map[actionTarget.dataset.action] || '操作成功');
+  }
+  const step = e.target.closest('.step');
+  if (step) showToast(step.querySelector('b').textContent + '：查看详情');
+});
+document.addEventListener('change', e => {
+  if (e.target.matches('[data-role-filter]')) {
+    filterRoleMembers(e.target.value);
+  }
+  if (e.target.matches('[data-enterprise-filter]')) {
+    const roleFilter = modalBody.querySelector('[data-role-filter]');
+    filterRoleMembers(modalBody.dataset.currentRole || (roleFilter ? roleFilter.value : 'all'));
+  }
+  if (e.target.matches('[data-service-role-select]')) {
+    syncPoolName();
+  }
+  if (e.target.matches('input[name="pool-purpose"]')) {
+    syncPoolName();
+  }
+  if (e.target.matches('[data-node-check]')) {
+    updatePoolSummary();
+  }
+  if (e.target.matches('[data-owner-filter]')) {
+    filterQueueByOwner(e.target);
+  }
+  if (e.target.matches('[data-resource-scope]')) {
+    renderAdminGpuView(e.target);
+  }
+  if (e.target.matches('[data-member-check]')) {
+    updateMemberState();
+  }
+});
+document.addEventListener('input', e => {
+  if (e.target.matches('[data-member-search]')) {
+    filterRoleMembers(modalBody.dataset.currentRole || 'all');
+  }
+  if (e.target.matches('[data-candidate-search]')) {
+    filterCandidateMembers();
+  }
+});
+document.querySelectorAll('.nav-item').forEach(item => item.addEventListener('click', () => {
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  item.classList.add('active');
+  renderAdminPage(item.dataset.page || 'overview');
+}));
+renderAdminPage('roleQueue');
+setInterval(updateWaitTimers, 1000);
+</script>
+</body>
+</html>

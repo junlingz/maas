@@ -1730,39 +1730,6 @@ function TaskDetailPage({ task, onClose, onStop, initialTab = "overview" }: { ta
                     </div>
                   </div>
 
-                  {/* Score distribution */}
-                  <div style={{ border: "1px solid #e8ebf2", borderRadius: 8, overflow: "hidden" }}>
-                    <div style={{ padding: "12px 14px", fontSize: 14, fontWeight: 600, borderBottom: "1px solid #f0f2f7", background: "#fafbfc" }}>分数分布</div>
-                    <div style={{ padding: 14, display: "grid", gap: 12 }}>
-                      {task.metrics.map(m => {
-                        const ranges = [
-                          { label: "0-60", pct: Math.round((m.score < 60 ? 15 : 5) + Math.random() * 8), color: "#dc2626" },
-                          { label: "60-70", pct: Math.round(m.score >= 60 && m.score < 70 ? 25 : 8 + Math.random() * 10), color: "#f59e0b" },
-                          { label: "70-80", pct: Math.round(m.score >= 70 && m.score < 80 ? 30 : 12 + Math.random() * 12), color: "#eab308" },
-                          { label: "80-90", pct: Math.round(m.score >= 80 && m.score < 90 ? 35 : 15 + Math.random() * 15), color: "#84cc16" },
-                          { label: "90-100", pct: Math.round(m.score >= 90 ? 45 : 20 + Math.random() * 20), color: "#16a34a" },
-                        ];
-                        return (
-                          <div key={m.name} style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 10, alignItems: "center" }}>
-                            <span style={{ fontSize: 12.5, fontWeight: 600, color: "#374151" }}>{m.name}</span>
-                            <div style={{ display: "flex", gap: 2, height: 22, borderRadius: 4, overflow: "hidden" }}>
-                              {ranges.map(r => (
-                                <div key={r.label} title={`${r.label}: ${r.pct}%`} style={{ width: `${r.pct}%`, background: r.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", fontWeight: 600, minWidth: r.pct > 10 ? 0 : undefined }}>
-                                  {r.pct > 10 ? `${r.pct}%` : ""}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                      <div style={{ display: "flex", gap: 14, fontSize: 11, color: "#6b7280", justifyContent: "center", marginTop: 4 }}>
-                        {[{ label: "0-60", color: "#dc2626" }, { label: "60-70", color: "#f59e0b" }, { label: "70-80", color: "#eab308" }, { label: "80-90", color: "#84cc16" }, { label: "90-100", color: "#16a34a" }].map(r => (
-                          <div key={r.label} className="flex items-center gap-1"><div style={{ width: 10, height: 10, borderRadius: 2, background: r.color }} /><span>{r.label}</span></div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
                   <div style={{ border: "1px solid #e8ebf2", borderRadius: 8, overflow: "hidden" }}><div style={{ padding: "12px 14px", fontSize: 14, fontWeight: 600, borderBottom: "1px solid #f0f2f7" }}>指标汇总</div><table style={{ width: "100%", borderCollapse: "collapse" }}><thead><tr>{["指标", "得分", "权重", "通过率", "操作"].map(column => <th key={column} style={thSt}>{column}</th>)}</tr></thead><tbody>{task.metrics.map((metric, index) => <tr key={metric.name}><td style={{ ...tdSt, fontWeight: 600 }}>{metric.name}</td><td style={tdSt}>{metric.score}</td><td style={tdSt}>{metric.weight}%</td><td style={tdSt}>{Math.max(58, 88 - index * 6)}%</td><td style={tdSt}><TextButton onClick={() => setMetricDetail(metric)}>查看详情</TextButton></td></tr>)}</tbody></table></div>
                 </div> : <div>
                   <div className="flex items-center justify-between" style={{ padding: "10px 14px", background: "#f7f9ff", borderBottom: "1px solid #e6ebfb", fontSize: 12.5 }}>

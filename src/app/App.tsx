@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ModelPlazaPage } from "./components/ModelPlaza";
 import { ModelManagementPage } from "./components/ModelManagement";
 import { DeployInstancePage } from "./components/DeployInstance";
@@ -10,7 +10,7 @@ import { AuditEventsPage } from "./components/AuditEvents";
 import { UsageStatsPage } from "./components/UsageStats";
 import { LogMiningPage } from "./components/LogMining";
 import { ModelRoutingPage } from "./components/ModelRouting";
-import { ModelEvaluationPage } from "./components/ModelEvaluation";
+import { EvaluationConfigPage, ModelComparePage, ModelEvaluationPage } from "./components/ModelEvaluation";
 import { EvaluationDataPage } from "./components/EvaluationData";
 import { ResourcePermissionPage } from "./components/ResourcePermission";
 import { PromptTemplatePage } from "./components/PromptTemplate";
@@ -19,13 +19,22 @@ import { ClusterListPage } from "./components/ClusterList";
 import { NodeListPage, ResourceGroupPage } from "./components/NodeResourceGroup";
 import { PromptTuningPage, TplInfo } from "./components/PromptTuning";
 import { ModelExperiencePage } from "./components/ModelExperience";
+import {
+  AutoregressiveTrainingPage,
+  TrainingAboutPage,
+  TrainingAlertCenterPage,
+  TrainingDataWorkbenchPage,
+  TrainingDocsPage,
+  TrainingModelLibraryPage,
+  TrainingTaskManagementPage,
+} from "./components/AutoregressiveTraining";
 import { INITIAL_DEPLOYMENTS, INITIAL_INSTANCES, INITIAL_MODELS } from "./model-management/data";
 import type { DeploymentRecord, ModelInstanceRecord, ModelRecord } from "./model-management/types";
 import {
   Store, FlaskConical, BrainCircuit, ClipboardCheck, Layers,
   Users, Building2, BarChart3, Server, ChevronDown, ChevronRight,
   ChevronLeft, Cpu, UserCircle, Search, Plus, RefreshCw,
-  Check, ChevronUp, Info, CheckCircle2, Circle, Upload,
+  Check, ChevronUp, Info, CheckCircle2, Circle, Upload, Bell, BookOpen, ListTodo,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -48,16 +57,26 @@ const menuData: MenuItem[] = [
   {
     label: "模型训练", key: "model-training", icon: <BrainCircuit size={16} />,
     children: [
-      { label: "模型训练", key: "training-task" },
+      { label: "预训练任务", key: "training-task" },
       { label: "训练数据", key: "training-data" },
+      { label: "训练模型库", key: "training-model-library" },
       { label: "我的模型", key: "my-model", highlight: true },
+    ],
+  },
+  {
+    label: "任务管理", key: "training-operations", icon: <ListTodo size={16} />,
+    children: [
+      { label: "训练任务", key: "task-management" },
+      { label: "告警中心", key: "training-alerts" },
     ],
   },
   {
     label: "模型评测", key: "model-evaluation", icon: <ClipboardCheck size={16} />,
     children: [
-      { label: "模型评测", key: "evaluation-task" },
+      { label: "评测任务", key: "evaluation-task" },
       { label: "评测数据", key: "evaluation-data" },
+      { label: "模型对比", key: "evaluation-compare" },
+      { label: "配置方案", key: "evaluation-config" },
     ],
   },
   {
@@ -98,6 +117,13 @@ const menuData: MenuItem[] = [
       { label: "集群", key: "cluster-list" },
       { label: "节点", key: "node-list" },
       { label: "资源组", key: "resource-group" },
+    ],
+  },
+  {
+    label: "技术支持", key: "technical-support", icon: <BookOpen size={16} />,
+    children: [
+      { label: "在线文档", key: "training-docs" },
+      { label: "关于平台", key: "training-about" },
     ],
   },
 ];
@@ -357,6 +383,7 @@ function NumInput({ value, onChange }: { value: number; onChange: (v: number) =>
 }
 
 function CreateTrainingTaskPage({ onCancel, initialModel }: { onCancel: () => void; initialModel?: ModelRecord | null }) {
+  const requestedLegacyStep = Number(new URLSearchParams(window.location.search).get("step"));
   const [currentStep, setCurrentStep] = useState(initialModel ? 2 : 1);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set(initialModel ? [1] : []));
   const [submitted, setSubmitted] = useState(false);
@@ -388,6 +415,13 @@ function CreateTrainingTaskPage({ onCancel, initialModel }: { onCancel: () => vo
   const [evalMetrics, setEvalMetrics] = useState<Set<string>>(new Set(["困惑度"]));
   const [evalFreq, setEvalFreq] = useState("10min/次");
   const [freqOpen, setFreqOpen] = useState(false);
+
+  useEffect(() => {
+    if (!initialModel && Number.isInteger(requestedLegacyStep) && requestedLegacyStep >= 1 && requestedLegacyStep <= 5) {
+      setCurrentStep(requestedLegacyStep);
+      setCompletedSteps(new Set(Array.from({ length: requestedLegacyStep - 1 }, (_, index) => index + 1)));
+    }
+  }, [initialModel, requestedLegacyStep]);
 
   const toggleMetric = (m: string) => {
     setEvalMetrics(prev => {
@@ -1447,7 +1481,7 @@ function Sidebar({ active, onSelect }: { active: string; onSelect: (key: string)
   const activeParentKey = menuData.find(m => m.children?.some(c => c.key === active))?.key;
 
   return (
-    <aside className="flex flex-col h-full flex-shrink-0" style={{ width: 220, background: "#181c2e", borderRight: "1px solid rgba(255,255,255,0.06)" }}>
+    <aside className="maas-sidebar flex flex-col h-full flex-shrink-0" style={{ width: 220, background: "#181c2e", borderRight: "1px solid rgba(255,255,255,0.06)" }}>
       <div className="flex items-center gap-2.5 flex-shrink-0" style={{ padding: "20px 20px 16px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
         <div className="flex items-center justify-center rounded-lg flex-shrink-0" style={{ width: 32, height: 32, background: "linear-gradient(135deg, #4f6ef7 0%, #7c5cf6 100%)" }}>
           <Cpu size={16} color="#fff" />
@@ -1514,6 +1548,12 @@ export default function App() {
   const [experiencePrefillModel, setExperiencePrefillModel] = useState<string | null>(null);
   const [trainingPrefillModelId, setTrainingPrefillModelId] = useState<string | null>(null);
   const [evalTaskName, setEvalTaskName] = useState("");
+  const legacyView = new URLSearchParams(window.location.search).get("legacy");
+
+  useEffect(() => {
+    const requestedPage = new URLSearchParams(window.location.search).get("page");
+    if (requestedPage) setActiveMenu(requestedPage);
+  }, []);
 
   const handleMenuSelect = (key: string) => {
     setActiveMenu(key);
@@ -1534,6 +1574,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen w-full overflow-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
+      <style>{`@media (max-width: 760px) { .maas-sidebar { display: none !important; } }`}</style>
       <Sidebar active={activeMenu} onSelect={handleMenuSelect} />
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Topbar */}
@@ -1547,6 +1588,13 @@ export default function App() {
             {activeMenu === "training-task" && trainingView === "evaluation" && (
               <><ChevronRight size={12} /><span style={{ color: "#1a1d23", fontWeight: 500 }}>评估报告</span></>
             )}
+          </div>
+          <div className="flex items-center gap-3">
+            {!legacyView && <button type="button" aria-label="打开训练告警" onClick={() => handleMenuSelect("training-alerts")} style={{ position: "relative", width: 32, height: 32, display: "grid", placeItems: "center", border: "1px solid #e4e8ef", borderRadius: 8, background: "#fff", color: "#667085", cursor: "pointer" }}>
+              <Bell size={16} />
+              <span style={{ position: "absolute", right: 5, top: 5, width: 7, height: 7, borderRadius: 99, background: "#ef4444", boxShadow: "0 0 0 2px #fff" }} />
+            </button>}
+            <span style={{ color: "#98a2b3", fontSize: 12 }}>MaaS 3.6</span>
           </div>
         </header>
 
@@ -1570,21 +1618,32 @@ export default function App() {
               }}
             />
           ) : activeMenu === "training-task" ? (
-            trainingView === "list"
-              ? <TrainingTaskList
-                  onCreate={() => { setTrainingPrefillModelId(null); setTrainingView("create"); }}
-                  onEvalReport={(name) => { setEvalTaskName(name); setTrainingView("evaluation"); }}
-                />
-              : trainingView === "create"
+            legacyView === "list"
+              ? <TrainingTaskList onCreate={() => undefined} onEvalReport={setEvalTaskName} />
+              : legacyView === "create"
+                ? <CreateTrainingTaskPage onCancel={() => undefined} />
+                : legacyView === "report"
+                  ? <EvaluationReportPage taskName={evalTaskName || "电商客服大模型预训练"} onBack={() => undefined} />
+                  : trainingPrefillModel
               ? <CreateTrainingTaskPage key={trainingPrefillModelId ?? "manual"} initialModel={trainingPrefillModel} onCancel={() => { setTrainingPrefillModelId(null); setTrainingView("list"); }} />
-              : <EvaluationReportPage taskName={evalTaskName} onBack={() => setTrainingView("list")} />
+              : <AutoregressiveTrainingPage />
           ) : activeMenu === "training-data" ? (
-            <TrainingDataPage />
+            legacyView ? <TrainingDataPage /> : <TrainingDataWorkbenchPage />
+          ) : activeMenu === "training-model-library" ? (
+            <TrainingModelLibraryPage />
           ) : activeMenu === "model-list" ? (
             <ModelManagementPage models={models} onModelsChange={setModels} onDeploy={model => {
               setDeployPrefillModelId(model.id);
               handleMenuSelect("model-deploy");
             }} />
+          ) : activeMenu === "task-management" ? (
+            <TrainingTaskManagementPage />
+          ) : activeMenu === "training-alerts" ? (
+            <TrainingAlertCenterPage />
+          ) : activeMenu === "training-docs" ? (
+            <TrainingDocsPage />
+          ) : activeMenu === "training-about" ? (
+            <TrainingAboutPage />
           ) : activeMenu === "model-deploy" ? (
             <ModelDeploymentPage models={models} deployments={deployments} onDeploymentsChange={setDeployments} instances={instances} onInstancesChange={setInstances} prefillModelId={deployPrefillModelId} onPrefillConsumed={() => setDeployPrefillModelId(null)} />
           ) : activeMenu === "deploy-instance" ? (
@@ -1613,6 +1672,10 @@ export default function App() {
             <ModelEvaluationPage />
           ) : activeMenu === "evaluation-data" ? (
             <EvaluationDataPage />
+          ) : activeMenu === "evaluation-compare" ? (
+            <ModelComparePage />
+          ) : activeMenu === "evaluation-config" ? (
+            <EvaluationConfigPage />
           ) : activeMenu === "workspace" ? (
             <ResourcePermissionPage />
           ) : activeMenu === "user-role" ? (

@@ -121,6 +121,12 @@ test("指标选择和权重统一配置在流程模板的指标计算阶段", ()
   assert.match(prdSource, /不再维护独立指标方案/);
 });
 
+test("配置方案列表展示创建人", () => {
+  assert.match(configPageSource, /\["方案名称", "适用范围", "配置内容", "版本", "创建人", "共享权限", "操作"\]/);
+  assert.match(configPageSource, /\{row\.author\}/);
+  assert.match(prdSource, /列表展示模板名称、适用模型\/任务、阶段、版本、创建人和共享权限/);
+});
+
 test("流程模板使用结构化样本条件并驱动指标计算集合", () => {
   for (const field of ["数据集", "任务类型", "语言"]) assert.match(evaluationSource, new RegExp(`label: "${field}"`));
   assert.doesNotMatch(evaluationSource, /\{ value: "category", label: "样本类别" \}/);

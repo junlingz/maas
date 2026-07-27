@@ -2731,9 +2731,9 @@ export function EvaluationConfigPage() {
           <div className="flex items-center gap-3">{message && <span style={{ fontSize: 12.5, color: "#16a34a" }}>{message}</span>}<PrimaryButton onClick={openCreate}><Plus size={14} />新建流程模板</PrimaryButton></div>
         </div>
         <div style={{ overflow: "auto" }}>
-          <table style={{ width: "100%", minWidth: 900, tableLayout: "fixed", borderCollapse: "separate", borderSpacing: 0, fontSize: 13 }}>
-            <colgroup><col style={{ width: 145 }} /><col style={{ width: 170 }} /><col style={{ width: 220 }} /><col style={{ width: 70 }} /><col style={{ width: 130 }} /><col style={{ width: 250 }} /></colgroup>
-            <thead><tr>{["方案名称", "适用范围", "配置内容", "版本", "共享权限", "操作"].map((c, index) => <th key={c} style={{ ...thSt, position: "sticky", top: 0, right: index === 5 ? 0 : undefined, zIndex: index === 5 ? 3 : 2, boxShadow: index === 5 ? "-1px 0 #eef1f6" : undefined }}>{c}</th>)}</tr></thead>
+          <table style={{ width: "100%", minWidth: 1000, tableLayout: "fixed", borderCollapse: "separate", borderSpacing: 0, fontSize: 13 }}>
+            <colgroup><col style={{ width: 145 }} /><col style={{ width: 170 }} /><col style={{ width: 220 }} /><col style={{ width: 70 }} /><col style={{ width: 100 }} /><col style={{ width: 130 }} /><col style={{ width: 250 }} /></colgroup>
+            <thead><tr>{["方案名称", "适用范围", "配置内容", "版本", "创建人", "共享权限", "操作"].map((c, index) => <th key={c} style={{ ...thSt, position: "sticky", top: 0, right: index === 6 ? 0 : undefined, zIndex: index === 6 ? 3 : 2, boxShadow: index === 6 ? "-1px 0 #eef1f6" : undefined }}>{c}</th>)}</tr></thead>
             <tbody>
               {templates.map(row => {
                 return <tr key={row.name}>
@@ -2741,6 +2741,7 @@ export function EvaluationConfigPage() {
                   <td style={tdSt}><div>{row.modelType}</div><div style={{ marginTop: 3, color: "#6b7280", fontSize: 11.5 }}>全部评测任务</div></td>
                   <td style={{ ...tdSt, overflowWrap: "anywhere" }}><div>{row.stages}</div><div style={{ marginTop: 4, color: "#6b7280", fontSize: 11.5 }}>指标：{metricWeightSummary(row.metricWeights || {}) || "未配置"}</div><div style={{ marginTop: 2, color: "#6b7280", fontSize: 11.5 }}>样本范围：{conditionRuleSummary(row.flowStages?.find(stage => stage.name === "指标计算")?.conditionRule)}</div></td>
                   <td style={{ ...tdSt, whiteSpace: "nowrap" }}>{row.version}</td>
+                  <td style={{ ...tdSt, whiteSpace: "nowrap" }}>{row.author}</td>
                   <td style={{ ...tdSt, whiteSpace: "nowrap" }}>{row.scope === "私有" ? "私有" : `共享（${row.sharedAccess}）`}</td>
                   <td style={{ ...tdSt, position: "sticky", right: 0, background: "#fff", boxShadow: "-1px 0 #f0f2f7" }}><div className="flex items-center" style={{ flexWrap: "wrap", gap: "5px 10px" }}>
                     {canEditScheme(row) && <TextButton onClick={() => openEdit(row)}>编辑</TextButton>}

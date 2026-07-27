@@ -268,6 +268,7 @@ function EditDatasetPage({ row, onBack, onSave }: { row: DatasetRow; onBack: () 
 
 function UploadDatasetPage({ onBack, onDone, uploadMode = "mine" }: { onBack: () => void; onDone: (row: DatasetRow) => void; uploadMode?: "mine" | "public" }) {
   const fileInput = useRef<HTMLInputElement>(null);
+  const fileValidationRun = useRef(0);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [modelType, setModelType] = useState<"语言模型" | "多模态模型" | "">("");
@@ -286,11 +287,14 @@ function UploadDatasetPage({ onBack, onDone, uploadMode = "mine" }: { onBack: ()
   const uploadPermission: DatasetRow["permission"] = uploadMode === "public" ? "公开" : uploadScope === "private" ? "仅自己可见" : `团队成员可见（${uploadSubPermission}）`;
 
   const resetFile = () => {
+    fileValidationRun.current += 1;
     setFileName("");
+    setFormat("JSONL");
     setValidation("");
     setError("");
     setRecordCount(0);
     setValidationSummary("");
+    setSample("");
     if (fileInput.current) fileInput.current.value = "";
   };
 
@@ -300,6 +304,8 @@ function UploadDatasetPage({ onBack, onDone, uploadMode = "mine" }: { onBack: ()
       setError("请先选择模型类型和适用任务，再上传数据文件。");
       return;
     }
+    const validationRun = fileValidationRun.current + 1;
+    fileValidationRun.current = validationRun;
     const extension = file.name.split(".").pop()?.toLowerCase();
     setFileName(file.name);
     setValidation("校验中");
@@ -325,6 +331,7 @@ function UploadDatasetPage({ onBack, onDone, uploadMode = "mine" }: { onBack: ()
       : task === "代码生成" ? ["prompt", "test"] : ["input", "answer"];
     try {
       const content = await file.text();
+      if (validationRun !== fileValidationRun.current) return;
       const lines = content.split(/\r?\n/).filter(line => line.trim());
       const errors: string[] = [];
       if (!lines.length) errors.push("文件为空");
@@ -370,6 +377,7 @@ function UploadDatasetPage({ onBack, onDone, uploadMode = "mine" }: { onBack: ()
         setValidationSummary(`已检查 ${count.toLocaleString()} 条记录；必填字段 ${requiredFields.join("、")} 均有效`);
       }
     } catch (reason) {
+      if (validationRun !== fileValidationRun.current) return;
       setValidation("校验失败");
       setError(reason instanceof Error ? `文件读取失败：${reason.message}` : "文件读取失败");
       setValidationSummary("无法完成内容校验");
@@ -392,7 +400,27 @@ function UploadDatasetPage({ onBack, onDone, uploadMode = "mine" }: { onBack: ()
           {error && <div style={{ marginTop: 18, padding: 10, border: "1px solid #fecaca", background: "#fef2f2", color: "#dc2626", borderRadius: 7, fontSize: 13 }}>{error}</div>}
           <section id="dataset-basic" style={{ padding: "18px 0", borderBottom: "1px solid #eef1f6" }}><h3 style={{ margin: "0 0 13px", fontSize: 14 }}>基础信息</h3><div style={{ marginBottom: 11 }}><FieldLabel required>数据集名称</FieldLabel><input value={name} onChange={event => setName(event.target.value)} placeholder="请输入数据集名称" style={inputSt} /></div><div><FieldLabel required>数据集描述</FieldLabel><textarea value={description} onChange={event => setDescription(event.target.value)} placeholder="请说明数据来源、用途和适用范围" style={{ ...inputSt, height: 72, padding: 9, fontFamily: "inherit", resize: "vertical" }} /></div></section>
           <section id="dataset-format" style={{ padding: "18px 0", borderBottom: "1px solid #eef1f6" }}><h3 style={{ margin: "0 0 13px", fontSize: 14 }}>类型与格式</h3><div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}><div><FieldLabel required>模型类型</FieldLabel><select value={modelType} onChange={event => { setModelType(event.target.value as typeof modelType); setTask(""); resetFile(); }} style={inputSt}><option value="">请选择模型类型</option><option>语言模型</option><option>多模态模型</option></select></div><div><FieldLabel required>适用任务</FieldLabel><select value={task} onChange={event => { setTask(event.target.value); resetFile(); }} style={inputSt}><option value="">请选择适用任务</option>{taskOptions.map(option => <option key={option}>{option}</option>)}</select></div></div><div style={{ marginTop: 12, padding: "10px 12px", background: "#f7f9ff", border: "1px solid #dbe5ff", borderRadius: 7, fontSize: 12, lineHeight: 1.7 }}><div className="flex items-center gap-2" style={{ fontWeight: 600, color: "#374151" }}><Info size={14} color="#4f6ef7" />格式说明</div><div style={{ color: "#6b7280", marginTop: 3 }}>{!modelType || !task ? "选择模型类型和适用任务后显示必填字段。" : `${modelType === "多模态模型" ? "必填字段：image_url、question、answer" : task === "代码生成" ? "必填字段：prompt、test" : "必填字段：input、answer"}。JSONL 每行一个 JSON 对象；CSV 第一行为表头。多模态模型评测数据集（含图片等素材）请打包为 ZIP 压缩包上传。样例文件内容由开发提供。`}</div><div className="flex items-center gap-2" style={{ marginTop: 8 }}><button onClick={() => downloadDatasetTemplate(modelType || "语言模型", task || "文本理解", "JSONL")} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", border: "1px solid #dbe5ff", borderRadius: 5, background: "#fff", color: "#4f6ef7", fontSize: 12, cursor: "pointer" }}><Download size={12} />下载 JSONL 样例</button><button onClick={() => downloadDatasetTemplate(modelType || "语言模型", task || "文本理解", "CSV")} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", border: "1px solid #dbe5ff", borderRadius: 5, background: "#fff", color: "#4f6ef7", fontSize: 12, cursor: "pointer" }}><Download size={12} />下载 CSV 样例</button></div></div></section>
-          <section id="dataset-upload" style={{ padding: "18px 0", borderBottom: "1px solid #eef1f6" }}><h3 style={{ margin: "0 0 13px", fontSize: 14 }}>数据上传</h3><FieldLabel required>数据文件</FieldLabel><input ref={fileInput} type="file" accept=".jsonl,.csv,.zip" style={{ display: "none" }} onChange={event => selectFile(event.target.files?.[0])} /><button onClick={() => fileInput.current?.click()} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); selectFile(event.dataTransfer.files?.[0]); }} style={{ width: "100%", border: "1.5px dashed #93c5fd", borderRadius: 8, padding: 24, background: "#f8faff", cursor: "pointer" }}>{fileName ? <span className="flex items-center justify-center gap-2"><FileText size={18} color="#4f6ef7" />{fileName}</span> : <span><Upload size={22} color="#93c5fd" style={{ margin: "0 auto 6px" }} />点击或拖拽上传 JSONL、CSV、ZIP 文件</span>}</button>{validation && <div className="flex items-start gap-2" style={{ marginTop: 9, fontSize: 12.5, color: validation === "校验通过" ? "#16a34a" : validation === "校验失败" ? "#dc2626" : "#2563eb" }}>{validation === "校验通过" ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}<span><b>{validation}</b>：{validationSummary}</span></div>}</section>
+          <section id="dataset-upload" style={{ padding: "18px 0", borderBottom: "1px solid #eef1f6" }}>
+            <h3 style={{ margin: "0 0 13px", fontSize: 14 }}>数据上传</h3>
+            <FieldLabel required>数据文件</FieldLabel>
+            <input ref={fileInput} type="file" accept=".jsonl,.csv,.zip" style={{ display: "none" }} onChange={event => selectFile(event.target.files?.[0])} />
+            {fileName ? (
+              <div className="flex items-center justify-between" style={{ minHeight: 52, padding: "8px 12px", border: "1px solid #dbe5ff", borderRadius: 8, background: "#f8faff" }}>
+                <div className="flex items-center gap-2" style={{ minWidth: 0 }}>
+                  <FileText size={18} color="#4f6ef7" style={{ flexShrink: 0 }} />
+                  <span title={fileName} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 13, color: "#374151" }}>{fileName}</span>
+                </div>
+                <button type="button" aria-label="删除已上传文件" title="删除文件" onClick={resetFile} style={{ width: 30, height: 30, marginLeft: 12, border: "none", borderRadius: 5, background: "transparent", color: "#6b7280", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <X size={16} />
+                </button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => fileInput.current?.click()} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); selectFile(event.dataTransfer.files?.[0]); }} style={{ width: "100%", border: "1.5px dashed #93c5fd", borderRadius: 8, padding: 24, background: "#f8faff", cursor: "pointer" }}>
+                <span><Upload size={22} color="#93c5fd" style={{ margin: "0 auto 6px" }} />点击或拖拽上传 JSONL、CSV、ZIP 文件</span>
+              </button>
+            )}
+            {validation && <div className="flex items-start gap-2" style={{ marginTop: 9, fontSize: 12.5, color: validation === "校验通过" ? "#16a34a" : validation === "校验失败" ? "#dc2626" : "#2563eb" }}>{validation === "校验通过" ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}<span><b>{validation}</b>：{validationSummary}</span></div>}
+          </section>
           {uploadMode === "public" && <section id="dataset-meta" style={{ padding: "18px 0", borderBottom: "1px solid #eef1f6" }}><h3 style={{ margin: "0 0 13px", fontSize: 14 }}>元数据信息</h3><div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}><div><FieldLabel required>领域分类</FieldLabel><input value={domain} onChange={e => setDomain(e.target.value)} placeholder="请输入领域，如自然语言处理、医疗、金融等" style={inputSt} /></div></div><div style={{ marginTop: 12 }}><FieldLabel required>引用信息</FieldLabel><input value={citation} onChange={e => setCitation(e.target.value)} placeholder="请填写数据来源、论文或报告引用" style={inputSt} /></div></section>}
           {uploadMode === "mine" && <section id="dataset-permission" style={{ padding: "18px 0", borderBottom: "1px solid #eef1f6" }}><h3 style={{ margin: "0 0 13px", fontSize: 14 }}>权限设置</h3><div style={{ marginBottom: 11 }}><FieldLabel>可见范围</FieldLabel><select value={uploadScope} onChange={e => setUploadScope(e.target.value as typeof uploadScope)} style={inputSt}><option value="private">仅自己可见</option><option value="team">团队成员可见</option></select></div>{uploadScope === "team" && <div><FieldLabel>团队成员权限</FieldLabel><select value={uploadSubPermission} onChange={e => setUploadSubPermission(e.target.value as typeof uploadSubPermission)} style={inputSt}><option value="只读">只读</option><option value="编辑">编辑</option></select></div>}</section>}
           <div className="flex items-center justify-end gap-2" style={{ position: "sticky", bottom: 0, padding: "11px 0", borderTop: "1px solid #f0f2f7", background: "#fff", zIndex: 3 }}><SecondaryButton onClick={onBack}>取消</SecondaryButton><PrimaryButton disabled={!validation || validation === "校验中"} onClick={submit}>上传</PrimaryButton></div>

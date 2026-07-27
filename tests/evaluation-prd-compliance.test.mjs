@@ -29,6 +29,19 @@ test("自定义数据集使用原始需求指定的上传文案、校验状态�
   assert.doesNotMatch(dataSource, /20GB|20 GB/);
 });
 
+test("上传评测数据文件支持删除后重新上传", () => {
+  assert.match(dataSource, /aria-label="删除已上传文件"/);
+  assert.match(dataSource, /fileValidationRun\.current \+= 1/);
+  assert.match(dataSource, /fileInput\.current\.value = ""/);
+  assert.match(dataSource, /setFileName\(""\)/);
+  assert.match(dataSource, /setValidation\(""\)/);
+  assert.match(dataSource, /setValidationSummary\(""\)/);
+  assert.match(dataSource, /setSample\(""\)/);
+  assert.match(dataSource, /validationRun !== fileValidationRun\.current/);
+  assert.match(prdSource, /删除已上传文件后重新选择/);
+  assert.match(prdSource, /再次选择同名文件/);
+});
+
 test("评测数据页签不显示统计数字且公开数据集支持管理员编辑", () => {
   const datasetTabsSource = dataSource.slice(dataSource.indexOf('label: "公开数据集"'), dataSource.indexOf('tab === "mine" && <PrimaryButton'));
   assert.doesNotMatch(datasetTabsSource, /rows\.filter|\.length|<span/);

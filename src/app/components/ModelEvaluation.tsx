@@ -2443,7 +2443,6 @@ export function EvaluationConfigPage() {
     { category: "分类", name: "Precision", principle: "统计预测为正的样本中实际为正的比例。", formula: "Precision = TP / (TP + FP)", scene: "分类、抽取", range: "0-1" },
     { category: "分类", name: "Recall", principle: "统计全部真实正样本中被正确识别的比例。", formula: "Recall = TP / (TP + FN)", scene: "分类、抽取", range: "0-1" },
     { category: "分类", name: "F1", principle: "使用精确率与召回率的调和平均衡量综合表现。", formula: "F1 = 2 × Precision × Recall / (Precision + Recall)", scene: "分类、抽取", range: "0-1" },
-    { category: "匹配", name: "Exact Match", principle: "标准化预测答案和参考答案后判断是否完全一致。", formula: "EM = 完全匹配样本数 / 总样本数", scene: "问答、信息匹配", range: "0-1" },
     { category: "代码生成", name: "Pass@1", principle: "统计每个样本首个生成程序通过全部测试用例的比例。", formula: "Pass@1 = 首个结果通过测试的样本数 / 总样本数", scene: "代码生成", range: "0-1" },
     { category: "效率", name: "平均时延", principle: "统计所有成功样本从请求发出到响应完成的平均耗时。", formula: "平均时延 = 总推理耗时 / 完成样本数", scene: "模型推理效率", range: "毫秒，越低越好" },
   ];
@@ -2604,7 +2603,7 @@ export function EvaluationConfigPage() {
       <div style={{ display: "grid", gridTemplateColumns: "22px 88px minmax(0, 1fr) 96px", gap: 8, alignItems: "center", padding: "7px 0", color: "#6b7280", fontSize: 11.5, borderBottom: "1px solid #e8ebf2" }}>
         <span>选择</span><span>指标</span><span>指标说明</span><span>权重（%）</span>
       </div>
-      {["生成", "分类", "匹配", "代码生成", "效率"].map(category => (
+      {["生成", "分类", "代码生成", "效率"].map(category => (
         <div key={category} style={{ marginBottom: 8 }}>
           <div style={{ padding: "7px 9px", background: "#f7f8fa", color: "#374151", fontSize: 12.5, fontWeight: 600 }}>{category}类指标</div>
           {metricLibrary.filter(metric => metric.category === category).map(metric => (

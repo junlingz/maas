@@ -168,7 +168,7 @@ test("页面和需求文档均取消 Reasoning Score 指标", () => {
   assert.match(evaluationSource, /taskTypes\.includes\("逻辑推理"\).*next\.add\("Accuracy"\).*next\.add\("Exact Match"\)/);
   assert.match(evaluationSource, /removeRetiredMetrics\(task\.metrics\)/);
   assert.match(dataStoreSource, /metrics\.filter\(\(metric: string\) => metric !== retiredMetricName\)/);
-  assert.match(prdSource, /逻辑推理任务使用 Accuracy、Exact Match 等已有标准指标/);
+  assert.match(prdSource, /配置方案模板不提供匹配类指标 Exact Match/);
   assert.match(prdSource, /不提供或计算 `Reasoning Score`/);
 });
 
@@ -287,7 +287,8 @@ test("报告、看板、指标详情和流程约束具备可演示交互", () =>
   assert.match(evaluationSource, /PolarRadiusAxis domain=\{\[0, 100\]\}/);
   assert.match(evaluationSource, /清洗规则/);
   assert.match(evaluationSource, /采样策略/);
-  assert.match(evaluationSource, /\["生成", "分类", "匹配"\]\.map\(category/);
+  assert.match(evaluationSource, /\["生成", "分类", "代码生成", "效率"\]\.map\(category/);
+  assert.doesNotMatch(evaluationSource, /\{ category: "匹配", name: "Exact Match"/);
   assert.match(evaluationSource, /\{category\}类指标/);
   assert.match(evaluationSource, /计算原理 \/ 公式/);
   assert.match(evaluationSource, /系统按权重计算加权综合得分/);

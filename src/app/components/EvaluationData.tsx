@@ -141,7 +141,7 @@ function DatasetDetailPage({ row, onBack, onSetRecommended }: { row: DatasetRow;
         <h3 style={{ fontSize: 14, margin: "18px 0 8px", paddingTop: 14, borderTop: "1px solid #eef1f6" }}>数据样例</h3>
         <div className="flex items-center justify-between" style={{ marginBottom: 6 }}><span style={{ fontSize: 12, color: "#6b7280" }}>展示所选版本的样例数据</span><button onClick={() => downloadDatasetTemplate(row.modelType, row.tasks[0], "JSONL")} style={{ display: "inline-flex", alignItems: "center", gap: 5, border: "none", background: "none", color: "#4f6ef7", cursor: "pointer", fontSize: 12.5 }}><Download size={13} />下载样例文件</button></div>
         <pre style={{ background: "#111827", color: "#d1d5db", padding: 14, borderRadius: 8, whiteSpace: "pre-wrap", fontSize: 12.5 }}>{currentSample}</pre>
-        <h4 style={{ fontSize: 13, margin: "14px 0 6px" }}>数据格式说明</h4>
+        <h4 style={{ fontSize: 13, margin: "14px 0 6px" }}>Schema</h4>
         <div style={{ padding: "11px 13px", border: "1px solid #e8ebf2", borderRadius: 7 }}>
           <span style={{ marginRight: 8, color: "#6b7280", fontSize: 12.5 }}>字段结构</span>
           <code style={{ fontSize: 13 }}>{currentSchema}</code>

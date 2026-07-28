@@ -42,11 +42,10 @@ test("上传评测数据文件支持删除后重新上传", () => {
   assert.match(prdSource, /再次选择同名文件/);
 });
 
-test("数据集详情删除推荐指标并以数据格式说明展示 Schema", () => {
+test("数据集详情删除推荐指标并展示 Schema", () => {
   const detailSource = dataSource.slice(dataSource.indexOf("function DatasetDetailPage"), dataSource.indexOf("function EditDatasetPage"));
   assert.doesNotMatch(detailSource, /\["推荐指标", row\.metrics/);
-  assert.doesNotMatch(detailSource, />Schema</);
-  assert.match(detailSource, />数据格式说明</);
+  assert.match(detailSource, />Schema</);
   assert.match(detailSource, />字段结构</);
   assert.match(detailSource, /\{currentSchema\}/);
   assert.match(prdSource, /不展示“推荐指标\/评价指标建议”/);

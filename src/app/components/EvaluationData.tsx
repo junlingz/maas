@@ -133,7 +133,7 @@ function DatasetDetailPage({ row, onBack, onSetRecommended }: { row: DatasetRow;
         {row.validationError && <div style={{ marginBottom: 12, padding: 10, border: "1px solid #fecaca", background: "#fef2f2", borderRadius: 7, color: "#dc2626", fontSize: 12.5 }}>校验错误：{row.validationError}</div>}
         <h3 style={{ fontSize: 14, margin: "0 0 10px" }}>数据概览</h3>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", borderTop: "1px solid #e8ebf2", borderLeft: "1px solid #e8ebf2" }}>
-          {[["数据规模", `${currentCount.toLocaleString()}行`], ["领域分类", row.domain], ["模型类型", row.modelType], ["适用任务", row.tasks.join("、")], ["文件格式", row.format], ["推荐指标", row.metrics.join("、")], ["当前版本", selectedVersion === row.recommendedVersion ? `${selectedVersion} · 推荐` : selectedVersion], ["创建人", row.creator], ["所属团队", row.team], ["权限状态", row.permission]].map(([label, value]) => <div key={label} style={{ padding: "9px 11px", borderRight: "1px solid #e8ebf2", borderBottom: "1px solid #e8ebf2", fontSize: 12.5 }}><div style={{ color: "#9ca3af", fontSize: 11.5 }}>{label}</div><div style={{ marginTop: 3, color: "#1a1d23", fontWeight: 500 }}>{value}</div></div>)}
+          {[["数据规模", `${currentCount.toLocaleString()}行`], ["领域分类", row.domain], ["模型类型", row.modelType], ["适用任务", row.tasks.join("、")], ["文件格式", row.format], ["当前版本", selectedVersion === row.recommendedVersion ? `${selectedVersion} · 推荐` : selectedVersion], ["创建人", row.creator], ["所属团队", row.team], ["权限状态", row.permission]].map(([label, value]) => <div key={label} style={{ padding: "9px 11px", borderRight: "1px solid #e8ebf2", borderBottom: "1px solid #e8ebf2", fontSize: 12.5 }}><div style={{ color: "#9ca3af", fontSize: 11.5 }}>{label}</div><div style={{ marginTop: 3, color: "#1a1d23", fontWeight: 500 }}>{value}</div></div>)}
         </div>
         <h3 style={{ fontSize: 14, margin: "16px 0 6px" }}>引用信息</h3>
         <p style={{ margin: 0, fontSize: 13, lineHeight: 1.65, color: "#374151" }}>{currentCitation}</p>
@@ -141,8 +141,11 @@ function DatasetDetailPage({ row, onBack, onSetRecommended }: { row: DatasetRow;
         <h3 style={{ fontSize: 14, margin: "18px 0 8px", paddingTop: 14, borderTop: "1px solid #eef1f6" }}>数据样例</h3>
         <div className="flex items-center justify-between" style={{ marginBottom: 6 }}><span style={{ fontSize: 12, color: "#6b7280" }}>展示所选版本的样例数据</span><button onClick={() => downloadDatasetTemplate(row.modelType, row.tasks[0], "JSONL")} style={{ display: "inline-flex", alignItems: "center", gap: 5, border: "none", background: "none", color: "#4f6ef7", cursor: "pointer", fontSize: 12.5 }}><Download size={13} />下载样例文件</button></div>
         <pre style={{ background: "#111827", color: "#d1d5db", padding: 14, borderRadius: 8, whiteSpace: "pre-wrap", fontSize: 12.5 }}>{currentSample}</pre>
-        <h4 style={{ fontSize: 13, margin: "14px 0 6px" }}>Schema</h4>
-        <div style={{ padding: "11px 13px", border: "1px solid #e8ebf2", borderRadius: 7 }}><code style={{ fontSize: 13 }}>{currentSchema}</code></div>
+        <h4 style={{ fontSize: 13, margin: "14px 0 6px" }}>数据格式说明</h4>
+        <div style={{ padding: "11px 13px", border: "1px solid #e8ebf2", borderRadius: 7 }}>
+          <span style={{ marginRight: 8, color: "#6b7280", fontSize: 12.5 }}>字段结构</span>
+          <code style={{ fontSize: 13 }}>{currentSchema}</code>
+        </div>
 
         <h3 style={{ fontSize: 14, margin: "18px 0 8px", paddingTop: 14, borderTop: "1px solid #eef1f6" }}>版本管理</h3>
         <div style={{ fontSize: 12.5, color: "#6b7280", marginBottom: 9 }}>创建评测任务时默认选择推荐版本；切换上方版本下拉可对比不同版本的数据。</div>
@@ -310,7 +313,7 @@ function UploadDatasetPage({ onBack, onDone, uploadMode = "mine" }: { onBack: ()
     setFileName(file.name);
     setValidation("校验中");
     setError("");
-    setValidationSummary("正在读取文件并校验 Schema…");
+    setValidationSummary("正在读取文件并校验数据格式…");
     setRecordCount(0);
     if (extension !== "jsonl" && extension !== "csv" && extension !== "zip") {
       setValidation("校验失败");
@@ -321,7 +324,7 @@ function UploadDatasetPage({ onBack, onDone, uploadMode = "mine" }: { onBack: ()
     if (extension === "zip") {
       setFormat("压缩包");
       setRecordCount(0);
-      setValidationSummary("压缩包已上传，将在后台解压并校验 Schema；适用于多模态模型评测数据集（含图片等素材）。");
+      setValidationSummary("压缩包已上传，将在后台解压并校验数据格式；适用于多模态模型评测数据集（含图片等素材）。");
       return;
     }
     const nextFormat = extension === "jsonl" ? "JSONL" : "CSV";

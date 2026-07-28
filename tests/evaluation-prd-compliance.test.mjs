@@ -42,6 +42,18 @@ test("上传评测数据文件支持删除后重新上传", () => {
   assert.match(prdSource, /再次选择同名文件/);
 });
 
+test("数据集详情删除推荐指标并以数据格式说明展示 Schema", () => {
+  const detailSource = dataSource.slice(dataSource.indexOf("function DatasetDetailPage"), dataSource.indexOf("function EditDatasetPage"));
+  assert.doesNotMatch(detailSource, /\["推荐指标", row\.metrics/);
+  assert.doesNotMatch(detailSource, />Schema</);
+  assert.match(detailSource, />数据格式说明</);
+  assert.match(detailSource, />字段结构</);
+  assert.match(detailSource, /\{currentSchema\}/);
+  assert.match(prdSource, /不展示“推荐指标\/评价指标建议”/);
+  assert.match(prdSource, /任务与字段映射候选方案/);
+  assert.match(prdSource, /model_type \+ task_type \+ schema_version/);
+});
+
 test("评测数据页签不显示统计数字且公开数据集支持管理员编辑", () => {
   const datasetTabsSource = dataSource.slice(dataSource.indexOf('label: "公开数据集"'), dataSource.indexOf('tab === "mine" && <PrimaryButton'));
   assert.doesNotMatch(datasetTabsSource, /rows\.filter|\.length|<span/);

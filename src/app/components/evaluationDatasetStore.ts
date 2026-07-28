@@ -7,6 +7,8 @@ export type VersionDetail = {
   releaseNote?: string;
 };
 
+export type DatasetPermission = "公开" | "仅自己可见" | "团队可见" | "团队可编辑";
+
 export type StoredEvaluationDataset = {
   id: number;
   name: string;
@@ -21,7 +23,7 @@ export type StoredEvaluationDataset = {
   versions: string[];
   recommendedVersion: string;
   status: "校验中" | "校验通过" | "校验失败";
-  permission: "公开" | "仅自己可见" | "团队成员可见（只读）" | "团队成员可见（编辑）";
+  permission: DatasetPermission;
   creator: string;
   team: string;
   updatedAt: string;
@@ -35,6 +37,13 @@ export type StoredEvaluationDataset = {
 
 const STORAGE_KEY = "maas-evaluation-custom-datasets";
 
+function normalizeDatasetPermission(permission: unknown): DatasetPermission {
+  if (permission === "公开" || permission === "仅自己可见" || permission === "团队可见" || permission === "团队可编辑") return permission;
+  if (permission === "团队成员可见（只读）") return "团队可见";
+  if (permission === "团队成员可见（编辑）") return "团队可编辑";
+  return "仅自己可见";
+}
+
 export function loadStoredEvaluationDatasets(): StoredEvaluationDataset[] {
   if (typeof window === "undefined") return [];
   try {
@@ -45,6 +54,7 @@ export function loadStoredEvaluationDatasets(): StoredEvaluationDataset[] {
         .filter(item => item && typeof item.name === "string")
         .map(item => ({
           ...item,
+          permission: normalizeDatasetPermission(item.permission),
           metrics: Array.isArray(item.metrics) ? item.metrics.filter((metric: string) => metric !== retiredMetricName) : [],
         }))
       : [];

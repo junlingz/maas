@@ -16,7 +16,7 @@ test("自定义数据集使用原始需求指定的上传文案、校验状态�
   assert.match(dataSource, />上传数据集</);
   assert.doesNotMatch(dataSource, />创建数据集</);
   for (const status of ["校验中", "校验通过", "校验失败"]) assert.match(dataSource, new RegExp(status));
-  for (const field of ["数据集描述", "适用任务", "引用信息", "团队共享", "当前团队全部成员"]) assert.match(dataSource, new RegExp(field));
+  for (const field of ["数据集描述", "适用任务", "引用信息", "团队共享", "权限范围", "仅自己可见", "团队可见", "团队可编辑"]) assert.match(dataSource, new RegExp(field));
   assert.match(dataSource, /function UploadDatasetPage/);
   assert.match(dataSource, /await file\.text\(\)/);
   assert.match(dataSource, /JSON\.parse\(line\)/);

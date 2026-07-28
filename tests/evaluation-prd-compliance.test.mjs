@@ -5,7 +5,9 @@ import test from "node:test";
 const evaluationSource = await readFile(new URL("../src/app/components/ModelEvaluation.tsx", import.meta.url), "utf8");
 const dataSource = await readFile(new URL("../src/app/components/EvaluationData.tsx", import.meta.url), "utf8");
 const dataStoreSource = await readFile(new URL("../src/app/components/evaluationDatasetStore.ts", import.meta.url), "utf8");
+const metricRecommendationSource = await readFile(new URL("../src/app/components/evaluationMetricRecommendations.ts", import.meta.url), "utf8");
 const prdSource = await readFile(new URL("../docs/PRD-模型评测.md", import.meta.url), "utf8");
+const metricRecommendationDoc = await readFile(new URL("../docs/模型评测-评价指标建议映射表.md", import.meta.url), "utf8");
 const createDrawerSource = evaluationSource.slice(evaluationSource.indexOf("function CreateDrawer"), evaluationSource.indexOf("function TaskDetailPage"));
 const configPageSource = evaluationSource.slice(evaluationSource.indexOf("export function EvaluationConfigPage"), evaluationSource.indexOf("function WorkbenchPage"));
 const flowInferenceSource = configPageSource.slice(configPageSource.indexOf('{stage.enabled && stage.name === "模型推理"'), configPageSource.indexOf('{stage.enabled && stage.name === "后处理"'));
@@ -42,13 +44,20 @@ test("上传评测数据文件支持删除后重新上传", () => {
   assert.match(prdSource, /再次选择同名文件/);
 });
 
-test("数据集详情删除推荐指标并展示 Schema", () => {
+test("数据集详情按任务映射展示评价指标建议和 Schema", () => {
   const detailSource = dataSource.slice(dataSource.indexOf("function DatasetDetailPage"), dataSource.indexOf("function EditDatasetPage"));
-  assert.doesNotMatch(detailSource, /\["推荐指标", row\.metrics/);
+  assert.match(detailSource, /\["评价指标建议", suggestedMetricText\]/);
+  assert.match(detailSource, /getSuggestedMetrics\(row\.tasks\)/);
+  assert.doesNotMatch(detailSource, /row\.metrics\.join/);
   assert.match(detailSource, />Schema</);
   assert.match(detailSource, />字段结构</);
   assert.match(detailSource, /\{currentSchema\}/);
-  assert.match(prdSource, /不展示“推荐指标\/评价指标建议”/);
+  assert.match(dataSource, /系统根据适用任务自动生成，不需要手动配置/);
+  assert.match(prdSource, /评价指标建议根据适用任务自动生成且只读/);
+  assert.match(metricRecommendationSource, /"逻辑推理": \["Accuracy"\]/);
+  assert.match(metricRecommendationSource, /"图文描述": \["BLEU", "ROUGE", "METEOR"\]/);
+  assert.match(metricRecommendationDoc, /任务与指标映射/);
+  assert.match(metricRecommendationDoc, /Exact Match.*不在建议指标范围内/);
   assert.match(prdSource, /任务与字段映射候选方案/);
   assert.match(prdSource, /model_type \+ task_type \+ schema_version/);
 });
@@ -176,7 +185,8 @@ test("流程模板使用结构化样本条件并驱动指标计算集合", () =>
 test("页面和需求文档均取消 Reasoning Score 指标", () => {
   assert.doesNotMatch(evaluationSource, /Reasoning Score|推理步骤与答案联合评分/);
   assert.doesNotMatch(dataSource, /Reasoning Score|推理步骤与答案联合评分/);
-  assert.match(evaluationSource, /taskTypes\.includes\("逻辑推理"\).*next\.add\("Accuracy"\).*next\.add\("Exact Match"\)/);
+  assert.match(evaluationSource, /getSuggestedMetrics\(taskTypes\)/);
+  assert.doesNotMatch(metricRecommendationSource, /Exact Match/);
   assert.match(evaluationSource, /removeRetiredMetrics\(task\.metrics\)/);
   assert.match(dataStoreSource, /metrics\.filter\(\(metric: string\) => metric !== retiredMetricName\)/);
   assert.match(prdSource, /配置方案模板不提供匹配类指标 Exact Match/);

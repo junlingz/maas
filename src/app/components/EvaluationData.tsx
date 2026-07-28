@@ -7,6 +7,7 @@ import {
   loadStoredEvaluationDatasets, removeStoredEvaluationDataset, saveStoredEvaluationDataset,
   type StoredEvaluationDataset, type VersionDetail,
 } from "./evaluationDatasetStore";
+import { getSuggestedMetrics } from "./evaluationMetricRecommendations";
 
 type DatasetStatus = "校验中" | "校验通过" | "校验失败";
 type DatasetTab = "public" | "mine" | "shared" | "all-users";
@@ -113,6 +114,9 @@ function DatasetDetailPage({ row, onBack, onSetRecommended }: { row: DatasetRow;
   const currentSample = vd.sample;
   const currentSchema = vd.schema;
   const currentCitation = vd.citation || row.citation;
+  const suggestedMetricText = getSuggestedMetrics(row.tasks).join("、") || "暂无评价指标建议";
+  const overviewItems = [["数据规模", `${currentCount.toLocaleString()}行`], ["领域分类", row.domain], ["模型类型", row.modelType], ["适用任务", row.tasks.join("、")], ["文件格式", row.format], ["当前版本", selectedVersion === row.recommendedVersion ? `${selectedVersion} · 推荐` : selectedVersion], ["创建人", row.creator], ["所属团队", row.team], ["权限状态", row.permission]];
+  if (row.source === "public") overviewItems.splice(5, 0, ["评价指标建议", suggestedMetricText]);
 
   return <div className="flex flex-col h-full" style={{ background: "#f5f7fa" }}>
     <div className="flex items-center gap-1.5" style={{ padding: "10px 18px 0", fontSize: 12.5, color: "#6b7280" }}><span style={{ color: "#4f6ef7" }}>首页</span><span>/</span><span style={{ color: "#4f6ef7" }}>模型评测</span><span>/</span><button onClick={onBack} style={{ border: "none", background: "none", color: "#4f6ef7", padding: 0, cursor: "pointer" }}>评测数据</button><span>/</span><span>数据集详情</span></div>
@@ -133,7 +137,7 @@ function DatasetDetailPage({ row, onBack, onSetRecommended }: { row: DatasetRow;
         {row.validationError && <div style={{ marginBottom: 12, padding: 10, border: "1px solid #fecaca", background: "#fef2f2", borderRadius: 7, color: "#dc2626", fontSize: 12.5 }}>校验错误：{row.validationError}</div>}
         <h3 style={{ fontSize: 14, margin: "0 0 10px" }}>数据概览</h3>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", borderTop: "1px solid #e8ebf2", borderLeft: "1px solid #e8ebf2" }}>
-          {[["数据规模", `${currentCount.toLocaleString()}行`], ["领域分类", row.domain], ["模型类型", row.modelType], ["适用任务", row.tasks.join("、")], ["文件格式", row.format], ["当前版本", selectedVersion === row.recommendedVersion ? `${selectedVersion} · 推荐` : selectedVersion], ["创建人", row.creator], ["所属团队", row.team], ["权限状态", row.permission]].map(([label, value]) => <div key={label} style={{ padding: "9px 11px", borderRight: "1px solid #e8ebf2", borderBottom: "1px solid #e8ebf2", fontSize: 12.5 }}><div style={{ color: "#9ca3af", fontSize: 11.5 }}>{label}</div><div style={{ marginTop: 3, color: "#1a1d23", fontWeight: 500 }}>{value}</div></div>)}
+          {overviewItems.map(([label, value]) => <div key={label} style={{ padding: "9px 11px", borderRight: "1px solid #e8ebf2", borderBottom: "1px solid #e8ebf2", fontSize: 12.5 }}><div style={{ color: "#9ca3af", fontSize: 11.5 }}>{label}</div><div style={{ marginTop: 3, color: "#1a1d23", fontWeight: 500 }}>{value}</div></div>)}
         </div>
         <h3 style={{ fontSize: 14, margin: "16px 0 6px" }}>引用信息</h3>
         <p style={{ margin: 0, fontSize: 13, lineHeight: 1.65, color: "#374151" }}>{currentCitation}</p>
@@ -230,7 +234,7 @@ function EditDatasetPage({ row, onBack, onSave }: { row: DatasetRow; onBack: () 
 
   const submit = () => {
     if (!name.trim() || !description.trim() || !modelType || !task) { setError("请完整填写数据集名称、描述、模型类型和适用任务。"); return; }
-    let updated: DatasetRow = { ...row, name: name.trim(), description: description.trim(), modelType, tasks: [task], recommendedVersion };
+    let updated: DatasetRow = { ...row, name: name.trim(), description: description.trim(), modelType, tasks: [task], metrics: getSuggestedMetrics([task]), recommendedVersion };
     if (versionFile && !versionError && versionCount > 0) {
       updated = { ...updated, count: versionCount, version: newVer, versions: [...updated.versions.filter(v => v !== newVer), newVer], recommendedVersion: newVer, updatedAt: new Date().toISOString().slice(0, 10), sample: versionSample, versionDetails: { ...updated.versionDetails, [newVer]: { count: versionCount, sample: versionSample, schema: updated.schema, updatedAt: new Date().toISOString().slice(0, 10), releaseNote: versionNote.trim() || undefined } } };
     }
@@ -238,6 +242,7 @@ function EditDatasetPage({ row, onBack, onSave }: { row: DatasetRow; onBack: () 
   };
 
   const taskOptions = modelType === "语言模型" ? ["文本理解", "代码生成", "逻辑推理", "问答"] : modelType === "多模态模型" ? ["图文描述", "视觉问答", "文档解析"] : [];
+  const suggestedMetricText = task ? getSuggestedMetrics([task]).join("、") : "选择适用任务后自动显示";
   return <div className="flex flex-col h-full" style={{ background: "#f5f7fa" }}>
     <div className="flex items-center gap-1.5" style={{ padding: "10px 18px 0", fontSize: 12.5, color: "#6b7280" }}><span style={{ color: "#4f6ef7" }}>首页</span><span>/</span><span style={{ color: "#4f6ef7" }}>模型评测</span><span>/</span><button onClick={onBack} style={{ border: "none", background: "none", color: "#4f6ef7", padding: 0, cursor: "pointer" }}>评测数据</button><span>/</span><span>编辑数据集</span></div>
     <div className="flex-1 min-h-0" style={{ margin: "10px 18px 18px", background: "#fff", border: "1px solid #e8ebf2", borderRadius: 8, overflow: "auto" }}>
@@ -246,7 +251,7 @@ function EditDatasetPage({ row, onBack, onSave }: { row: DatasetRow; onBack: () 
         <main>
           {error && <div style={{ marginTop: 18, padding: 10, border: "1px solid #fecaca", background: "#fef2f2", color: "#dc2626", borderRadius: 7, fontSize: 13 }}>{error}</div>}
           <section style={{ padding: "18px 0", borderBottom: "1px solid #eef1f6" }}><h3 style={{ margin: "0 0 13px", fontSize: 14 }}>基础信息</h3><div style={{ marginBottom: 11 }}><FieldLabel required>数据集名称</FieldLabel><input value={name} onChange={e => setName(e.target.value)} style={inputSt} /></div><div><FieldLabel required>数据集描述</FieldLabel><textarea value={description} onChange={e => setDescription(e.target.value)} style={{ ...inputSt, height: 72, padding: 9, fontFamily: "inherit", resize: "vertical" }} /></div></section>
-          <section style={{ padding: "18px 0", borderBottom: "1px solid #eef1f6" }}><h3 style={{ margin: "0 0 13px", fontSize: 14 }}>类型与格式</h3><div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}><div><FieldLabel required>模型类型</FieldLabel><select value={modelType} onChange={e => { setModelType(e.target.value as typeof modelType); setTask(""); }} style={inputSt}><option value="">请选择模型类型</option><option>语言模型</option><option>多模态模型</option></select></div><div><FieldLabel required>适用任务</FieldLabel><select value={task} onChange={e => setTask(e.target.value)} style={inputSt}><option value="">请选择适用任务</option>{taskOptions.map(o => <option key={o}>{o}</option>)}</select></div></div></section>
+          <section style={{ padding: "18px 0", borderBottom: "1px solid #eef1f6" }}><h3 style={{ margin: "0 0 13px", fontSize: 14 }}>类型与格式</h3><div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}><div><FieldLabel required>模型类型</FieldLabel><select value={modelType} onChange={e => { setModelType(e.target.value as typeof modelType); setTask(""); }} style={inputSt}><option value="">请选择模型类型</option><option>语言模型</option><option>多模态模型</option></select></div><div><FieldLabel required>适用任务</FieldLabel><select value={task} onChange={e => setTask(e.target.value)} style={inputSt}><option value="">请选择适用任务</option>{taskOptions.map(o => <option key={o}>{o}</option>)}</select></div></div>{row.source === "public" && <div style={{ marginTop: 12 }}><FieldLabel>评价指标建议</FieldLabel><div style={{ ...inputSt, height: "auto", minHeight: 34, padding: "8px 10px", background: "#f5f7fa", color: task ? "#374151" : "#9ca3af" }}>{suggestedMetricText}</div><div style={{ marginTop: 5, color: "#8a909e", fontSize: 11.5 }}>系统根据适用任务自动生成，不需要手动配置。</div></div>}</section>
           <section style={{ padding: "18px 0", borderBottom: "1px solid #eef1f6" }}><h3 style={{ margin: "0 0 8px", fontSize: 14 }}>上传新版本</h3><div style={{ fontSize: 12, color: "#6b7280", marginBottom: 10 }}>可选，不上传则仅更新元数据。上传后版本号自动递增并设为推荐。</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
               <div><FieldLabel>版本号（自动）</FieldLabel><div style={{ ...inputSt, display: "flex", alignItems: "center", background: "#f5f7fa", color: "#6b7280" }}>{newVer}</div></div>
@@ -389,11 +394,12 @@ function UploadDatasetPage({ onBack, onDone, uploadMode = "mine" }: { onBack: ()
 
   const submit = () => {
     if (!name.trim() || !description.trim() || !modelType || !task || !fileName) { setError("请完整填写数据集名称、描述、模型类型、适用任务并上传数据文件。"); return; }
-    onDone({ id: Date.now(), name: name.trim(), description: description.trim(), source: uploadMode, modelType, tasks: [task], format, count: recordCount, domain: domain.trim() || "自定义", version: "v1", versions: ["v1"], recommendedVersion: "v1", status: validation || "校验中", permission: uploadPermission, creator: "admin", team: uploadMode === "public" ? "系统" : "公共", updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }), metrics: task === "代码生成" ? ["Pass@1"] : modelType === "多模态模型" ? ["VQA Score", "Accuracy"] : ["Accuracy", "F1"], schema: modelType === "多模态模型" ? "image_url,question,answer" : task === "代码生成" ? "prompt,test" : "input,answer", sample: sample || fileName, citation: citation.trim() || "内部数据集，无公开引用", validationError: validation === "校验失败" ? error : undefined });
+    onDone({ id: Date.now(), name: name.trim(), description: description.trim(), source: uploadMode, modelType, tasks: [task], format, count: recordCount, domain: domain.trim() || "自定义", version: "v1", versions: ["v1"], recommendedVersion: "v1", status: validation || "校验中", permission: uploadPermission, creator: "admin", team: uploadMode === "public" ? "系统" : "公共", updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }), metrics: getSuggestedMetrics([task]), schema: modelType === "多模态模型" ? "image_url,question,answer" : task === "代码生成" ? "prompt,test" : "input,answer", sample: sample || fileName, citation: citation.trim() || "内部数据集，无公开引用", validationError: validation === "校验失败" ? error : undefined });
     onBack();
   };
 
   const taskOptions = modelType === "语言模型" ? ["文本理解", "代码生成", "逻辑推理", "问答"] : modelType === "多模态模型" ? ["图文描述", "视觉问答", "文档解析"] : [];
+  const suggestedMetricText = task ? getSuggestedMetrics([task]).join("、") : "选择适用任务后自动显示";
   return <div className="flex flex-col h-full" style={{ background: "#f5f7fa" }}>
     <div className="flex items-center gap-1.5" style={{ padding: "10px 18px 0", fontSize: 12.5, color: "#6b7280" }}><span style={{ color: "#4f6ef7" }}>首页</span><span>/</span><span style={{ color: "#4f6ef7" }}>模型评测</span><span>/</span><button onClick={onBack} style={{ border: "none", background: "none", color: "#4f6ef7", padding: 0, cursor: "pointer" }}>评测数据</button><span>/</span><span>上传数据集</span></div>
     <div className="flex-1 min-h-0" style={{ margin: "10px 18px 18px", background: "#fff", border: "1px solid #e8ebf2", borderRadius: 8, overflow: "auto" }}>
@@ -424,7 +430,7 @@ function UploadDatasetPage({ onBack, onDone, uploadMode = "mine" }: { onBack: ()
             )}
             {validation && <div className="flex items-start gap-2" style={{ marginTop: 9, fontSize: 12.5, color: validation === "校验通过" ? "#16a34a" : validation === "校验失败" ? "#dc2626" : "#2563eb" }}>{validation === "校验通过" ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}<span><b>{validation}</b>：{validationSummary}</span></div>}
           </section>
-          {uploadMode === "public" && <section id="dataset-meta" style={{ padding: "18px 0", borderBottom: "1px solid #eef1f6" }}><h3 style={{ margin: "0 0 13px", fontSize: 14 }}>元数据信息</h3><div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}><div><FieldLabel required>领域分类</FieldLabel><input value={domain} onChange={e => setDomain(e.target.value)} placeholder="请输入领域，如自然语言处理、医疗、金融等" style={inputSt} /></div></div><div style={{ marginTop: 12 }}><FieldLabel required>引用信息</FieldLabel><input value={citation} onChange={e => setCitation(e.target.value)} placeholder="请填写数据来源、论文或报告引用" style={inputSt} /></div></section>}
+          {uploadMode === "public" && <section id="dataset-meta" style={{ padding: "18px 0", borderBottom: "1px solid #eef1f6" }}><h3 style={{ margin: "0 0 13px", fontSize: 14 }}>元数据信息</h3><div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}><div><FieldLabel required>领域分类</FieldLabel><input value={domain} onChange={e => setDomain(e.target.value)} placeholder="请输入领域，如自然语言处理、医疗、金融等" style={inputSt} /></div><div><FieldLabel>评价指标建议</FieldLabel><div style={{ ...inputSt, height: "auto", minHeight: 34, padding: "8px 10px", background: "#f5f7fa", color: task ? "#374151" : "#9ca3af" }}>{suggestedMetricText}</div><div style={{ marginTop: 5, color: "#8a909e", fontSize: 11.5 }}>系统根据适用任务自动生成，不需要手动配置。</div></div></div><div style={{ marginTop: 12 }}><FieldLabel required>引用信息</FieldLabel><input value={citation} onChange={e => setCitation(e.target.value)} placeholder="请填写数据来源、论文或报告引用" style={inputSt} /></div></section>}
           {uploadMode === "mine" && <section id="dataset-permission" style={{ padding: "18px 0", borderBottom: "1px solid #eef1f6" }}><h3 style={{ margin: "0 0 13px", fontSize: 14 }}>权限设置</h3><div style={{ marginBottom: 11 }}><FieldLabel>可见范围</FieldLabel><select value={uploadScope} onChange={e => setUploadScope(e.target.value as typeof uploadScope)} style={inputSt}><option value="private">仅自己可见</option><option value="team">团队成员可见</option></select></div>{uploadScope === "team" && <div><FieldLabel>团队成员权限</FieldLabel><select value={uploadSubPermission} onChange={e => setUploadSubPermission(e.target.value as typeof uploadSubPermission)} style={inputSt}><option value="只读">只读</option><option value="编辑">编辑</option></select></div>}</section>}
           <div className="flex items-center justify-end gap-2" style={{ position: "sticky", bottom: 0, padding: "11px 0", borderTop: "1px solid #f0f2f7", background: "#fff", zIndex: 3 }}><SecondaryButton onClick={onBack}>取消</SecondaryButton><PrimaryButton disabled={!validation || validation === "校验中"} onClick={submit}>上传</PrimaryButton></div>
         </main>      </div>

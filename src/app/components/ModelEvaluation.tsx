@@ -10,6 +10,7 @@ import {
   PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { loadStoredEvaluationDatasets } from "./evaluationDatasetStore";
+import { getSuggestedMetrics } from "./evaluationMetricRecommendations";
 
 type EvalStatus = "排队中" | "运行中" | "成功" | "失败" | "已停止";
 type ModelType = "语言模型" | "多模态模型";
@@ -208,16 +209,8 @@ const METRIC_DETAILS: Record<string, { category: string; formula: string; scene:
 const METRIC_GROUPS = Array.from(new Set(METRIC_OPTIONS.map(metric => METRIC_DETAILS[metric].category)));
 
 function recommendedMetrics(modelType: ModelType, taskTypes: string[]) {
-  const next = new Set<string>();
-  if (modelType === "多模态模型") {
-    if (taskTypes.includes("图文描述")) { next.add("BLEU"); next.add("ROUGE"); }
-    if (taskTypes.includes("视觉问答") || taskTypes.includes("文档解析")) { next.add("VQA Score"); next.add("Accuracy"); }
-  } else {
-    if (taskTypes.includes("代码生成")) next.add("Pass@1");
-    if (taskTypes.includes("逻辑推理")) { next.add("Accuracy"); next.add("Exact Match"); }
-    if (taskTypes.includes("文本理解") || taskTypes.includes("问答")) { next.add("Accuracy"); next.add("F1"); }
-  }
-  return Array.from(next.size ? next : new Set(["Accuracy"]));
+  const next = getSuggestedMetrics(taskTypes);
+  return next.length ? next : modelType ? ["Accuracy"] : [];
 }
 
 function equalMetricWeights(metrics: string[]) {

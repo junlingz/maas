@@ -54,8 +54,12 @@ test("数据集详情按任务映射展示评价指标建议和 Schema", () => {
   assert.match(detailSource, /\{currentSchema\}/);
   assert.match(dataSource, /系统根据适用任务自动生成，不需要手动配置/);
   assert.match(prdSource, /评价指标建议根据适用任务自动生成且只读/);
+  assert.match(metricRecommendationSource, /"文本理解": \["Accuracy", "F1"\]/);
   assert.match(metricRecommendationSource, /"逻辑推理": \["Accuracy"\]/);
   assert.match(metricRecommendationSource, /"图文描述": \["BLEU", "ROUGE", "METEOR"\]/);
+  assert.match(metricRecommendationSource, /"视觉问答": \["Accuracy"\]/);
+  assert.match(metricRecommendationSource, /"文档解析": \["Accuracy", "F1"\]/);
+  assert.doesNotMatch(metricRecommendationSource, /Precision|Recall|VQA Score/);
   assert.match(metricRecommendationDoc, /任务与指标映射/);
   assert.match(metricRecommendationDoc, /Exact Match.*不在建议指标范围内/);
   assert.match(prdSource, /任务与字段映射候选方案/);

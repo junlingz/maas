@@ -17,6 +17,8 @@ function figmaAssetResolver() {
 }
 
 export default defineConfig({
+  // 仓库部署在 https://junlingz.github.io/maas/ 子路径下，需要设置 base
+  base: '/maas/',
   plugins: [
     figmaAssetResolver(),
     // The React and Tailwind plugins are both required for Make, even if

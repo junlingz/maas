@@ -14,25 +14,25 @@ interface UserRow {
 
 const TEAM_OPTIONS = ["无团队", "智谱1", "企业2", "机构3", "企业4"];
 const TEAM_FILTER_OPTIONS = ["全部", "智谱1", "企业2", "机构3", "企业4", "无团队"];
-const ROLE_OPTIONS = ["超级管理员", "空间管理员", "空间成员", "普通用户", "VIP用户", "普通机构用户", "VIP机构用户", "政府用户"];
+const ROLE_OPTIONS = ["超管", "普通用户", "VIP用户", "普通机构用户", "VIP机构用户", "政府用户", "独立机构A用户", "独立机构B用户"];
 const ROLE_FILTER_OPTIONS = ["全部", ...ROLE_OPTIONS];
 const STATUS_OPTIONS = ["全部", "正常", "禁用"];
 
 const ALL_USERS: UserRow[] = [
-  { id: 1,     account: "admin",            name: "admin",                    team: "系统",   roles: ["超级管理员"],                     status: "正常", createdAt: "2025-06-28 10:11:27", addType: "系统创建" },
-  { id: 10000, account: "testuser1",        name: "testuser1@demo.com",       team: "智谱1",  roles: ["空间管理员"],                     status: "正常", createdAt: "2025-06-19 14:11:45", addType: "手动创建" },
+  { id: 1,     account: "admin",            name: "admin",                    team: "系统",   roles: ["超管"],                          status: "正常", createdAt: "2025-06-28 10:11:27", addType: "系统创建" },
+  { id: 10000, account: "testuser1",        name: "testuser1@demo.com",       team: "智谱1",  roles: ["普通机构用户"],                   status: "正常", createdAt: "2025-06-19 14:11:45", addType: "手动创建" },
   { id: 10001, account: "xun.wu",           name: "xun.wu@aminer.cn",         team: "智谱1",  roles: ["普通用户", "VIP用户"],            status: "正常", createdAt: "2025-06-19 18:03:16", addType: "手动创建" },
   { id: 10002, account: "xiao.liu",         name: "xiao001.liu@aminer.cn",    team: "企业2",  roles: ["普通机构用户"],                   status: "正常", createdAt: "2025-06-19 18:03:54", addType: "手动创建" },
   { id: 10003, account: "qixiang.ding",     name: "qixiang.ding@aminer.cn",   team: "企业2",  roles: ["VIP机构用户"],                    status: "正常", createdAt: "2025-06-23 11:18:12", addType: "手动创建" },
   { id: 10004, account: "zhonghua.zhang",   name: "zhonghua.zhang@aminer.cn", team: "机构3",  roles: ["政府用户"],                       status: "正常", createdAt: "2025-06-23 23:23:08", addType: "手动创建" },
   { id: 10005, account: "jiahe.zhang",      name: "jiahe.zhang@aminer.cn",    team: "企业4",  roles: ["普通机构用户"],                   status: "正常", createdAt: "2025-06-23 11:25:18", addType: "手动创建" },
-  { id: 10006, account: "xiang.chen",       name: "xyyght8126.com",           team: "无团队", roles: ["普通用户"],                       status: "正常", createdAt: "2025-06-23 11:26:56", addType: "手动创建" },
-  { id: 10007, account: "jiaqi.song",       name: "jiaqi.song@aminer.cn",     team: "智谱1",  roles: ["空间成员"],                       status: "正常", createdAt: "2025-06-23 11:28:29", addType: "手动创建" },
-  { id: 10008, account: "yan.sun",          name: "yan.sun@aminer.cn",        team: "无团队", roles: ["普通用户"],                       status: "禁用", createdAt: "2025-06-24 10:30:00", addType: "手动创建" },
+  { id: 10006, account: "xiang.chen",       name: "xiang.chen@example.com",   team: "无团队", roles: ["独立机构A用户"],                  status: "正常", createdAt: "2025-06-23 11:26:56", addType: "手动创建" },
+  { id: 10007, account: "jiaqi.song",       name: "jiaqi.song@aminer.cn",     team: "智谱1",  roles: ["普通用户"],                       status: "正常", createdAt: "2025-06-23 11:28:29", addType: "手动创建" },
+  { id: 10008, account: "yan.sun",          name: "yan.sun@aminer.cn",        team: "无团队", roles: ["独立机构B用户"],                  status: "禁用", createdAt: "2025-06-24 10:30:00", addType: "手动创建" },
   { id: 10009, account: "xiaoyu.xiang",     name: "xiaoyu.xiang@aminer.cn",   team: "智谱1",  roles: ["VIP用户"],                        status: "正常", createdAt: "2025-06-23 11:31:48", addType: "手动创建" },
   { id: 10010, account: "ming.li",          name: "ming.li@aminer.cn",        team: "企业2",  roles: ["普通机构用户", "VIP机构用户"],    status: "正常", createdAt: "2025-06-24 09:05:00", addType: "手动创建" },
   { id: 10011, account: "fang.wang",        name: "fang.wang@aminer.cn",      team: "机构3",  roles: ["政府用户"],                       status: "禁用", createdAt: "2025-06-24 09:20:00", addType: "手动创建" },
-  { id: 10012, account: "lei.zhao",         name: "lei.zhao@aminer.cn",       team: "企业4",  roles: ["空间成员", "普通用户"],           status: "正常", createdAt: "2025-06-24 10:00:00", addType: "手动创建" },
+  { id: 10012, account: "lei.zhao",         name: "lei.zhao@aminer.cn",       team: "企业4",  roles: ["VIP用户", "普通用户"],            status: "正常", createdAt: "2025-06-24 10:00:00", addType: "手动创建" },
 ];
 
 const TOTAL_COUNT = 141;
@@ -94,8 +94,6 @@ function ConfirmModal({
 interface UserFormData {
   account: string;
   name: string;
-  phone: string;
-  email: string;
   team: string;
   roles: string[];
   status: "正常" | "禁用";
@@ -114,8 +112,6 @@ function UserFormModal({
 }) {
   const [account, setAccount] = useState(initial?.account ?? "");
   const [name, setName]       = useState(initial?.name ?? "");
-  const [phone, setPhone]     = useState("");
-  const [email, setEmail]     = useState("");
   const [team, setTeam]       = useState(initial?.team ?? "无团队");
   const [roles, setRoles]     = useState<string[]>(initial?.roles ?? []);
   const [status, setStatus]   = useState<"正常" | "禁用">(initial?.status ?? "正常");
@@ -133,7 +129,7 @@ function UserFormModal({
     if (!account.trim()) e.account = true;
     if (!name.trim())    e.name    = true;
     if (Object.keys(e).length) { setErrors(e); return; }
-    onSubmit({ account: account.trim(), name: name.trim(), phone: phone.trim(), email: email.trim(), team, roles, status });
+    onSubmit({ account: account.trim(), name: name.trim(), team, roles, status });
     onClose();
   };
 
@@ -165,10 +161,10 @@ function UserFormModal({
           <div className="flex items-start gap-3" style={{ marginBottom: 16 }}>
             <div style={{ ...labelSt, paddingTop: 8 }}><span style={{ color: "#ef4444", marginRight: 2 }}>*</span>账号</div>
             <div style={{ flex: 1 }}>
-              <input value={account} placeholder="请输入账号"
+              <input value={account} placeholder="请输入邮箱"
                 onChange={e => { setAccount(e.target.value); setErrors(p => ({ ...p, account: false })); }}
                 style={inputSt(errors.account)} />
-              {errors.account && <div style={{ fontSize: 12, color: "#ef4444", marginTop: 4 }}>请输入账号</div>}
+              {errors.account && <div style={{ fontSize: 12, color: "#ef4444", marginTop: 4 }}>请输入邮箱</div>}
             </div>
           </div>
 
@@ -180,22 +176,6 @@ function UserFormModal({
                 onChange={e => { setName(e.target.value); setErrors(p => ({ ...p, name: false })); }}
                 style={inputSt(errors.name)} />
               {errors.name && <div style={{ fontSize: 12, color: "#ef4444", marginTop: 4 }}>请输入姓名</div>}
-            </div>
-          </div>
-
-          {/* 手机号 */}
-          <div className="flex items-start gap-3" style={{ marginBottom: 16 }}>
-            <div style={{ ...labelSt, paddingTop: 8 }}>手机号</div>
-            <div style={{ flex: 1 }}>
-              <input value={phone} placeholder="请输入手机号" onChange={e => setPhone(e.target.value)} style={inputSt(false)} />
-            </div>
-          </div>
-
-          {/* 邮箱 */}
-          <div className="flex items-start gap-3" style={{ marginBottom: 16 }}>
-            <div style={{ ...labelSt, paddingTop: 8 }}>邮箱</div>
-            <div style={{ flex: 1 }}>
-              <input value={email} placeholder="请输入邮箱" onChange={e => setEmail(e.target.value)} style={inputSt(false)} />
             </div>
           </div>
 
@@ -212,7 +192,7 @@ function UserFormModal({
           </div>
 
           {/* 角色 */}
-          <div className="flex items-start gap-3" style={{ marginBottom: 16 }}>
+          <div className="flex items-start gap-3" style={{ marginBottom: 4 }}>
             <div style={{ ...labelSt, paddingTop: 8 }}>角色</div>
             <div className="flex flex-wrap gap-2" style={{ flex: 1, paddingTop: 4 }}>
               {ROLE_OPTIONS.map(role => {
@@ -231,19 +211,6 @@ function UserFormModal({
                   </span>
                 );
               })}
-            </div>
-          </div>
-
-          {/* 账号状态 */}
-          <div className="flex items-start gap-3" style={{ marginBottom: 4 }}>
-            <div style={{ ...labelSt, paddingTop: 8 }}>账号状态</div>
-            <div style={{ flex: 1, position: "relative" }}>
-              <select value={status} onChange={e => setStatus(e.target.value as "正常" | "禁用")}
-                style={{ ...inputSt(false), appearance: "none", paddingRight: 28, cursor: "pointer" }}>
-                <option value="正常">正常</option>
-                <option value="禁用">禁用</option>
-              </select>
-              <ChevronDown size={14} color="#9ca3af" style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
             </div>
           </div>
         </div>

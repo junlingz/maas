@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react"; // eslint-disable-line
-import { Search, MoreVertical, Cpu, ChevronRight, ChevronDown, Check } from "lucide-react";
+import { Search, MoreVertical, Cpu, ChevronRight, ChevronDown, Check, Lock, Users, Globe } from "lucide-react";
+
+type ModelVisibility = "仅自己" | "团队成员可见" | "团队成员可编辑" | "全平台可见";
 
 interface MyModel {
   id: number;
@@ -12,6 +14,7 @@ interface MyModel {
   status: "已部署" | "未部署" | "部署中";
   creator: string;
   versions: string[];
+  visibility: ModelVisibility;
 }
 
 const MODELS: MyModel[] = [
@@ -26,6 +29,7 @@ const MODELS: MyModel[] = [
     status: "已部署",
     creator: "张伟",
     versions: ["v1.0", "v1.5", "v2.0"],
+    visibility: "仅自己",
   },
   {
     id: 2,
@@ -38,6 +42,7 @@ const MODELS: MyModel[] = [
     status: "未部署",
     creator: "李娜",
     versions: ["v1.0", "v2.0"],
+    visibility: "团队成员可见",
   },
   {
     id: 3,
@@ -50,6 +55,7 @@ const MODELS: MyModel[] = [
     status: "部署中",
     creator: "王芳",
     versions: ["v1.0", "v1.2", "v1.8"],
+    visibility: "团队成员可编辑",
   },
   {
     id: 4,
@@ -62,6 +68,7 @@ const MODELS: MyModel[] = [
     status: "未部署",
     creator: "刘强",
     versions: ["v1.0", "v1.3"],
+    visibility: "仅自己",
   },
 ];
 
@@ -204,7 +211,13 @@ function ModelCard({ model, onDownload, onDelete }: { model: MyModel; onDownload
       {/* Footer */}
       <div style={{ height: 1, background: "#f0f2f7", marginBottom: 12 }} />
       <div className="flex items-center justify-between">
-        <span style={{ fontSize: 11.5, color: "#9ca3af" }}>{model.trainedAt}</span>
+        <div className="flex items-center gap-2">
+          <span style={{ fontSize: 11.5, color: "#9ca3af" }}>{model.trainedAt}</span>
+          <span className="flex items-center gap-1" style={{ fontSize: 11, color: model.visibility === "仅自己" ? "#9ca3af" : model.visibility === "全平台可见" ? "#16a34a" : "#4f6ef7" }}>
+            {model.visibility === "仅自己" ? <Lock size={10} /> : model.visibility === "全平台可见" ? <Globe size={10} /> : <Users size={10} />}
+            {model.visibility}
+          </span>
+        </div>
         <div className="flex items-center gap-3">
           <button
             style={{ fontSize: 12.5, fontWeight: 500, color: "#4f6ef7", background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 2 }}

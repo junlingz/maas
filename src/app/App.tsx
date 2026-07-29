@@ -5,6 +5,7 @@ import { DeployInstancePage } from "./components/DeployInstance";
 import { InferenceServicePage } from "./components/InferenceService";
 import { UserAccountPage } from "./components/UserAccount";
 import { UserRolePage } from "./components/UserRole";
+import { TeamManagementPage } from "./components/TeamManagement";
 import { MyModelsPage } from "./components/MyModels";
 import { AuditEventsPage } from "./components/AuditEvents";
 import { ModelRoutingPage } from "./components/ModelRouting";
@@ -39,7 +40,7 @@ import {
   Store, FlaskConical, BrainCircuit, ClipboardCheck, Layers,
   Users, Building2, BarChart3, Server, ChevronDown, ChevronRight,
   ChevronLeft, Cpu, UserCircle, Search, Plus, RefreshCw,
-  Check, ChevronUp, Info, CheckCircle2, Circle, Upload, Bell, BookOpen, ListTodo, ShieldCheck,
+  Check, ChevronUp, Info, CheckCircle2, Circle, Upload, Bell, BookOpen, ListTodo, RotateCcw, ShieldCheck,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -90,7 +91,8 @@ const menuData: MenuItem[] = [
     label: "用户管理", key: "user-management", icon: <Users size={16} />,
     children: [
       { label: "用户账号", key: "user-account" },
-      { label: "用户角色", key: "user-role" },
+      { label: "角色权限", key: "user-role" },
+      { label: "团队管理", key: "team-management" },
     ],
   },
   {
@@ -142,30 +144,32 @@ const menuData: MenuItem[] = [
 
 // ─── Training Task List ───────────────────────────────────────────────────────
 
-type TrainingStatus = "已完成" | "训练中" | "已失败" | "";
+type TrainingStatus = "已完成" | "训练中" | "已失败" | "已停止" | "";
 
 interface TrainingRow {
   id: number; name: string; outputModel: string; type: "继续预训练" | "监督微调";
   status: TrainingStatus; taskId: string; baseModel: string; creator: string; actions: string[];
+  resources: string; submitTime: string; duration: string;
   outputModelDeleted?: boolean;
 }
 
 const trainingRows: TrainingRow[] = [
-  { id: 1, name: "07061449", outputModel: "我的模型11", type: "继续预训练", status: "已完成", taskId: "12345234543", baseModel: "GLM-4-9B", creator: "张小明", actions: ["删除任务", "查看报告", "评估报告"] },
-  { id: 2, name: "公文写作模型", outputModel: "公文写作-v1", type: "监督微调", status: "训练中", taskId: "76840646", baseModel: "GLM-4-9B", creator: "张小明", actions: ["删除任务", "查看报告", "停止任务"] },
-  { id: 3, name: "天气变化预报", outputModel: "天气预报模型", type: "监督微调", status: "已完成", taskId: "34536448457", baseModel: "ChatGLM3-6B", creator: "张小明", actions: ["删除任务", "查看报告", "评估报告"] },
-  { id: 4, name: "天文资料搜索", outputModel: "天文搜索模型", type: "继续预训练", status: "已失败", taskId: "346903543", baseModel: "GLM-4-9B", creator: "张小明", actions: ["删除任务", "查看报告", "重新训练"] },
-  { id: 5, name: "公文写作模型", outputModel: "公文写作-v2", type: "监督微调", status: "已完成", taskId: "3461458868", baseModel: "GLM-4-9B", creator: "张小明", actions: ["删除任务", "查看报告", "评估报告"], outputModelDeleted: true },
-  { id: 6, name: "天气变化预报", outputModel: "天气预报模型", type: "监督微调", status: "训练中", taskId: "34634875987", baseModel: "ChatGLM3-6B", creator: "张小明", actions: ["删除任务", "查看报告", "停止任务"] },
-  { id: 7, name: "天文资料搜索", outputModel: "天文搜索模型", type: "继续预训练", status: "已完成", taskId: "32750657145", baseModel: "GLM-4-9B", creator: "张小明", actions: ["删除任务", "查看报告", "评估报告"] },
-  { id: 8, name: "公文写作模型", outputModel: "公文写作-v3", type: "监督微调", status: "已失败", taskId: "096764453", baseModel: "GLM-4-9B", creator: "张小明", actions: ["删除任务", "查看报告", "重新训练"] },
-  { id: 9, name: "天气变化预报", outputModel: "天气预报模型", type: "监督微调", status: "已完成", taskId: "406678753", baseModel: "ChatGLM3-6B", creator: "张小明", actions: ["删除任务", "查看报告", "评估报告"] },
+  { id: 1, name: "07061449", outputModel: "我的模型11", type: "继续预训练", status: "已完成", taskId: "12345234543", baseModel: "GLM-4-9B", creator: "张小明", resources: "8 × A100", submitTime: "2026-07-10 16:45:24", duration: "2小时15分", actions: ["删除任务", "查看报告", "评估报告"] },
+  { id: 2, name: "公文写作模型", outputModel: "公文写作-v1", type: "监督微调", status: "训练中", taskId: "76840646", baseModel: "GLM-4-9B", creator: "张小明", resources: "4 × A100", submitTime: "2026-07-12 09:20:10", duration: "1小时32分", actions: ["删除任务", "查看报告", "停止任务"] },
+  { id: 3, name: "天气变化预报", outputModel: "天气预报模型", type: "监督微调", status: "已完成", taskId: "34536448457", baseModel: "ChatGLM3-6B", creator: "张小明", resources: "2 × A100", submitTime: "2026-07-08 14:30:00", duration: "45分", actions: ["删除任务", "查看报告", "评估报告"] },
+  { id: 4, name: "天文资料搜索", outputModel: "天文搜索模型", type: "继续预训练", status: "已失败", taskId: "346903543", baseModel: "GLM-4-9B", creator: "张小明", resources: "8 × A100", submitTime: "2026-07-11 10:15:33", duration: "12分", actions: ["删除任务", "查看报告", "重新训练"] },
+  { id: 5, name: "公文写作模型", outputModel: "公文写作-v2", type: "监督微调", status: "已完成", taskId: "3461458868", baseModel: "GLM-4-9B", creator: "张小明", resources: "4 × A100", submitTime: "2026-07-09 18:00:00", duration: "3小时02分", actions: ["删除任务", "查看报告", "评估报告"], outputModelDeleted: true },
+  { id: 6, name: "天气变化预报", outputModel: "天气预报模型", type: "监督微调", status: "训练中", taskId: "34634875987", baseModel: "ChatGLM3-6B", creator: "张小明", resources: "2 × A100", submitTime: "2026-07-12 11:45:00", duration: "22分", actions: ["删除任务", "查看报告", "停止任务"] },
+  { id: 7, name: "天文资料搜索", outputModel: "天文搜索模型", type: "继续预训练", status: "已完成", taskId: "32750657145", baseModel: "GLM-4-9B", creator: "张小明", resources: "8 × A100", submitTime: "2026-07-06 08:20:00", duration: "5小时18分", actions: ["删除任务", "查看报告", "评估报告"] },
+  { id: 8, name: "公文写作模型", outputModel: "公文写作-v3", type: "监督微调", status: "已停止", taskId: "096764453", baseModel: "GLM-4-9B", creator: "张小明", resources: "4 × A100", submitTime: "2026-07-05 16:00:00", duration: "8分", actions: ["删除任务", "查看报告", "重新训练"] },
+  { id: 9, name: "天气变化预报", outputModel: "天气预报模型", type: "监督微调", status: "已完成", taskId: "406678753", baseModel: "ChatGLM3-6B", creator: "张小明", resources: "2 × A100", submitTime: "2026-07-07 13:10:00", duration: "1小时05分", actions: ["删除任务", "查看报告", "评估报告"] },
 ];
 
 const statusCfg: Record<TrainingStatus, { bg: string; text: string; dot: string }> = {
   "已完成": { bg: "#f0faf5", text: "#16a34a", dot: "#22c55e" },
   "训练中": { bg: "#eff6ff", text: "#2563eb", dot: "#3b82f6" },
   "已失败": { bg: "#fef2f2", text: "#dc2626", dot: "#ef4444" },
+  "已停止": { bg: "#f3f4f6", text: "#6b7280", dot: "#9ca3af" },
   "":       { bg: "transparent", text: "#9ca3af", dot: "transparent" },
 };
 
@@ -219,7 +223,10 @@ function TrainingTaskList({ onCreate, onEvalReport, onJumpToMyModel }: { onCreat
                 style={{ fontSize: 13, border: "none", outline: "none", width: 160, background: "transparent" }} />
             </div>
             <button style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500, color: "#fff", background: "#4f6ef7", border: "none", borderRadius: 6, padding: "0 14px", height: 32, cursor: "pointer" }}>
-              <Search size={13} /> 搜索
+              <Search size={13} /> 查询
+            </button>
+            <button onClick={() => { setSearch(""); setTypeFilter(""); }} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500, color: "#4f6ef7", background: "#fff", border: "1px solid #4f6ef7", borderRadius: 6, padding: "0 14px", height: 32, cursor: "pointer" }}>
+              <RotateCcw size={13} /> 重置
             </button>
           </div>
           <button onClick={onCreate} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500, color: "#fff", background: "#4f6ef7", border: "none", borderRadius: 6, padding: "0 14px", height: 32, cursor: "pointer" }}>
@@ -230,7 +237,7 @@ function TrainingTaskList({ onCreate, onEvalReport, onJumpToMyModel }: { onCreat
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "#f8f9fc" }}>
-                {["任务名称", "输出模型名称", "任务类型", "任务状态", "任务ID", "基础模型", "创建人", "操作"].map(col => (
+                {["任务名称", "输出模型名称", "任务类型", "任务状态", "任务ID", "基础模型", "创建人", "占用资源", "提交时间", "运行时长", "操作"].map(col => (
                   <th key={col} style={{ padding: "10px 14px", textAlign: "left", fontWeight: 500, color: "#6b7280", fontSize: 12.5, borderBottom: "1px solid #f0f2f7", whiteSpace: "nowrap" }}>{col}</th>
                 ))}
               </tr>
@@ -260,6 +267,9 @@ function TrainingTaskList({ onCreate, onEvalReport, onJumpToMyModel }: { onCreat
                   <td style={{ padding: "11px 14px", color: "#6b7280", fontFamily: "monospace", fontSize: 12 }}>{row.taskId}</td>
                   <td style={{ padding: "11px 14px", color: "#6b7280", fontSize: 12 }}>{row.baseModel}</td>
                   <td style={{ padding: "11px 14px", color: "#374151" }}>{row.creator}</td>
+                  <td style={{ padding: "11px 14px", color: "#6b7280", fontSize: 12 }}>{row.resources}</td>
+                  <td style={{ padding: "11px 14px", color: "#6b7280", fontSize: 12, whiteSpace: "nowrap" }}>{row.submitTime}</td>
+                  <td style={{ padding: "11px 14px", color: "#6b7280", fontSize: 12, whiteSpace: "nowrap" }}>{row.duration}</td>
                   <td style={{ padding: "11px 14px" }}>
                     <div className="flex items-center gap-3">
                       {row.actions.map(a => {
@@ -1657,18 +1667,27 @@ function EvaluationReportPage({ taskName, onBack }: { taskName: string; onBack: 
 
 // ─── Training Data Page ───────────────────────────────────────────────────────
 
+type Visibility = "仅自己" | "团队成员可见" | "团队成员可编辑" | "全平台可见";
+
 interface DatasetRow {
   id: number; name: string; type: "CPT" | "SFT" | "RL" | "Eval"; modality: "-" | "文本" | "图文对"; count: string;
-  status: "已校验" | "校验失败" | "待校验"; creator: string; space: string; updatedAt: string;
+  status: "已校验" | "校验失败" | "待校验"; creator: string; team: string; updatedAt: string;
+  visibility: Visibility;
+  scope: "public" | "mine" | "platform";
   failDetail?: { errorType: string; summary: string; details: string; logid: string; timestamp: string };
 }
 
 const defaultDatasets: DatasetRow[] = [
-  { id: 1, name: "科技情报语料库", type: "CPT", modality: "文本", count: "500万行", status: "校验失败", creator: "张小明", space: "建名企业uc001", updatedAt: "2026-07-10 16:45:24", failDetail: { errorType: "images_missed", summary: "训练数据集校验未通过，请检查数据格式与内容", details: "errorMessage: images_missed at rows [1, 2, 3, 4, 5]", logid: "3107607c-a2e8-4d77-881d-beee42e40f80", timestamp: "2026-07-10T16:45:24.846730" } },
-  { id: 2, name: "医学图文数据集", type: "SFT", modality: "图文对", count: "10万行", status: "校验失败", creator: "张小明", space: "建名企业uc001", updatedAt: "2026-07-09 14:20:10", failDetail: { errorType: "format_invalid", summary: "训练数据集校验未通过，请检查数据格式与内容", details: "errorMessage: instruction field is empty at rows [12, 34]", logid: "5b2c9f10-d73a-4e1c-b6f8-2a1e09c44d71", timestamp: "2026-07-09T14:20:10.502118" } },
-  { id: 3, name: "jsonl_demo", type: "SFT", modality: "文本", count: "1200行", status: "已校验", creator: "张小明", space: "建名企业uc001", updatedAt: "2026-07-08 10:30:00" },
-  { id: 4, name: "dpo_6_15", type: "RL", modality: "文本", count: "800行", status: "已校验", creator: "张小明", space: "建名企业uc001", updatedAt: "2026-06-15 09:15:30" },
-  { id: 5, name: "eval_test_set", type: "Eval", modality: "文本", count: "300行", status: "待校验", creator: "张小明", space: "建名企业uc001", updatedAt: "2026-07-11 11:00:00" },
+  { id: 1, name: "科技情报语料库", type: "CPT", modality: "文本", count: "500万行", status: "校验失败", creator: "张小明", team: "智谱1", updatedAt: "2026-07-10 16:45:24", visibility: "全平台可见", scope: "public", failDetail: { errorType: "images_missed", summary: "训练数据集校验未通过，请检查数据格式与内容", details: "errorMessage: images_missed at rows [1, 2, 3, 4, 5]", logid: "3107607c-a2e8-4d77-881d-beee42e40f80", timestamp: "2026-07-10T16:45:24.846730" } },
+  { id: 2, name: "医学图文数据集", type: "SFT", modality: "图文对", count: "10万行", status: "校验失败", creator: "张小明", team: "智谱1", updatedAt: "2026-07-09 14:20:10", visibility: "仅自己", scope: "mine", failDetail: { errorType: "format_invalid", summary: "训练数据集校验未通过，请检查数据格式与内容", details: "errorMessage: instruction field is empty at rows [12, 34]", logid: "5b2c9f10-d73a-4e1c-b6f8-2a1e09c44d71", timestamp: "2026-07-09T14:20:10.502118" } },
+  { id: 3, name: "jsonl_demo", type: "SFT", modality: "文本", count: "1200行", status: "已校验", creator: "张小明", team: "智谱1", updatedAt: "2026-07-08 10:30:00", visibility: "仅自己", scope: "mine" },
+  { id: 4, name: "dpo_6_15", type: "RL", modality: "文本", count: "800行", status: "已校验", creator: "张小明", team: "智谱1", updatedAt: "2026-06-15 09:15:30", visibility: "团队成员可见", scope: "mine" },
+  { id: 5, name: "eval_test_set", type: "Eval", modality: "文本", count: "300行", status: "待校验", creator: "张小明", team: "智谱1", updatedAt: "2026-07-11 11:00:00", visibility: "仅自己", scope: "mine" },
+  { id: 6, name: "公开问答数据集", type: "SFT", modality: "文本", count: "200万行", status: "已校验", creator: "系统", team: "系统", updatedAt: "2026-06-01 08:00:00", visibility: "全平台可见", scope: "public" },
+  { id: 7, name: "通用语料库", type: "CPT", modality: "文本", count: "1000万行", status: "已校验", creator: "系统", team: "系统", updatedAt: "2026-05-20 10:00:00", visibility: "全平台可见", scope: "public" },
+  { id: 8, name: "企业2-客服数据", type: "SFT", modality: "图文对", count: "5万行", status: "已校验", creator: "李娜", team: "企业2", updatedAt: "2026-07-05 14:00:00", visibility: "团队成员可编辑", scope: "platform" },
+  { id: 9, name: "机构3-金融数据", type: "CPT", modality: "文本", count: "300万行", status: "已校验", creator: "王芳", team: "机构3", updatedAt: "2026-07-03 09:30:00", visibility: "团队成员可见", scope: "platform" },
+  { id: 10, name: "企业4-法律数据", type: "SFT", modality: "文本", count: "2万行", status: "待校验", creator: "刘强", team: "企业4", updatedAt: "2026-07-12 16:00:00", visibility: "仅自己", scope: "platform" },
 ];
 
 const datasetStatusCfg: Record<DatasetRow["status"], { bg: string; text: string; dot: string }> = {
@@ -1813,17 +1832,31 @@ function CreateDatasetModal({ onClose, onConfirm }: { onClose: () => void; onCon
   );
 }
 
+const visCfg: Record<Visibility, { bg: string; text: string }> = {
+  "仅自己":       { bg: "#f3f4f6", text: "#6b7280" },
+  "团队成员可见":   { bg: "#eff4ff", text: "#4f6ef7" },
+  "团队成员可编辑": { bg: "#f5f3ff", text: "#7c3aed" },
+  "全平台可见":     { bg: "#f0faf5", text: "#16a34a" },
+};
+
 function TrainingDataPage() {
   const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
   const [datasets, setDatasets] = useState<DatasetRow[]>(defaultDatasets);
   const [showModal, setShowModal] = useState(false);
   const [page, setPage] = useState(1);
   const [goPage, setGoPage] = useState("");
   const [failDetailId, setFailDetailId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<"public" | "mine" | "platform">("public");
+  const [teamFilter, setTeamFilter] = useState("");
+  const [permEditId, setPermEditId] = useState<number | null>(null);
 
-  const filtered = datasets.filter(d =>
-    !search || d.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = datasets.filter(d => {
+    if (d.scope !== activeTab) return false;
+    if (search && !d.name.toLowerCase().includes(query.toLowerCase())) return false;
+    if (activeTab === "platform" && teamFilter && d.team !== teamFilter) return false;
+    return true;
+  });
 
   const handleCreate = (form: CreateDatasetForm) => {
     const now = new Date();
@@ -1837,14 +1870,31 @@ function TrainingDataPage() {
       count: "0行",
       status: "待校验",
       creator: "张小明",
-      space: "建名企业uc001",
+      team: "智谱1",
       updatedAt: dateStr,
+      visibility: activeTab === "public" ? "全平台可见" : "仅自己",
+      scope: activeTab === "public" ? "public" : "mine",
     }]);
   };
 
   const handleDelete = (id: number) => {
     setDatasets(prev => prev.filter(d => d.id !== id));
   };
+
+  const handlePermUpdate = (id: number, vis: Visibility) => {
+    setDatasets(prev => prev.map(d => d.id === id ? { ...d, visibility: vis } : d));
+    setPermEditId(null);
+  };
+
+  const tabLabels: { key: "public" | "mine" | "platform"; label: string; uploadLabel: string }[] = [
+    { key: "public", label: "公开数据集", uploadLabel: "上传公开数据集" },
+    { key: "mine", label: "我的数据集", uploadLabel: "上传我的数据集" },
+    { key: "platform", label: "平台用户数据集", uploadLabel: "" },
+  ];
+  const currentTab = tabLabels.find(t => t.key === activeTab)!;
+  const cols = activeTab === "platform"
+    ? ["数据集名称", "类型", "模态", "数据量", "文件状态", "所属团队", "创建人", "权限状态", "更新时间", "操作"]
+    : ["数据集名称", "类型", "模态", "数据量", "文件状态", "所属团队", "创建人", "权限状态", "更新时间", "操作"];
 
   return (
     <>
@@ -1858,32 +1908,60 @@ function TrainingDataPage() {
 
         {/* Card */}
         <div className="flex-1 flex flex-col min-h-0 rounded-xl" style={{ margin: "14px 24px 24px", background: "#fff", border: "1px solid #e8ebf2" }}>
+          {/* Tabs */}
+          <div className="flex items-center flex-shrink-0" style={{ borderBottom: "1px solid #f0f2f7" }}>
+            {tabLabels.map(tab => (
+              <button key={tab.key} onClick={() => { setActiveTab(tab.key); setPage(1); setTeamFilter(""); }}
+                style={{
+                  padding: "12px 20px", fontSize: 13.5, fontWeight: 500, background: "none", border: "none",
+                  cursor: "pointer", color: activeTab === tab.key ? "#4f6ef7" : "#6b7280",
+                  borderBottom: activeTab === tab.key ? "2px solid #4f6ef7" : "2px solid transparent",
+                  transition: "color 0.15s, border-color 0.15s",
+                }}>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
           {/* Toolbar */}
           <div className="flex items-center justify-between flex-shrink-0" style={{ padding: "14px 16px", borderBottom: "1px solid #f0f2f7" }}>
             <div className="flex items-center gap-2">
+              {activeTab === "platform" && (
+                <select value={teamFilter} onChange={e => setTeamFilter(e.target.value)} style={{
+                  fontSize: 13, color: teamFilter ? "#1a1d23" : "#9ca3af", padding: "5px 10px",
+                  border: "1px solid #e0e3ed", borderRadius: 6, background: "#fff", outline: "none", height: 32,
+                }}>
+                  <option value="">团队 全部</option>
+                  <option value="智谱1">智谱1</option>
+                  <option value="企业2">企业2</option>
+                  <option value="机构3">机构3</option>
+                  <option value="企业4">企业4</option>
+                </select>
+              )}
               <div className="flex items-center rounded-md" style={{ border: "1px solid #e0e3ed", height: 32, padding: "0 10px" }}>
                 <input
                   type="text" placeholder="请输入数据集名称搜索" value={search}
                   onChange={e => setSearch(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && setQuery(search)}
                   style={{ fontSize: 13, border: "none", outline: "none", width: 180, background: "transparent" }}
                 />
               </div>
-              <button style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500, color: "#fff", background: "#4f6ef7", border: "none", borderRadius: 6, padding: "0 14px", height: 32, cursor: "pointer" }}>
-                <Search size={13} /> 搜索
+              <button onClick={() => setQuery(search)} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500, color: "#fff", background: "#4f6ef7", border: "none", borderRadius: 6, padding: "0 14px", height: 32, cursor: "pointer" }}>
+                <Search size={13} /> 查询
               </button>
-              <button
-                onClick={() => setSearch("")}
-                style={{ fontSize: 13, fontWeight: 500, color: "#374151", background: "#fff", border: "1px solid #e0e3ed", borderRadius: 6, padding: "0 14px", height: 32, cursor: "pointer" }}
-              >
-                重置
+              <button onClick={() => { setSearch(""); setQuery(""); setTeamFilter(""); }}
+                style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500, color: "#4f6ef7", background: "#fff", border: "1px solid #4f6ef7", borderRadius: 6, padding: "0 14px", height: 32, cursor: "pointer" }}>
+                <RotateCcw size={13} /> 重置
               </button>
             </div>
-            <button
-              onClick={() => setShowModal(true)}
-              style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500, color: "#fff", background: "#4f6ef7", border: "none", borderRadius: 6, padding: "0 14px", height: 32, cursor: "pointer" }}
-            >
-              <Plus size={14} /> 创建数据集
-            </button>
+            {currentTab.uploadLabel && (
+              <button
+                onClick={() => setShowModal(true)}
+                style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500, color: "#fff", background: "#4f6ef7", border: "none", borderRadius: 6, padding: "0 14px", height: 32, cursor: "pointer" }}
+              >
+                <Plus size={14} /> {currentTab.uploadLabel}
+              </button>
+            )}
           </div>
 
           {/* Table */}
@@ -1891,7 +1969,7 @@ function TrainingDataPage() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: "#f8f9fc" }}>
-                  {["数据集名称", "类型", "模态", "数据量", "文件状态", "创建人", "所属空间", "更新时间", "操作"].map(col => (
+                  {cols.map(col => (
                     <th key={col} style={{ padding: "10px 14px", textAlign: "left", fontWeight: 500, color: "#6b7280", fontSize: 12.5, borderBottom: "1px solid #f0f2f7", whiteSpace: "nowrap" }}>{col}</th>
                   ))}
                 </tr>
@@ -1899,10 +1977,11 @@ function TrainingDataPage() {
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={9} style={{ textAlign: "center", padding: "48px 0", color: "#9ca3af", fontSize: 13 }}>暂无数据</td>
+                    <td colSpan={cols.length} style={{ textAlign: "center", padding: "48px 0", color: "#9ca3af", fontSize: 13 }}>暂无数据</td>
                   </tr>
                 ) : filtered.map(row => {
                   const sc = datasetStatusCfg[row.status];
+                  const vc = visCfg[row.visibility];
                   return (
                     <tr key={row.id} style={{ borderBottom: "1px solid #f5f7fa" }}
                       onMouseEnter={e => (e.currentTarget.style.background = "#fafbfd")}
@@ -1942,8 +2021,19 @@ function TrainingDataPage() {
                           )}
                         </span>
                       </td>
+                      <td style={{ padding: "12px 14px", color: "#6b7280", fontSize: 12 }}>{row.team}</td>
                       <td style={{ padding: "12px 14px", color: "#6b7280", fontSize: 12 }}>{row.creator}</td>
-                      <td style={{ padding: "12px 14px", color: "#6b7280", fontSize: 12 }}>{row.space}</td>
+                      <td style={{ padding: "12px 14px" }}>
+                        <div className="flex items-center gap-2">
+                          <span style={{ fontSize: 12, padding: "2px 8px", background: vc.bg, color: vc.text, fontWeight: 500, borderRadius: 4, whiteSpace: "nowrap" }}>{row.visibility}</span>
+                          {activeTab !== "public" && (
+                            <button onClick={() => setPermEditId(row.id)}
+                              style={{ fontSize: 12.5, color: "#4f6ef7", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500 }}
+                              onMouseEnter={e => (e.currentTarget.style.color = "#3b5de8")}
+                              onMouseLeave={e => (e.currentTarget.style.color = "#4f6ef7")}>修改</button>
+                          )}
+                        </div>
+                      </td>
                       <td style={{ padding: "12px 14px", color: "#6b7280", fontSize: 12, whiteSpace: "nowrap" }}>{row.updatedAt}</td>
                       <td style={{ padding: "12px 14px" }}>
                         <div className="flex items-center gap-3">
@@ -1990,11 +2080,75 @@ function TrainingDataPage() {
             </div>
           </div>
         </div>
+        {activeTab === "platform" && (
+          <div style={{ padding: "0 24px 16px", fontSize: 12, color: "#9ca3af" }}>超管可以在本分页看到平台所有用户的数据集，可以按团队过滤</div>
+        )}
       </div>
 
       {showModal && (
         <CreateDatasetModal onClose={() => setShowModal(false)} onConfirm={handleCreate} />
       )}
+
+      {permEditId !== null && (() => {
+        const row = datasets.find(d => d.id === permEditId);
+        if (!row) return null;
+        const options: Visibility[] = row.team === "系统" || row.team === "无团队"
+          ? ["仅自己", "全平台可见"]
+          : ["仅自己", "团队成员可见", "团队成员可编辑"];
+        return (
+          <PermEditModal
+            datasetName={row.name}
+            current={row.visibility}
+            options={options}
+            onClose={() => setPermEditId(null)}
+            onConfirm={(vis) => handlePermUpdate(row.id, vis)}
+          />
+        );
+      })()}
+    </>
+  );
+}
+
+function PermEditModal({ datasetName, current, options, onClose, onConfirm }: {
+  datasetName: string; current: Visibility; options: Visibility[];
+  onClose: () => void; onConfirm: (vis: Visibility) => void;
+}) {
+  const [selected, setSelected] = useState<Visibility>(current);
+  return (
+    <>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 200 }} />
+      <div style={{
+        position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
+        width: 400, background: "#fff", borderRadius: 12, zIndex: 201,
+        boxShadow: "0 12px 40px rgba(0,0,0,0.16)", display: "flex", flexDirection: "column", overflow: "hidden",
+      }}>
+        <div style={{ padding: "20px 24px 0" }}>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "#1a1d23" }}>修改权限状态</div>
+          <div style={{ fontSize: 12.5, color: "#9ca3af", marginTop: 4 }}>数据集「{datasetName}」</div>
+        </div>
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
+          {options.map(opt => {
+            const vc = visCfg[opt];
+            return (
+              <button key={opt} onClick={() => setSelected(opt)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
+                  border: `1px solid ${selected === opt ? "#4f6ef7" : "#e0e3ed"}`, borderRadius: 8,
+                  background: selected === opt ? "#eff4ff" : "#fff", cursor: "pointer", textAlign: "left",
+                }}>
+                <span style={{ width: 16, height: 16, borderRadius: "50%", border: `2px solid ${selected === opt ? "#4f6ef7" : "#d1d5db"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  {selected === opt && <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#4f6ef7" }} />}
+                </span>
+                <span style={{ fontSize: 13, padding: "2px 8px", background: vc.bg, color: vc.text, fontWeight: 500, borderRadius: 4 }}>{opt}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex items-center justify-end gap-2 flex-shrink-0" style={{ padding: "12px 24px", borderTop: "1px solid #f0f2f7" }}>
+          <button onClick={onClose} style={{ fontSize: 13, fontWeight: 500, color: "#374151", background: "#fff", border: "1px solid #e0e3ed", borderRadius: 6, padding: "7px 20px", cursor: "pointer" }}>取消</button>
+          <button onClick={() => onConfirm(selected)} style={{ fontSize: 13, fontWeight: 500, color: "#fff", background: "#4f6ef7", border: "none", borderRadius: 6, padding: "7px 20px", cursor: "pointer" }}>确定</button>
+        </div>
+      </div>
     </>
   );
 }
@@ -2238,6 +2392,8 @@ export default function App() {
             <ResourcePermissionPage />
           ) : activeMenu === "user-role" ? (
             <UserRolePage />
+          ) : activeMenu === "team-management" ? (
+            <TeamManagementPage />
           ) : activeMenu === "model-experience" ? (
             <ModelExperiencePage deployments={deployments} models={models} initialModel={experiencePrefillModel} />
           ) : (

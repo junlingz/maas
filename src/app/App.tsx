@@ -7,8 +7,6 @@ import { UserAccountPage } from "./components/UserAccount";
 import { UserRolePage } from "./components/UserRole";
 import { MyModelsPage } from "./components/MyModels";
 import { AuditEventsPage } from "./components/AuditEvents";
-import { UsageStatsPage } from "./components/UsageStats";
-import { LogMiningPage } from "./components/LogMining";
 import { ModelRoutingPage } from "./components/ModelRouting";
 import { EvaluationConfigPage, ModelComparePage, ModelEvaluationPage } from "./components/ModelEvaluation";
 import { EvaluationDataPage } from "./components/EvaluationData";
@@ -17,6 +15,15 @@ import { ModelDeploymentPage } from "./components/ModelDeployment";
 import { ClusterListPage } from "./components/ClusterList";
 import { NodeListPage, ResourceGroupPage } from "./components/NodeResourceGroup";
 import { ModelExperiencePage } from "./components/ModelExperience";
+import {
+  AdminUsageStatsPage,
+  ApiKeyManagementPage,
+  DocumentationCenterPage,
+  ResourceRoleConfigPage,
+  ResourceRoleQueuePage,
+  SampleRepositoryPage,
+  TaskLogPage,
+} from "./components/SuperAdminPages";
 import {
   AutoregressiveTrainingPage,
   TrainingAboutPage,
@@ -32,7 +39,7 @@ import {
   Store, FlaskConical, BrainCircuit, ClipboardCheck, Layers,
   Users, Building2, BarChart3, Server, ChevronDown, ChevronRight,
   ChevronLeft, Cpu, UserCircle, Search, Plus, RefreshCw,
-  Check, ChevronUp, Info, CheckCircle2, Circle, Upload, Bell, BookOpen, ListTodo,
+  Check, ChevronUp, Info, CheckCircle2, Circle, Upload, Bell, BookOpen, ListTodo, ShieldCheck,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -91,16 +98,6 @@ const menuData: MenuItem[] = [
     children: [
       { label: "工作空间", key: "workspace" },
       { label: "空间成员", key: "space-member" },
-      { label: "API Key", key: "api-key" },
-      { label: "用量统计", key: "space-usage" },
-    ],
-  },
-  {
-    label: "统计监控", key: "stats-monitor", icon: <BarChart3 size={16} />,
-    children: [
-      { label: "操作审计事件", key: "audit-events" },
-      { label: "用量统计", key: "usage-stats" },
-      { label: "日志挖掘", key: "log-mining" },
     ],
   },
   {
@@ -112,9 +109,32 @@ const menuData: MenuItem[] = [
     ],
   },
   {
+    label: "权限与调度", key: "permission-scheduling", icon: <ShieldCheck size={16} />,
+    children: [
+      { label: "角色配置", key: "resource-role-config" },
+      { label: "角色队列", key: "resource-role-queue" },
+    ],
+  },
+  {
+    label: "统计监控", key: "stats-monitor", icon: <BarChart3 size={16} />,
+    children: [
+      { label: "API Key", key: "api-key-monitoring" },
+      { label: "用量统计", key: "usage-stats" },
+      { label: "任务日志", key: "log-mining" },
+      { label: "操作审计事件", key: "audit-events" },
+    ],
+  },
+  {
+    label: "文档中心", key: "documentation-center", icon: <BookOpen size={16} />,
+    children: [
+      { label: "在线文档", key: "docs-center" },
+      { label: "示例代码库", key: "sample-repository" },
+    ],
+  },
+  {
     label: "技术支持", key: "technical-support", icon: <BookOpen size={16} />,
     children: [
-      { label: "在线文档", key: "training-docs" },
+      { label: "训练手册", key: "training-docs" },
       { label: "关于平台", key: "training-about" },
     ],
   },
@@ -2115,24 +2135,6 @@ export default function App() {
             )}
           </div>
           <div className="flex items-center gap-3">
-            <a
-              href="/super-admin.html"
-              style={{
-                height: 32,
-                padding: "0 12px",
-                display: "inline-flex",
-                alignItems: "center",
-                border: "1px solid #dbe4ff",
-                borderRadius: 8,
-                background: "#f5f7ff",
-                color: "#4f6ef7",
-                fontSize: 12.5,
-                fontWeight: 600,
-                textDecoration: "none",
-              }}
-            >
-              超级管理员
-            </a>
             {!legacyView && <button type="button" aria-label="打开训练告警" onClick={() => handleMenuSelect("training-alerts")} style={{ position: "relative", width: 32, height: 32, display: "grid", placeItems: "center", border: "1px solid #e4e8ef", borderRadius: 8, background: "#fff", color: "#667085", cursor: "pointer" }}>
               <Bell size={16} />
               <span style={{ position: "absolute", right: 5, top: 5, width: 7, height: 7, borderRadius: 99, background: "#ef4444", boxShadow: "0 0 0 2px #fff" }} />
@@ -2202,16 +2204,26 @@ export default function App() {
             <NodeListPage />
           ) : activeMenu === "resource-group" ? (
             <ResourceGroupPage />
+          ) : activeMenu === "resource-role-config" ? (
+            <ResourceRoleConfigPage />
+          ) : activeMenu === "resource-role-queue" ? (
+            <ResourceRoleQueuePage />
           ) : activeMenu === "user-account" ? (
             <UserAccountPage />
           ) : activeMenu === "my-model" ? (
             <MyModelsPage initialFilter={myModelFilter} />
           ) : activeMenu === "audit-events" ? (
             <AuditEventsPage />
+          ) : activeMenu === "api-key-monitoring" ? (
+            <ApiKeyManagementPage />
           ) : activeMenu === "usage-stats" ? (
-            <UsageStatsPage />
+            <AdminUsageStatsPage />
           ) : activeMenu === "log-mining" ? (
-            <LogMiningPage />
+            <TaskLogPage />
+          ) : activeMenu === "docs-center" ? (
+            <DocumentationCenterPage />
+          ) : activeMenu === "sample-repository" ? (
+            <SampleRepositoryPage />
           ) : activeMenu === "model-router" ? (
             <ModelRoutingPage />
           ) : activeMenu === "evaluation-task" ? (

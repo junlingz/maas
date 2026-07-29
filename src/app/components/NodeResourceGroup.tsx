@@ -7,8 +7,9 @@ const thSt: React.CSSProperties = { padding: "10px 12px", textAlign: "left", fon
 const tdSt: React.CSSProperties = { padding: "11px 12px", fontSize: 12.5, borderBottom: "1px solid #f5f7fa", verticalAlign: "top" };
 const inpSt: React.CSSProperties = { width: "100%", height: 34, padding: "0 10px", fontSize: 13, border: "1px solid #e0e3ed", borderRadius: 6, outline: "none", boxSizing: "border-box" as const, fontFamily: "inherit" };
 
-const CLUSTERS = ["h20-node1", "a100-prod-cluster"];
-const RGROUPS  = ["资源组1", "推理组-A"];
+const CLUSTERS = ["h20-node1", "a100-prod-cluster", "ascend-dev-cluster"];
+const RGROUPS  = ["管理员推理资源组", "普通用户训练资源组", "VIP推理资源组", "独立机构训练资源组", "开发人员训练资源组", "专项项目训练资源组"];
+const RESOURCE_ROLES = ["管理员", "VIP", "开发人员", "普通用户", "独立机构", "自定义角色"];
 
 function FilterDrop({ value, onChange, opts, placeholder, width = 140 }: { value: string; onChange: (v: string) => void; opts: string[]; placeholder: string; width?: number }) {
   return (
@@ -44,6 +45,7 @@ const ALL_NODES: NodeItem[] = [
   { id: "n05", name: "node05", ip: "10.2.0.5", allocated: false, gpuCount: 8, cluster: "h20-node1" },
   { id: "a01", name: "a100-node1", ip: "192.168.1.10", allocated: false, gpuCount: 4, cluster: "a100-prod-cluster" },
   { id: "a02", name: "a100-node2", ip: "192.168.1.11", allocated: false, gpuCount: 4, cluster: "a100-prod-cluster" },
+  { id: "d01", name: "ascend-node1", ip: "172.18.1.10", allocated: false, gpuCount: 8, cluster: "ascend-dev-cluster" },
 ];
 
 const ALL_USERS: UserItem[] = [
@@ -56,7 +58,7 @@ const ALL_USERS: UserItem[] = [
 // ─── 3-Step Wizard Drawer ─────────────────────────────────────────────────────
 
 interface RGFormData {
-  cluster: string; name: string; usage: string; desc: string;
+  cluster: string; role: string; name: string; usage: string; desc: string;
   selectedNodes: string[]; authorizedUsers: string[];
 }
 
@@ -105,6 +107,7 @@ function RGWizard({ isEdit, initial, onClose, onDone }: RGWizardProps) {
 
   // Step 1
   const [cluster, setCluster]   = useState(initial?.clusterName ?? "");
+  const [role, setRole]         = useState(initial?.role ?? "管理员");
   const [name, setName]         = useState(initial?.name ?? "");
   const [usage, setUsage]       = useState(initial?.usage === "训练" ? "训练" : "推理");
   const [desc, setDesc]         = useState("");
@@ -135,7 +138,7 @@ function RGWizard({ isEdit, initial, onClose, onDone }: RGWizardProps) {
   };
 
   const handleFinish = () => {
-    onDone({ cluster: cluster || "h20-node1", name: name.trim(), usage, desc, selectedNodes: [...selNodes], authorizedUsers: [...authUsers] });
+    onDone({ cluster: cluster || "h20-node1", role, name: name.trim(), usage, desc, selectedNodes: [...selNodes], authorizedUsers: [...authUsers] });
     onClose();
   };
 
@@ -176,6 +179,17 @@ function RGWizard({ isEdit, initial, onClose, onDone }: RGWizardProps) {
                     {CLUSTERS.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                   {!isEdit && <ChevronDown size={13} color="#9ca3af" style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 13, color: "#374151", marginBottom: 6 }}>服务角色：</div>
+                <div style={{ position: "relative" }}>
+                  <select value={role} onChange={e => setRole(e.target.value)}
+                    style={{ ...inpSt, appearance: "none", paddingRight: 26, cursor: "pointer" }}>
+                    {RESOURCE_ROLES.map(item => <option key={item} value={item}>{item}</option>)}
+                  </select>
+                  <ChevronDown size={13} color="#9ca3af" style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
                 </div>
               </div>
 
@@ -376,6 +390,7 @@ function RGDetailPage({ rg, onBack }: { rg: RGRow; onBack: () => void }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px 24px" }}>
             {[
               { l: "资源组名称", v: rg.name },
+              { l: "服务角色",   v: rg.role || "自定义角色" },
               { l: "用途",       v: rg.usage },
               { l: "资源组状态", v: rg.status },
               { l: "GPU总数",    v: String(rg.gpuTotal) },
@@ -439,7 +454,7 @@ function RGDetailPage({ rg, onBack }: { rg: RGRow; onBack: () => void }) {
 // ─── Resource Group Data interface ────────────────────────────────────────────
 
 export interface RGRow {
-  id: number; name: string; usage: string; nodeCount: number;
+  id: number; name: string; role?: string; usage: string; nodeCount: number;
   gpuTotal: number; gpuUsed: number; status: string; createdAt: string;
   clusterName?: string; selectedNodes?: string[]; authorizedUserIds?: string[];
 }
@@ -545,9 +560,12 @@ export function NodeListPage() {
 // ─── Resource Group Page ──────────────────────────────────────────────────────
 
 const RG_INIT: RGRow[] = [
-  { id: 1, name: "推理组-A", usage: "推理", nodeCount: 2, gpuTotal: 16, gpuUsed: 8,  status: "正常", createdAt: "2026-06-24 10:00:00", clusterName: "h20-node1",       selectedNodes: ["n04","n05"], authorizedUserIds: ["u1"] },
-  { id: 2, name: "训练组-B", usage: "训练", nodeCount: 3, gpuTotal: 24, gpuUsed: 12, status: "正常", createdAt: "2026-06-20 14:30:00", clusterName: "a100-prod-cluster", selectedNodes: ["a01","a02"], authorizedUserIds: ["u2"] },
-  { id: 3, name: "公共组",   usage: "通用", nodeCount: 1, gpuTotal: 8,  gpuUsed: 0,  status: "正常", createdAt: "2026-05-10 09:00:00", clusterName: "h20-node1",       selectedNodes: [],           authorizedUserIds: [] },
+  { id: 1, name: "管理员推理资源组", role: "管理员", usage: "推理", nodeCount: 2, gpuTotal: 4, gpuUsed: 0, status: "可调度", createdAt: "2026-07-21 09:10:00", clusterName: "a100-prod-cluster", selectedNodes: ["a01"], authorizedUserIds: ["u4"] },
+  { id: 2, name: "普通用户训练资源组", role: "普通用户", usage: "训练", nodeCount: 1, gpuTotal: 2, gpuUsed: 2, status: "已占满", createdAt: "2026-07-18 11:30:00", clusterName: "h20-node1", selectedNodes: ["n03"], authorizedUserIds: ["u1"] },
+  { id: 3, name: "VIP推理资源组", role: "VIP", usage: "推理", nodeCount: 3, gpuTotal: 6, gpuUsed: 2, status: "可调度", createdAt: "2026-07-16 14:20:00", clusterName: "a100-prod-cluster", selectedNodes: ["a01", "a02"], authorizedUserIds: ["u2"] },
+  { id: 4, name: "独立机构训练资源组", role: "独立机构", usage: "训练", nodeCount: 2, gpuTotal: 32, gpuUsed: 22, status: "可调度", createdAt: "2026-07-12 10:40:00", clusterName: "a100-prod-cluster", selectedNodes: ["a01", "a02"], authorizedUserIds: ["u2", "u3"] },
+  { id: 5, name: "开发人员训练资源组", role: "开发人员", usage: "训练", nodeCount: 1, gpuTotal: 8, gpuUsed: 5, status: "可调度", createdAt: "2026-07-08 16:05:00", clusterName: "ascend-dev-cluster", selectedNodes: ["d01"], authorizedUserIds: ["u1", "u2", "u3"] },
+  { id: 6, name: "专项项目训练资源组", role: "自定义角色", usage: "训练", nodeCount: 1, gpuTotal: 4, gpuUsed: 0, status: "可调度", createdAt: "2026-07-02 09:45:00", clusterName: "a100-prod-cluster", selectedNodes: ["a02"], authorizedUserIds: ["u3"] },
 ];
 
 export function ResourceGroupPage() {
@@ -555,15 +573,20 @@ export function ResourceGroupPage() {
   const [nameI, setNameI]   = useState("");
   const [nameQ, setNameQ]   = useState("");
   const [clusterF, setClusterF] = useState("");
+  const [roleF, setRoleF] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [editRow, setEditRow]       = useState<RGRow | null>(null);
   const [detailRow, setDetailRow]   = useState<RGRow | null>(null);
 
   if (detailRow) return <RGDetailPage rg={detailRow} onBack={() => setDetailRow(null)} />;
 
-  const filtered = rows.filter(r => !nameQ || r.name.toLowerCase().includes(nameQ.toLowerCase()));
+  const filtered = rows.filter(r =>
+    (!nameQ || r.name.toLowerCase().includes(nameQ.toLowerCase())) &&
+    (!clusterF || r.clusterName === clusterF) &&
+    (!roleF || r.role === roleF)
+  );
   const doSearch = () => { setNameQ(nameI); };
-  const doReset  = () => { setNameI(""); setNameQ(""); setClusterF(""); };
+  const doReset  = () => { setNameI(""); setNameQ(""); setClusterF(""); setRoleF(""); };
 
   const handleDone = (data: RGFormData, existingId?: number) => {
     const nodes = ALL_NODES.filter(n => data.selectedNodes.includes(n.id));
@@ -571,9 +594,9 @@ export function ResourceGroupPage() {
     const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
     const ts  = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
     if (existingId) {
-      setRows(prev => prev.map(r => r.id === existingId ? { ...r, name: data.name, usage: data.usage, nodeCount: data.selectedNodes.length, gpuTotal: totalGpu, selectedNodes: data.selectedNodes, authorizedUserIds: data.authorizedUsers } : r));
+      setRows(prev => prev.map(r => r.id === existingId ? { ...r, name: data.name, role: data.role, usage: data.usage, nodeCount: data.selectedNodes.length, gpuTotal: totalGpu, selectedNodes: data.selectedNodes, authorizedUserIds: data.authorizedUsers } : r));
     } else {
-      setRows(prev => [...prev, { id: Date.now(), name: data.name, usage: data.usage, nodeCount: data.selectedNodes.length, gpuTotal: totalGpu, gpuUsed: 0, status: "正常", createdAt: ts, clusterName: data.cluster, selectedNodes: data.selectedNodes, authorizedUserIds: data.authorizedUsers }]);
+      setRows(prev => [...prev, { id: Date.now(), name: data.name, role: data.role, usage: data.usage, nodeCount: data.selectedNodes.length, gpuTotal: totalGpu, gpuUsed: 0, status: "可调度", createdAt: ts, clusterName: data.cluster, selectedNodes: data.selectedNodes, authorizedUserIds: data.authorizedUsers }]);
     }
   };
 
@@ -593,6 +616,7 @@ export function ResourceGroupPage() {
                 style={{ fontSize: 12.5, border: "none", outline: "none", width: 120, background: "transparent" }} />
             </div>
             <FilterDrop value={clusterF} onChange={setClusterF} opts={CLUSTERS} placeholder="投集群过滤" />
+            <FilterDrop value={roleF} onChange={setRoleF} opts={RESOURCE_ROLES} placeholder="服务角色" />
             <SearchBtn onClick={doSearch} />
             <button onClick={doReset} style={{ display: "flex", alignItems: "center", gap: 5, height: 32, padding: "0 13px", fontSize: 12.5, fontWeight: 500, color: "#374151", background: "#fff", border: "1px solid #e0e3ed", borderRadius: 6, cursor: "pointer" }}>
               <RotateCcw size={12} /> 重置
@@ -606,27 +630,32 @@ export function ResourceGroupPage() {
         <div className="flex-1 overflow-auto">
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr>{["资源组名称","用途","节点数","GPU总数","已用GPU","资源组状态","创建时间","操作"].map(c=><th key={c} style={thSt}>{c}</th>)}</tr>
+              <tr>{["资源组名称","来源集群","用途","服务角色","节点数","GPU","资源组状态","创建时间","操作"].map(c=><th key={c} style={thSt}>{c}</th>)}</tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", padding: "48px 0", color: "#9ca3af", fontSize: 13 }}>暂无数据</td></tr>
+                <tr><td colSpan={9} style={{ textAlign: "center", padding: "48px 0", color: "#9ca3af", fontSize: 13 }}>暂无数据</td></tr>
               ) : filtered.map(r => (
                 <tr key={r.id}
                   onMouseEnter={e => (e.currentTarget.style.background = "#fafbfd")}
                   onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
                   <td style={{ ...tdSt, fontWeight: 500, color: "#1a1d23" }}>{r.name}</td>
+                  <td style={tdSt}>{r.clusterName}</td>
                   <td style={tdSt}>{r.usage}</td>
+                  <td style={tdSt}>{r.role || "自定义角色"}</td>
                   <td style={tdSt}>
                     <div className="flex items-center gap-2">
                       <span>{r.nodeCount}</span>
                       <button onClick={() => setDetailRow(r)} style={{ fontSize: 12, color: "#4f6ef7", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500 }}>查看</button>
                     </div>
                   </td>
-                  <td style={tdSt}>{r.gpuTotal}</td>
-                  <td style={tdSt}>{r.gpuUsed}</td>
+                  <td style={tdSt}>{r.gpuUsed} / {r.gpuTotal}</td>
                   <td style={tdSt}>
-                    <span style={{ fontSize: 12, fontWeight: 500, padding: "2px 8px", borderRadius: 4, background: "#f0faf5", color: "#16a34a" }}>{r.status}</span>
+                    <span style={{
+                      fontSize: 12, fontWeight: 500, padding: "2px 8px", borderRadius: 4,
+                      background: r.status === "已占满" ? "#fff7ed" : "#f0faf5",
+                      color: r.status === "已占满" ? "#d97706" : "#16a34a",
+                    }}>{r.status}</span>
                   </td>
                   <td style={{ ...tdSt, color: "#6b7280", fontSize: 12, whiteSpace: "nowrap" }}>{r.createdAt}</td>
                   <td style={tdSt}>

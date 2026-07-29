@@ -26,13 +26,8 @@ import {
   TaskLogPage,
 } from "./components/SuperAdminPages";
 import {
-  AutoregressiveTrainingPage,
   TrainingAboutPage,
-  TrainingAlertCenterPage,
-  TrainingDataWorkbenchPage,
   TrainingDocsPage,
-  TrainingModelLibraryPage,
-  TrainingTaskManagementPage,
 } from "./components/AutoregressiveTraining";
 import { INITIAL_DEPLOYMENTS, INITIAL_INSTANCES, INITIAL_MODELS } from "./model-management/data";
 import type { DeploymentRecord, ModelInstanceRecord, ModelRecord } from "./model-management/types";
@@ -40,7 +35,7 @@ import {
   Store, FlaskConical, BrainCircuit, ClipboardCheck, Layers,
   Users, Building2, BarChart3, Server, ChevronDown, ChevronRight,
   ChevronLeft, Cpu, UserCircle, Search, Plus, RefreshCw,
-  Check, ChevronUp, Info, CheckCircle2, Circle, Upload, Bell, BookOpen, ListTodo, RotateCcw, FileText, ShieldCheck,
+  Check, ChevronUp, Info, CheckCircle2, Circle, Upload, BookOpen, RotateCcw, FileText, ShieldCheck,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -61,13 +56,6 @@ const menuData: MenuItem[] = [
       { label: "模型训练", key: "training-task" },
       { label: "训练数据", key: "training-data" },
       { label: "我的模型", key: "my-model", highlight: true },
-    ],
-  },
-  {
-    label: "任务管理", key: "training-operations", icon: <ListTodo size={16} />,
-    children: [
-      { label: "训练任务", key: "task-management" },
-      { label: "告警中心", key: "training-alerts" },
     ],
   },
   {
@@ -2071,7 +2059,6 @@ export default function App() {
   const [evalTaskName, setEvalTaskName] = useState("");
   const [myModelFilter, setMyModelFilter] = useState<string | null>(null);
   const [deletedModelAlert, setDeletedModelAlert] = useState<string | null>(null);
-  const legacyView = new URLSearchParams(window.location.search).get("legacy");
 
   useEffect(() => {
     const requestedPage = new URLSearchParams(window.location.search).get("page");
@@ -2113,10 +2100,6 @@ export default function App() {
             )}
           </div>
           <div className="flex items-center gap-3">
-            {!legacyView && <button type="button" aria-label="打开训练告警" onClick={() => handleMenuSelect("training-alerts")} style={{ position: "relative", width: 32, height: 32, display: "grid", placeItems: "center", border: "1px solid #e4e8ef", borderRadius: 8, background: "#fff", color: "#667085", cursor: "pointer" }}>
-              <Bell size={16} />
-              <span style={{ position: "absolute", right: 5, top: 5, width: 7, height: 7, borderRadius: 99, background: "#ef4444", boxShadow: "0 0 0 2px #fff" }} />
-            </button>}
             <span style={{ color: "#98a2b3", fontSize: 12 }}>MaaS 3.6</span>
           </div>
         </header>
@@ -2162,10 +2145,6 @@ export default function App() {
               setDeployPrefillModelId(model.id);
               handleMenuSelect("model-deploy");
             }} />
-          ) : activeMenu === "task-management" ? (
-            <TrainingTaskManagementPage />
-          ) : activeMenu === "training-alerts" ? (
-            <TrainingAlertCenterPage />
           ) : activeMenu === "training-docs" ? (
             <TrainingDocsPage />
           ) : activeMenu === "training-about" ? (

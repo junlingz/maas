@@ -11,7 +11,6 @@ import { AuditEventsPage } from "./components/AuditEvents";
 import { ModelRoutingPage } from "./components/ModelRouting";
 import { EvaluationConfigPage, ModelComparePage, ModelEvaluationPage } from "./components/ModelEvaluation";
 import { EvaluationDataPage } from "./components/EvaluationData";
-import { ResourcePermissionPage } from "./components/ResourcePermission";
 import { ModelDeploymentPage } from "./components/ModelDeployment";
 import { ClusterListPage } from "./components/ClusterList";
 import { NodeListPage, ResourceGroupPage } from "./components/NodeResourceGroup";
@@ -33,7 +32,7 @@ import { INITIAL_DEPLOYMENTS, INITIAL_INSTANCES, INITIAL_MODELS } from "./model-
 import type { DeploymentRecord, ModelInstanceRecord, ModelRecord } from "./model-management/types";
 import {
   Store, FlaskConical, BrainCircuit, ClipboardCheck, Layers,
-  Users, Building2, BarChart3, Server, ChevronDown, ChevronRight,
+  Users, BarChart3, Server, ChevronDown, ChevronRight,
   ChevronLeft, Cpu, UserCircle, Search, Plus, RefreshCw,
   Check, ChevronUp, Info, CheckCircle2, Circle, Upload, BookOpen, RotateCcw, FileText, ShieldCheck,
 } from "lucide-react";
@@ -81,13 +80,6 @@ const menuData: MenuItem[] = [
       { label: "用户账号", key: "user-account" },
       { label: "角色权限", key: "user-role" },
       { label: "团队管理", key: "team-management" },
-    ],
-  },
-  {
-    label: "空间管理", key: "space-management", icon: <Building2 size={16} />,
-    children: [
-      { label: "工作空间", key: "workspace" },
-      { label: "空间成员", key: "space-member" },
     ],
   },
   {
@@ -2191,8 +2183,6 @@ export default function App() {
             <ModelComparePage />
           ) : activeMenu === "evaluation-config" ? (
             <EvaluationConfigPage />
-          ) : activeMenu === "workspace" ? (
-            <ResourcePermissionPage />
           ) : activeMenu === "user-role" ? (
             <UserRolePage />
           ) : activeMenu === "team-management" ? (

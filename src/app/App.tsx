@@ -2115,6 +2115,24 @@ export default function App() {
             )}
           </div>
           <div className="flex items-center gap-3">
+            <a
+              href="/super-admin.html"
+              style={{
+                height: 32,
+                padding: "0 12px",
+                display: "inline-flex",
+                alignItems: "center",
+                border: "1px solid #dbe4ff",
+                borderRadius: 8,
+                background: "#f5f7ff",
+                color: "#4f6ef7",
+                fontSize: 12.5,
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
+              超级管理员
+            </a>
             {!legacyView && <button type="button" aria-label="打开训练告警" onClick={() => handleMenuSelect("training-alerts")} style={{ position: "relative", width: 32, height: 32, display: "grid", placeItems: "center", border: "1px solid #e4e8ef", borderRadius: 8, background: "#fff", color: "#667085", cursor: "pointer" }}>
               <Bell size={16} />
               <span style={{ position: "absolute", right: 5, top: 5, width: 7, height: 7, borderRadius: 99, background: "#ef4444", boxShadow: "0 0 0 2px #fff" }} />

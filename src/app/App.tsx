@@ -40,7 +40,7 @@ import {
   Store, FlaskConical, BrainCircuit, ClipboardCheck, Layers,
   Users, Building2, BarChart3, Server, ChevronDown, ChevronRight,
   ChevronLeft, Cpu, UserCircle, Search, Plus, RefreshCw,
-  Check, ChevronUp, Info, CheckCircle2, Circle, Upload, Bell, BookOpen, ListTodo, RotateCcw, ShieldCheck,
+  Check, ChevronUp, Info, CheckCircle2, Circle, Upload, Bell, BookOpen, ListTodo, RotateCcw, FileText, ShieldCheck,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -1674,6 +1674,7 @@ interface DatasetRow {
   status: "已校验" | "校验失败" | "待校验"; creator: string; team: string; updatedAt: string;
   visibility: Visibility;
   scope: "public" | "mine" | "platform";
+  desc?: string;
   failDetail?: { errorType: string; summary: string; details: string; logid: string; timestamp: string };
 }
 
@@ -1850,6 +1851,7 @@ function TrainingDataPage() {
   const [activeTab, setActiveTab] = useState<"public" | "mine" | "platform">("public");
   const [teamFilter, setTeamFilter] = useState("");
   const [permEditId, setPermEditId] = useState<number | null>(null);
+  const [editId, setEditId] = useState<number | null>(null);
 
   const filtered = datasets.filter(d => {
     if (d.scope !== activeTab) return false;
@@ -1880,6 +1882,12 @@ function TrainingDataPage() {
   const handleDelete = (id: number) => {
     setDatasets(prev => prev.filter(d => d.id !== id));
   };
+
+  const handleEdit = (id: number, form: CreateDatasetForm) => {
+    setDatasets(prev => prev.map(d => d.id === id ? { ...d, name: form.name, desc: form.desc, type: form.type } : d));
+    setEditId(null);
+  };
+
 
   const handlePermUpdate = (id: number, vis: Visibility) => {
     setDatasets(prev => prev.map(d => d.id === id ? { ...d, visibility: vis } : d));
@@ -2037,7 +2045,7 @@ function TrainingDataPage() {
                       <td style={{ padding: "12px 14px", color: "#6b7280", fontSize: 12, whiteSpace: "nowrap" }}>{row.updatedAt}</td>
                       <td style={{ padding: "12px 14px" }}>
                         <div className="flex items-center gap-3">
-                          <button style={{ fontSize: 12.5, color: "#4f6ef7", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500 }}
+                          <button onClick={() => setEditId(row.id)} style={{ fontSize: 12.5, color: "#4f6ef7", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500 }}
                             onMouseEnter={e => (e.currentTarget.style.color = "#3b5de8")}
                             onMouseLeave={e => (e.currentTarget.style.color = "#4f6ef7")}>编辑</button>
                           <button onClick={() => handleDelete(row.id)} style={{ fontSize: 12.5, color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500 }}
@@ -2088,6 +2096,18 @@ function TrainingDataPage() {
       {showModal && (
         <CreateDatasetModal onClose={() => setShowModal(false)} onConfirm={handleCreate} />
       )}
+
+      {editId !== null && (() => {
+        const row = datasets.find(d => d.id === editId);
+        if (!row) return null;
+        return (
+          <EditDatasetDrawer
+            row={row}
+            onClose={() => setEditId(null)}
+            onConfirm={(form) => handleEdit(row.id, form)}
+          />
+        );
+      })()}
 
       {permEditId !== null && (() => {
         const row = datasets.find(d => d.id === permEditId);
@@ -2147,6 +2167,132 @@ function PermEditModal({ datasetName, current, options, onClose, onConfirm }: {
         <div className="flex items-center justify-end gap-2 flex-shrink-0" style={{ padding: "12px 24px", borderTop: "1px solid #f0f2f7" }}>
           <button onClick={onClose} style={{ fontSize: 13, fontWeight: 500, color: "#374151", background: "#fff", border: "1px solid #e0e3ed", borderRadius: 6, padding: "7px 20px", cursor: "pointer" }}>取消</button>
           <button onClick={() => onConfirm(selected)} style={{ fontSize: 13, fontWeight: 500, color: "#fff", background: "#4f6ef7", border: "none", borderRadius: 6, padding: "7px 20px", cursor: "pointer" }}>确定</button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+const typeHint: Record<string, string> = {
+  CPT: "用于继续预训练",
+  SFT: "用于问答任务",
+  RL: "用于强化学习",
+  Eval: "用于模型评估",
+};
+
+function EditDatasetDrawer({ row, onClose, onConfirm }: {
+  row: DatasetRow; onClose: () => void; onConfirm: (data: CreateDatasetForm) => void;
+}) {
+  const [form, setForm] = useState<CreateDatasetForm>({ name: row.name, desc: row.desc ?? "", type: row.type });
+  const setField = (k: keyof CreateDatasetForm, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+
+  const inputCls: React.CSSProperties = {
+    width: "100%", height: 34, padding: "0 10px", fontSize: 13,
+    border: "1px solid #e0e3ed", borderRadius: 6, outline: "none",
+    color: "#1a1d23", background: "#fff", boxSizing: "border-box",
+  };
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 100 }} />
+      <div style={{
+        position: "fixed", top: "50%", right: 0, transform: "translateY(-50%)",
+        width: 400, background: "#fff", zIndex: 101,
+        borderRadius: "12px 0 0 12px", boxShadow: "-8px 0 32px rgba(0,0,0,0.12)",
+        display: "flex", flexDirection: "column", maxHeight: "90vh",
+      }}>
+        {/* Header */}
+        <div className="flex items-center justify-between flex-shrink-0" style={{ padding: "18px 20px 14px", borderBottom: "1px solid #f0f2f7" }}>
+          <span style={{ fontSize: 15, fontWeight: 600, color: "#1a1d23" }}>编辑数据集</span>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", padding: 2, lineHeight: 1 }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-auto" style={{ padding: "20px 20px" }}>
+          {/* 数据集名称 */}
+          <div style={{ marginBottom: 16 }}>
+            <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>
+                <span style={{ color: "#ef4444", marginRight: 2 }}>*</span>数据集名称
+              </span>
+              <span style={{ fontSize: 11, color: "#9ca3af" }}>{form.name.length}/32</span>
+            </div>
+            <input
+              value={form.name} onChange={e => setField("name", e.target.value.slice(0, 32))}
+              placeholder="请输入数据集名称"
+              style={inputCls}
+            />
+          </div>
+
+          {/* 数据集简介 */}
+          <div style={{ marginBottom: 16 }}>
+            <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>数据集简介</span>
+              <span style={{ fontSize: 11, color: "#9ca3af" }}>{form.desc.length}/1024</span>
+            </div>
+            <textarea
+              value={form.desc} onChange={e => setField("desc", e.target.value.slice(0, 1024))}
+              placeholder="请输入数据集简介（选填）"
+              style={{ ...inputCls, height: 70, padding: "8px 10px", resize: "none", lineHeight: 1.5 }}
+            />
+          </div>
+
+          {/* 类型 */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 8 }}>类型</div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {(["CPT", "SFT", "RL", "Eval"] as const).map(t => (
+                <button
+                  key={t}
+                  onClick={() => setField("type", t)}
+                  style={{
+                    fontSize: 13, fontWeight: 500,
+                    padding: "5px 16px", borderRadius: 6,
+                    border: `1px solid ${form.type === t ? "#4f6ef7" : "#e0e3ed"}`,
+                    background: form.type === t ? "#eff4ff" : "#fff",
+                    color: form.type === t ? "#4f6ef7" : "#6b7280",
+                    cursor: "pointer", transition: "all 0.15s",
+                  }}
+                >{t}</button>
+              ))}
+            </div>
+            {typeHint[form.type] && <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 6 }}>{typeHint[form.type]}</div>}
+          </div>
+
+          {/* 数据文件 (readonly) */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}>数据文件</div>
+            <div className="flex items-center gap-2" style={{ ...inputCls, background: "#f5f7fa", cursor: "default" }}>
+              <FileText size={14} color="#4f6ef7" />
+              <span style={{ fontSize: 13, color: "#374151" }}>{row.name}.jsonl</span>
+              <span style={{ fontSize: 11, color: "#9ca3af", marginLeft: "auto" }}>{row.count}</span>
+            </div>
+            <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>数据文件不可修改，如需更换请新建数据集</div>
+          </div>
+
+          {/* 模态 (readonly) */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}>模态</div>
+            <input value={row.modality} readOnly style={{ ...inputCls, background: "#f5f7fa", color: "#9ca3af", cursor: "default" }} />
+            <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>由系统根据上传的数据集自动判定校验模态类型</div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 flex-shrink-0" style={{ padding: "14px 20px", borderTop: "1px solid #f0f2f7" }}>
+          <button onClick={onClose} style={{ fontSize: 13, fontWeight: 500, color: "#374151", background: "#fff", border: "1px solid #e0e3ed", borderRadius: 6, padding: "7px 20px", cursor: "pointer" }}>
+            取消
+          </button>
+          <button
+            onClick={() => { if (form.name.trim()) { onConfirm(form); } }}
+            style={{ fontSize: 13, fontWeight: 500, color: "#fff", background: "#4f6ef7", border: "none", borderRadius: 6, padding: "7px 20px", cursor: "pointer" }}
+          >
+            保存
+          </button>
         </div>
       </div>
     </>

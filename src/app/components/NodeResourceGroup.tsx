@@ -612,10 +612,10 @@ export function ResourceGroupPage() {
         <div className="flex items-center justify-between flex-shrink-0 flex-wrap gap-2" style={{ padding: "12px 14px", borderBottom: "1px solid #f0f2f7" }}>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center rounded-md" style={{ border: "1px solid #e0e3ed", height: 32, padding: "0 9px", background: "#fff" }}>
-              <input type="text" placeholder="名称搜索" value={nameI} onChange={e => setNameI(e.target.value)} onKeyDown={e => e.key === "Enter" && doSearch()}
+              <input type="text" placeholder="搜索资源组名称" value={nameI} onChange={e => setNameI(e.target.value)} onKeyDown={e => e.key === "Enter" && doSearch()}
                 style={{ fontSize: 12.5, border: "none", outline: "none", width: 120, background: "transparent" }} />
             </div>
-            <FilterDrop value={clusterF} onChange={setClusterF} opts={CLUSTERS} placeholder="投集群过滤" />
+            <FilterDrop value={clusterF} onChange={setClusterF} opts={CLUSTERS} placeholder="来源集群" />
             <FilterDrop value={roleF} onChange={setRoleF} opts={RESOURCE_ROLES} placeholder="服务角色" />
             <SearchBtn onClick={doSearch} />
             <button onClick={doReset} style={{ display: "flex", alignItems: "center", gap: 5, height: 32, padding: "0 13px", fontSize: 12.5, fontWeight: 500, color: "#374151", background: "#fff", border: "1px solid #e0e3ed", borderRadius: 6, cursor: "pointer" }}>
@@ -624,17 +624,17 @@ export function ResourceGroupPage() {
           </div>
           <button onClick={() => setShowCreate(true)} style={{ display: "flex", alignItems: "center", gap: 5, height: 32, padding: "0 14px", fontSize: 12.5, fontWeight: 500, color: "#fff", background: "#4f6ef7", border: "none", borderRadius: 6, cursor: "pointer" }}
             onMouseEnter={e => (e.currentTarget.style.background = "#3b5de8")} onMouseLeave={e => (e.currentTarget.style.background = "#4f6ef7")}>
-            <Plus size={13} /> 创建资源组
+            <Plus size={13} /> 新增资源组
           </button>
         </div>
         <div className="flex-1 overflow-auto">
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr>{["资源组名称","来源集群","用途","服务角色","节点数","GPU","资源组状态","创建时间","操作"].map(c=><th key={c} style={thSt}>{c}</th>)}</tr>
+              <tr>{["资源组","来源集群","用途","服务角色","节点数","GPU","状态","操作"].map(c=><th key={c} style={thSt}>{c}</th>)}</tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: "center", padding: "48px 0", color: "#9ca3af", fontSize: 13 }}>暂无数据</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: "center", padding: "48px 0", color: "#9ca3af", fontSize: 13 }}>暂无数据</td></tr>
               ) : filtered.map(r => (
                 <tr key={r.id}
                   onMouseEnter={e => (e.currentTarget.style.background = "#fafbfd")}
@@ -657,7 +657,6 @@ export function ResourceGroupPage() {
                       color: r.status === "已占满" ? "#d97706" : "#16a34a",
                     }}>{r.status}</span>
                   </td>
-                  <td style={{ ...tdSt, color: "#6b7280", fontSize: 12, whiteSpace: "nowrap" }}>{r.createdAt}</td>
                   <td style={tdSt}>
                     <div className="flex items-center gap-2">
                       <button onClick={() => setDetailRow(r)} style={{ fontSize: 12, color: "#4f6ef7", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500 }}>查看</button>

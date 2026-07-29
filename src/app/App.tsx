@@ -50,9 +50,8 @@ const menuData: MenuItem[] = [
   {
     label: "模型训练", key: "model-training", icon: <BrainCircuit size={16} />,
     children: [
-      { label: "预训练任务", key: "training-task" },
+      { label: "模型训练", key: "training-task" },
       { label: "训练数据", key: "training-data" },
-      { label: "训练模型库", key: "training-model-library" },
       { label: "我的模型", key: "my-model", highlight: true },
     ],
   },
@@ -123,31 +122,31 @@ const menuData: MenuItem[] = [
 
 // ─── Training Task List ───────────────────────────────────────────────────────
 
-type TrainingStatus = "训练成功" | "已完成" | "训练中" | "训练失败" | "";
+type TrainingStatus = "已完成" | "训练中" | "已失败" | "";
 
 interface TrainingRow {
-  id: number; name: string; outputModel: string; type: string;
+  id: number; name: string; outputModel: string; type: "继续预训练" | "监督微调";
   status: TrainingStatus; taskId: string; baseModel: string; creator: string; actions: string[];
+  outputModelDeleted?: boolean;
 }
 
 const trainingRows: TrainingRow[] = [
-  { id: 1, name: "天文资料搜索", outputModel: "某某模型", type: "微调模型", status: "训练成功", taskId: "12345234543", baseModel: "ddfhpad-0321", creator: "张小明", actions: ["删除任务", "查看报告", "评估报告"] },
-  { id: 2, name: "公文写作模型", outputModel: "某某模型", type: "微调模型", status: "", taskId: "76840646", baseModel: "ddfhpad-0321", creator: "张小明", actions: ["删除任务", "查看报告"] },
-  { id: 3, name: "天气变化预报", outputModel: "某某模型", type: "微调模型", status: "已完成", taskId: "34536448457", baseModel: "ddfhpad-0321", creator: "张小明", actions: ["删除任务", "查看报告", "评估报告"] },
-  { id: 4, name: "天文资料搜索", outputModel: "某某模型", type: "微调模型", status: "训练中", taskId: "346903543", baseModel: "ddfhpad-0321", creator: "张小明", actions: ["删除任务", "查看报告", "停止任务"] },
-  { id: 5, name: "公文写作模型", outputModel: "某某模型", type: "微调模型", status: "", taskId: "3461458868", baseModel: "ddfhpad-0321", creator: "张小明", actions: ["删除任务", "查看报告"] },
-  { id: 6, name: "天气变化预报", outputModel: "某某模型", type: "微调模型", status: "训练成功", taskId: "34634875987", baseModel: "ddfhpad-0321", creator: "张小明", actions: ["删除任务", "查看报告", "评估报告"] },
-  { id: 7, name: "天文资料搜索", outputModel: "某某模型", type: "微调模型", status: "", taskId: "32750657145", baseModel: "ddfhpad-0321", creator: "张小明", actions: ["删除任务", "查看报告"] },
-  { id: 8, name: "公文写作模型", outputModel: "某某模型", type: "微调模型", status: "训练失败", taskId: "096764453", baseModel: "ddfhpad-0321", creator: "张小明", actions: ["删除任务", "查看报告", "重新训练"] },
-  { id: 9, name: "天气变化预报", outputModel: "某某模型", type: "微调模型", status: "训练成功", taskId: "406678753", baseModel: "ddfhpad-0321", creator: "张小明", actions: ["删除任务", "查看报告", "评估报告"] },
+  { id: 1, name: "07061449", outputModel: "我的模型11", type: "继续预训练", status: "已完成", taskId: "12345234543", baseModel: "GLM-4-9B", creator: "张小明", actions: ["删除任务", "查看报告", "评估报告"] },
+  { id: 2, name: "公文写作模型", outputModel: "公文写作-v1", type: "监督微调", status: "训练中", taskId: "76840646", baseModel: "GLM-4-9B", creator: "张小明", actions: ["删除任务", "查看报告", "停止任务"] },
+  { id: 3, name: "天气变化预报", outputModel: "天气预报模型", type: "监督微调", status: "已完成", taskId: "34536448457", baseModel: "ChatGLM3-6B", creator: "张小明", actions: ["删除任务", "查看报告", "评估报告"] },
+  { id: 4, name: "天文资料搜索", outputModel: "天文搜索模型", type: "继续预训练", status: "已失败", taskId: "346903543", baseModel: "GLM-4-9B", creator: "张小明", actions: ["删除任务", "查看报告", "重新训练"] },
+  { id: 5, name: "公文写作模型", outputModel: "公文写作-v2", type: "监督微调", status: "已完成", taskId: "3461458868", baseModel: "GLM-4-9B", creator: "张小明", actions: ["删除任务", "查看报告", "评估报告"], outputModelDeleted: true },
+  { id: 6, name: "天气变化预报", outputModel: "天气预报模型", type: "监督微调", status: "训练中", taskId: "34634875987", baseModel: "ChatGLM3-6B", creator: "张小明", actions: ["删除任务", "查看报告", "停止任务"] },
+  { id: 7, name: "天文资料搜索", outputModel: "天文搜索模型", type: "继续预训练", status: "已完成", taskId: "32750657145", baseModel: "GLM-4-9B", creator: "张小明", actions: ["删除任务", "查看报告", "评估报告"] },
+  { id: 8, name: "公文写作模型", outputModel: "公文写作-v3", type: "监督微调", status: "已失败", taskId: "096764453", baseModel: "GLM-4-9B", creator: "张小明", actions: ["删除任务", "查看报告", "重新训练"] },
+  { id: 9, name: "天气变化预报", outputModel: "天气预报模型", type: "监督微调", status: "已完成", taskId: "406678753", baseModel: "ChatGLM3-6B", creator: "张小明", actions: ["删除任务", "查看报告", "评估报告"] },
 ];
 
 const statusCfg: Record<TrainingStatus, { bg: string; text: string; dot: string }> = {
-  "训练成功": { bg: "#f0faf5", text: "#16a34a", dot: "#22c55e" },
-  "已完成":   { bg: "#f0faf5", text: "#16a34a", dot: "#22c55e" },
-  "训练中":   { bg: "#eff6ff", text: "#2563eb", dot: "#3b82f6" },
-  "训练失败": { bg: "#fef2f2", text: "#dc2626", dot: "#ef4444" },
-  "":         { bg: "transparent", text: "#9ca3af", dot: "transparent" },
+  "已完成": { bg: "#f0faf5", text: "#16a34a", dot: "#22c55e" },
+  "训练中": { bg: "#eff6ff", text: "#2563eb", dot: "#3b82f6" },
+  "已失败": { bg: "#fef2f2", text: "#dc2626", dot: "#ef4444" },
+  "":       { bg: "transparent", text: "#9ca3af", dot: "transparent" },
 };
 
 function StatusBadge({ status }: { status: TrainingStatus }) {
@@ -169,8 +168,7 @@ function actionStyle(a: string) {
     : { color: "#4f6ef7", hover: "#3b5de8" };
 }
 
-function TrainingTaskList({ onCreate, onEvalReport }: { onCreate: () => void; onEvalReport: (name: string) => void }) {
-  const [subTab, setSubTab] = useState<"task" | "data">("task");
+function TrainingTaskList({ onCreate, onEvalReport, onJumpToMyModel }: { onCreate: () => void; onEvalReport: (name: string) => void; onJumpToMyModel: (outputModel: string, deleted: boolean) => void }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -183,12 +181,7 @@ function TrainingTaskList({ onCreate, onEvalReport }: { onCreate: () => void; on
       <div className="flex items-center gap-1.5 flex-shrink-0" style={{ padding: "14px 24px 0", fontSize: 13, color: "#6b7280" }}>
         <span style={{ color: "#4f6ef7", cursor: "pointer" }}>模型训练</span>
         <ChevronRight size={13} />
-        <span style={{ color: "#1a1d23", fontWeight: 500 }}>训练任务</span>
-      </div>
-      <div className="flex items-center flex-shrink-0" style={{ padding: "12px 24px 0" }}>
-        {(["task", "data"] as const).map((t, i) => (
-          null
-        ))}
+        <span style={{ color: "#1a1d23", fontWeight: 500 }}>模型训练</span>
       </div>
       <div className="flex-1 flex flex-col min-h-0 rounded-xl" style={{ margin: "14px 24px 24px", background: "#fff", border: "1px solid #e8ebf2" }}>
         <div className="flex items-center justify-between flex-shrink-0" style={{ padding: "14px 16px", borderBottom: "1px solid #f0f2f7" }}>
@@ -197,9 +190,9 @@ function TrainingTaskList({ onCreate, onEvalReport }: { onCreate: () => void; on
               fontSize: 13, color: typeFilter ? "#1a1d23" : "#9ca3af", padding: "5px 10px",
               border: "1px solid #e0e3ed", borderRadius: 6, background: "#fff", outline: "none", height: 32,
             }}>
-              <option value="">请选择</option>
-              <option value="微调模型">微调模型</option>
-              <option value="预训练">预训练</option>
+              <option value="">任务类型</option>
+              <option value="继续预训练">继续预训练</option>
+              <option value="监督微调">监督微调</option>
             </select>
             <div className="flex items-center rounded-md" style={{ border: "1px solid #e0e3ed", padding: "0 10px", height: 32 }}>
               <input type="text" placeholder="请输入任务名搜索" value={search} onChange={e => setSearch(e.target.value)}
@@ -223,12 +216,23 @@ function TrainingTaskList({ onCreate, onEvalReport }: { onCreate: () => void; on
               </tr>
             </thead>
             <tbody>
-              {trainingRows.map(row => (
+              {trainingRows.map(row => {
+                const jumpable = row.status === "已完成" && !!row.outputModel;
+                return (
                 <tr key={row.id} style={{ borderBottom: "1px solid #f5f7fa" }}
                   onMouseEnter={e => (e.currentTarget.style.background = "#fafbfd")}
                   onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
                   <td style={{ padding: "11px 14px", color: "#1a1d23", fontWeight: 500 }}>{row.name}</td>
-                  <td style={{ padding: "11px 14px", color: "#374151" }}>{row.outputModel}</td>
+                  <td style={{ padding: "11px 14px" }}>
+                    {jumpable ? (
+                      <span style={{ color: "#4f6ef7", cursor: "pointer", fontWeight: 500 }}
+                        onClick={() => onJumpToMyModel(row.outputModel, !!row.outputModelDeleted)}
+                        onMouseEnter={e => (e.currentTarget.style.textDecoration = "underline")}
+                        onMouseLeave={e => (e.currentTarget.style.textDecoration = "none")}>{row.outputModel}</span>
+                    ) : (
+                      <span style={{ color: "#374151" }}>{row.outputModel}</span>
+                    )}
+                  </td>
                   <td style={{ padding: "11px 14px" }}>
                     <span style={{ fontSize: 12, padding: "2px 8px", background: "#eff4ff", color: "#4f6ef7", fontWeight: 500, borderRadius: 4 }}>{row.type}</span>
                   </td>
@@ -251,7 +255,8 @@ function TrainingTaskList({ onCreate, onEvalReport }: { onCreate: () => void; on
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -1635,11 +1640,12 @@ function EvaluationReportPage({ taskName, onBack }: { taskName: string; onBack: 
 interface DatasetRow {
   id: number; name: string; type: "CPT" | "SFT" | "RL" | "Eval"; modality: "-" | "文本" | "图文对"; count: string;
   status: "已校验" | "校验失败" | "待校验"; creator: string; space: string; updatedAt: string;
+  failDetail?: { errorType: string; summary: string; details: string; logid: string; timestamp: string };
 }
 
 const defaultDatasets: DatasetRow[] = [
-  { id: 1, name: "科技情报语料库", type: "CPT", modality: "文本", count: "500万行", status: "校验失败", creator: "张小明", space: "建名企业uc001", updatedAt: "2026-07-10 16:45:24" },
-  { id: 2, name: "医学图文数据集", type: "SFT", modality: "图文对", count: "10万行", status: "校验失败", creator: "张小明", space: "建名企业uc001", updatedAt: "2026-07-09 14:20:10" },
+  { id: 1, name: "科技情报语料库", type: "CPT", modality: "文本", count: "500万行", status: "校验失败", creator: "张小明", space: "建名企业uc001", updatedAt: "2026-07-10 16:45:24", failDetail: { errorType: "images_missed", summary: "训练数据集校验未通过，请检查数据格式与内容", details: "errorMessage: images_missed at rows [1, 2, 3, 4, 5]", logid: "3107607c-a2e8-4d77-881d-beee42e40f80", timestamp: "2026-07-10T16:45:24.846730" } },
+  { id: 2, name: "医学图文数据集", type: "SFT", modality: "图文对", count: "10万行", status: "校验失败", creator: "张小明", space: "建名企业uc001", updatedAt: "2026-07-09 14:20:10", failDetail: { errorType: "format_invalid", summary: "训练数据集校验未通过，请检查数据格式与内容", details: "errorMessage: instruction field is empty at rows [12, 34]", logid: "5b2c9f10-d73a-4e1c-b6f8-2a1e09c44d71", timestamp: "2026-07-09T14:20:10.502118" } },
   { id: 3, name: "jsonl_demo", type: "SFT", modality: "文本", count: "1200行", status: "已校验", creator: "张小明", space: "建名企业uc001", updatedAt: "2026-07-08 10:30:00" },
   { id: 4, name: "dpo_6_15", type: "RL", modality: "文本", count: "800行", status: "已校验", creator: "张小明", space: "建名企业uc001", updatedAt: "2026-06-15 09:15:30" },
   { id: 5, name: "eval_test_set", type: "Eval", modality: "文本", count: "300行", status: "待校验", creator: "张小明", space: "建名企业uc001", updatedAt: "2026-07-11 11:00:00" },
@@ -1793,6 +1799,7 @@ function TrainingDataPage() {
   const [showModal, setShowModal] = useState(false);
   const [page, setPage] = useState(1);
   const [goPage, setGoPage] = useState("");
+  const [failDetailId, setFailDetailId] = useState<number | null>(null);
 
   const filtered = datasets.filter(d =>
     !search || d.name.toLowerCase().includes(search.toLowerCase())
@@ -1824,8 +1831,6 @@ function TrainingDataPage() {
       <div className="flex flex-col h-full" style={{ background: "#f5f7fa" }}>
         {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 flex-shrink-0" style={{ padding: "14px 24px 0", fontSize: 13, color: "#6b7280" }}>
-          <span style={{ color: "#4f6ef7" }}>首页</span>
-          <ChevronRight size={13} />
           <span style={{ color: "#4f6ef7" }}>模型训练</span>
           <ChevronRight size={13} />
           <span style={{ color: "#1a1d23", fontWeight: 500 }}>训练数据</span>
@@ -1889,9 +1894,32 @@ function TrainingDataPage() {
                       <td style={{ padding: "12px 14px", color: "#374151" }}>{row.modality}</td>
                       <td style={{ padding: "12px 14px", color: "#374151" }}>{row.count}</td>
                       <td style={{ padding: "12px 14px" }}>
-                        <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5" style={{ background: sc.bg, fontSize: 12 }}>
-                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: sc.dot, display: "inline-block", flexShrink: 0 }} />
-                          <span style={{ color: sc.text, fontWeight: 500 }}>{row.status}</span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5" style={{ background: sc.bg, fontSize: 12 }}>
+                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: sc.dot, display: "inline-block", flexShrink: 0 }} />
+                            <span style={{ color: sc.text, fontWeight: 500 }}>{row.status}</span>
+                          </span>
+                          {row.status === "校验失败" && row.failDetail && (
+                            <span style={{ position: "relative" }}>
+                              <button
+                                onClick={() => setFailDetailId(failDetailId === row.id ? null : row.id)}
+                                style={{ width: 16, height: 16, borderRadius: "50%", border: "none", background: "#ef4444", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, lineHeight: 1 }}
+                                title="查看校验失败详情">!</button>
+                              {failDetailId === row.id && (
+                                <div style={{ position: "absolute", top: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", width: 340, background: "#fff", border: "1px solid #e0e3ed", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 50, overflow: "hidden" }}>
+                                  <div style={{ padding: "10px 14px", background: "#fef2f2", borderBottom: "1px solid #fee2e2" }}>
+                                    <div style={{ fontSize: 12.5, fontWeight: 600, color: "#dc2626" }}>{row.failDetail.summary}</div>
+                                  </div>
+                                  <div style={{ padding: "12px 14px", fontSize: 12, color: "#374151", lineHeight: 1.7 }}>
+                                    <div className="flex items-start gap-2"><span style={{ color: "#9ca3af", width: 56, flexShrink: 0 }}>errorType</span><span style={{ fontFamily: "monospace" }}>{row.failDetail.errorType}</span></div>
+                                    <div className="flex items-start gap-2"><span style={{ color: "#9ca3af", width: 56, flexShrink: 0 }}>details</span><span style={{ fontFamily: "monospace" }}>{row.failDetail.details}</span></div>
+                                    <div className="flex items-start gap-2"><span style={{ color: "#9ca3af", width: 56, flexShrink: 0 }}>logid</span><span style={{ fontFamily: "monospace", wordBreak: "break-all" }}>{row.failDetail.logid}</span></div>
+                                    <div className="flex items-start gap-2"><span style={{ color: "#9ca3af", width: 56, flexShrink: 0 }}>timestamp</span><span style={{ fontFamily: "monospace" }}>{row.failDetail.timestamp}</span></div>
+                                  </div>
+                                </div>
+                              )}
+                            </span>
+                          )}
                         </span>
                       </td>
                       <td style={{ padding: "12px 14px", color: "#6b7280", fontSize: 12 }}>{row.creator}</td>
@@ -2043,6 +2071,8 @@ export default function App() {
   const [experiencePrefillModel, setExperiencePrefillModel] = useState<string | null>(null);
   const [trainingPrefillModelId, setTrainingPrefillModelId] = useState<string | null>(null);
   const [evalTaskName, setEvalTaskName] = useState("");
+  const [myModelFilter, setMyModelFilter] = useState<string | null>(null);
+  const [deletedModelAlert, setDeletedModelAlert] = useState<string | null>(null);
   const legacyView = new URLSearchParams(window.location.search).get("legacy");
 
   useEffect(() => {
@@ -2113,19 +2143,22 @@ export default function App() {
               }}
             />
           ) : activeMenu === "training-task" ? (
-            legacyView === "list"
-              ? <TrainingTaskList onCreate={() => undefined} onEvalReport={setEvalTaskName} />
-              : legacyView === "create"
-                ? <CreateTrainingTaskPage models={models} onCancel={() => undefined} />
-                : legacyView === "report"
-                  ? <EvaluationReportPage taskName={evalTaskName || "电商客服大模型预训练"} onBack={() => undefined} />
-                  : trainingPrefillModel
+            trainingView === "create"
+              ? <CreateTrainingTaskPage models={models} onCancel={() => undefined} />
+              : trainingView === "evaluation"
+                ? <EvaluationReportPage taskName={evalTaskName || "电商客服大模型预训练"} onBack={() => undefined} />
+                : trainingPrefillModel
               ? <CreateTrainingTaskPage key={trainingPrefillModelId ?? "manual"} models={models} initialModel={trainingPrefillModel} onCancel={() => { setTrainingPrefillModelId(null); setTrainingView("list"); }} />
-              : <AutoregressiveTrainingPage />
+              : <TrainingTaskList
+                  onCreate={() => undefined}
+                  onEvalReport={setEvalTaskName}
+                  onJumpToMyModel={(outputModel, deleted) => {
+                    if (deleted) { setDeletedModelAlert(outputModel); }
+                    else { setMyModelFilter(outputModel); setActiveMenu("my-model"); }
+                  }}
+                />
           ) : activeMenu === "training-data" ? (
-            legacyView ? <TrainingDataPage /> : <TrainingDataWorkbenchPage />
-          ) : activeMenu === "training-model-library" ? (
-            <TrainingModelLibraryPage />
+            <TrainingDataPage />
           ) : activeMenu === "model-list" ? (
             <ModelManagementPage models={models} onModelsChange={setModels} onDeploy={model => {
               setDeployPrefillModelId(model.id);
@@ -2154,7 +2187,7 @@ export default function App() {
           ) : activeMenu === "user-account" ? (
             <UserAccountPage />
           ) : activeMenu === "my-model" ? (
-            <MyModelsPage />
+            <MyModelsPage initialFilter={myModelFilter} />
           ) : activeMenu === "audit-events" ? (
             <AuditEventsPage />
           ) : activeMenu === "usage-stats" ? (
@@ -2182,6 +2215,33 @@ export default function App() {
           )}
         </div>
       </main>
+
+      {deletedModelAlert && (
+        <>
+          <div onClick={() => setDeletedModelAlert(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 200 }} />
+          <div style={{
+            position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+            width: 360, background: "#fff", borderRadius: 12, zIndex: 201,
+            boxShadow: "0 12px 40px rgba(0,0,0,0.16)", display: "flex", flexDirection: "column", overflow: "hidden",
+          }}>
+            <div className="flex items-center gap-3" style={{ padding: "20px 20px 16px" }}>
+              <div className="flex items-center justify-center flex-shrink-0" style={{ width: 36, height: 36, borderRadius: "50%", background: "#fef2f2" }}>
+                <Info size={18} color="#ef4444" />
+              </div>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "#1a1d23" }}>模型已删除！</div>
+                <div style={{ fontSize: 12.5, color: "#9ca3af", marginTop: 2 }}>模型「{deletedModelAlert}」已被删除，无法查看。</div>
+              </div>
+            </div>
+            <div className="flex items-center justify-end flex-shrink-0" style={{ padding: "12px 20px", borderTop: "1px solid #f0f2f7" }}>
+              <button onClick={() => setDeletedModelAlert(null)}
+                style={{ fontSize: 13, fontWeight: 500, color: "#fff", background: "#4f6ef7", border: "none", borderRadius: 6, padding: "7px 22px", cursor: "pointer" }}>
+                我知道了
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

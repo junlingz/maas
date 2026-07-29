@@ -219,10 +219,18 @@ function ModelCard({ model, onDownload, onDelete }: { model: MyModel; onDownload
   );
 }
 
-export function MyModelsPage() {
+export function MyModelsPage({ initialFilter }: { initialFilter?: string | null }) {
   const [models, setModels]     = useState<MyModel[]>(MODELS);
   const [search, setSearch]     = useState("");
   const [query, setQuery]       = useState("");
+
+  // 从训练任务跳转过来时，按输出模型名称过滤
+  useEffect(() => {
+    if (initialFilter) {
+      setSearch(initialFilter);
+      setQuery(initialFilter);
+    }
+  }, [initialFilter]);
 
   const filtered = models.filter(m =>
     !query || m.name.toLowerCase().includes(query.toLowerCase()) || m.baseModel.toLowerCase().includes(query.toLowerCase())

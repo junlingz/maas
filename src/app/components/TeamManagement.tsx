@@ -455,7 +455,7 @@ export function TeamManagementPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr>
-                {["团队名称", "团队编码", "团队类型", "状态", "成员数", "创建时间", "操作"].map(c => (
+                {["团队名称", "团队类型", "状态", "成员数", "创建时间", "操作"].map(c => (
                   <th key={c} style={thSt}>{c}</th>
                 ))}
               </tr>
@@ -463,7 +463,7 @@ export function TeamManagementPage() {
             <tbody>
               {pageRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ ...tdSt, textAlign: "center", color: "#9ca3af", padding: "40px 14px" }}>暂无数据</td>
+                  <td colSpan={6} style={{ ...tdSt, textAlign: "center", color: "#9ca3af", padding: "40px 14px" }}>暂无数据</td>
                 </tr>
               ) : pageRows.map(row => {
                 const tc = TYPE_TAG_CFG[row.type];
@@ -474,7 +474,6 @@ export function TeamManagementPage() {
                     onMouseEnter={e => (e.currentTarget.style.background = "#fafbfd")}
                     onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
                     <td style={{ ...tdSt, fontWeight: 600, color: "#1a1d23" }}>{row.name}</td>
-                    <td style={{ ...tdSt, fontFamily: "monospace", color: "#6b7280", fontSize: 12.5 }}>{row.code}</td>
                     <td style={tdSt}>
                       <span style={{ fontSize: 12, fontWeight: 500, padding: "2px 8px", borderRadius: 4, background: tc.bg, color: tc.color }}>{row.type}</span>
                     </td>

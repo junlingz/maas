@@ -17,26 +17,14 @@ interface RoleRow {
 }
 
 const ALL_ROLES: RoleRow[] = [
-  { id: 1,  name: "超级管理员",             code: "role_super_admin",  type: "系统角色", status: "启用", createdAt: "2025-05-19 20:00:48" },
-  { id: 2,  name: "空间管理员",             code: "role_space_admin",  type: "系统角色", status: "启用", createdAt: "2025-05-12 20:51:54" },
-  { id: 3,  name: "空间成员",               code: "role_space_member", type: "系统角色", status: "启用", createdAt: "2025-05-12 20:51:56" },
-  { id: 4,  name: "普通用户",               code: "role_normal_user", type: "系统角色", status: "启用", createdAt: "2025-05-12 20:51:56" },
-  { id: 5,  name: "VIP用户",                code: "role_vip_user",     type: "系统角色", status: "启用", createdAt: "2025-05-12 20:51:56" },
-  { id: 6,  name: "普通机构用户",           code: "role_org_user",     type: "系统角色", status: "启用", createdAt: "2025-05-12 20:51:56" },
-  { id: 7,  name: "VIP机构用户",            code: "role_vip_org_user", type: "系统角色", status: "启用", createdAt: "2025-05-12 20:51:56" },
-  { id: 8,  name: "政府用户",               code: "role_gov_user",     type: "系统角色", status: "启用", createdAt: "2025-05-12 20:51:56" },
-  { id: 9,  name: "zsh自定义角色",          code: "role_zsh_custom",   type: "自定义角色", status: "启用", createdAt: "2025-06-05 12:00:14" },
-  { id: 10, name: "空间成员-不带模型实验室", code: "role_space_no_lab", type: "自定义角色", status: "禁用", createdAt: "2025-11-26 09:57:42" },
-  { id: 11, name: "系统审计员",             code: "role_auditor",      type: "系统角色", status: "启用", createdAt: "2025-05-12 20:51:56" },
-  { id: 12, name: "数据管理员",             code: "role_data_admin",   type: "系统角色", status: "启用", createdAt: "2025-05-12 20:51:56" },
-  { id: 13, name: "数据分析员",             code: "role_data_analyst", type: "系统角色", status: "启用", createdAt: "2025-05-12 20:51:56" },
-  { id: 14, name: "运维管理员",             code: "role_ops_admin",    type: "系统角色", status: "启用", createdAt: "2025-05-12 20:51:56" },
-  { id: 15, name: "财务管理员",             code: "role_finance",     type: "系统角色", status: "禁用", createdAt: "2025-05-12 20:51:56" },
-  { id: 16, name: "测试角色",               code: "role_test",         type: "自定义角色", status: "启用", createdAt: "2025-07-01 10:30:00" },
-  { id: 17, name: "demo角色",              code: "role_demo",         type: "自定义角色", status: "启用", createdAt: "2025-07-15 14:20:00" },
-  { id: 18, name: "临时角色",               code: "role_temp",         type: "自定义角色", status: "禁用", createdAt: "2025-08-01 16:45:00" },
-  { id: 19, name: "试用角色",               code: "role_trial",        type: "自定义角色", status: "启用", createdAt: "2025-09-10 09:15:00" },
-  { id: 20, name: "审核员角色",             code: "role_reviewer",     type: "自定义角色", status: "禁用", createdAt: "2025-10-05 11:30:00" },
+  { id: 1,  name: "超管",            code: "role_super_admin",  type: "系统角色", status: "启用", createdAt: "2025-05-19 20:00:48" },
+  { id: 2,  name: "普通用户",        code: "role_normal_user",  type: "系统角色", status: "启用", createdAt: "2025-05-12 20:51:56" },
+  { id: 3,  name: "VIP用户",         code: "role_vip_user",     type: "系统角色", status: "启用", createdAt: "2025-05-12 20:51:56" },
+  { id: 4,  name: "普通机构用户",    code: "role_org_user",     type: "系统角色", status: "启用", createdAt: "2025-05-12 20:51:56" },
+  { id: 5,  name: "VIP机构用户",     code: "role_vip_org_user", type: "系统角色", status: "启用", createdAt: "2025-05-12 20:51:56" },
+  { id: 6,  name: "政府用户",        code: "role_gov_user",     type: "系统角色", status: "启用", createdAt: "2025-05-12 20:51:56" },
+  { id: 7,  name: "独立机构A用户",   code: "role_org_a_user",   type: "自定义角色", status: "启用", createdAt: "2025-06-05 12:00:14" },
+  { id: 8,  name: "独立机构B用户",   code: "role_org_b_user",   type: "自定义角色", status: "启用", createdAt: "2025-06-05 12:05:30" },
 ];
 
 const PAGE_SIZE = 10;
@@ -552,7 +540,7 @@ export function UserRolePage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr>
-                {["角色名称", "角色编码", "角色类型", "状态", "创建时间", "操作"].map(c => (
+                {["角色名称", "角色类型", "状态", "创建时间", "操作"].map(c => (
                   <th key={c} style={thSt}>{c}</th>
                 ))}
               </tr>
@@ -563,7 +551,6 @@ export function UserRolePage() {
                   onMouseEnter={e => (e.currentTarget.style.background = "#fafbfd")}
                   onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
                   <td style={{ ...tdSt, fontWeight: 600, color: "#1a1d23" }}>{role.name}</td>
-                  <td style={{ ...tdSt, color: "#6b7280", fontFamily: MONO, fontSize: 12.5 }}>{role.code}</td>
                   <td style={tdSt}>
                     <span style={{
                       fontSize: 12.5, fontWeight: 500, padding: "2px 10px", borderRadius: 5, display: "inline-block",

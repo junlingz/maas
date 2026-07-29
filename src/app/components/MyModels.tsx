@@ -72,12 +72,6 @@ const MODELS: MyModel[] = [
   },
 ];
 
-const STATUS_CFG = {
-  "已部署": { bg: "#f0faf5", text: "#16a34a", border: "#bbf7d0" },
-  "未部署": { bg: "#f3f4f6", text: "#6b7280", border: "#e5e7eb" },
-  "部署中": { bg: "#eff6ff", text: "#2563eb", border: "#bfdbfe" },
-};
-
 function CardMenu({ onDownload, onDelete }: { onDownload: () => void; onDelete: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -110,7 +104,6 @@ function CardMenu({ onDownload, onDelete }: { onDownload: () => void; onDelete: 
 }
 
 function ModelCard({ model, onDownload, onDelete }: { model: MyModel; onDownload: () => void; onDelete: () => void }) {
-  const sc = STATUS_CFG[model.status];
   const [version, setVersion] = useState<string>(model.versions[model.versions.length - 1]);
   const [vOpen, setVOpen] = useState(false);
   const vRef = useRef<HTMLDivElement>(null);
@@ -183,28 +176,6 @@ function ModelCard({ model, onDownload, onDelete }: { model: MyModel; onDownload
         <div className="flex items-center gap-2">
           <span style={{ fontSize: 12, color: "#9ca3af", width: 72, flexShrink: 0, whiteSpace: "nowrap" }}>创建人：</span>
           <span style={{ fontSize: 12.5, color: "#374151" }}>{model.creator}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span style={{ fontSize: 12, color: "#9ca3af", width: 72, flexShrink: 0, whiteSpace: "nowrap" }}>部署状态：</span>
-          <span style={{ fontSize: 12.5, fontWeight: 500, color: sc.text }}>
-            {model.status}
-          </span>
-          {model.status === "未部署" && (
-            <button
-              style={{ fontSize: 12, fontWeight: 500, color: "#fff", background: "#4f6ef7", border: "none", borderRadius: 5, padding: "3px 12px", cursor: "pointer" }}
-              onMouseEnter={e => (e.currentTarget.style.background = "#3b5de8")}
-              onMouseLeave={e => (e.currentTarget.style.background = "#4f6ef7")}>
-              部署
-            </button>
-          )}
-          {(model.status === "部署中" || model.status === "已部署") && (
-            <button
-              style={{ fontSize: 12, fontWeight: 500, color: "#4f6ef7", background: "#fff", border: "1px solid #4f6ef7", borderRadius: 5, padding: "2px 12px", cursor: "pointer" }}
-              onMouseEnter={e => (e.currentTarget.style.background = "#eff4ff")}
-              onMouseLeave={e => (e.currentTarget.style.background = "#fff")}>
-              查看
-            </button>
-          )}
         </div>
       </div>
 

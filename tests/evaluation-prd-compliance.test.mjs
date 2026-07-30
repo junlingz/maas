@@ -211,6 +211,20 @@ test("流程模板的模型推理参数直接展示、默认空且非必填", ()
   assert.match(prdSource, /不显示“高级配置”标题、不折叠、不提供默认值/);
 });
 
+test("流程模板支持默认关闭且条数可编辑的冒烟测试", () => {
+  assert.match(evaluationSource, /smokeTestEnabled: false/);
+  assert.match(evaluationSource, /smokeTestCount: 25/);
+  assert.match(evaluationSource, /role="switch"/);
+  assert.match(flowInferenceSource, /<CompactSwitch checked=\{stage\.params\.smokeTestEnabled === true\}/);
+  assert.match(flowInferenceSource, /aria-label="冒烟测试条数"/);
+  assert.match(flowInferenceSource, /适用于快速验证端口的可用性/);
+  assert.match(flowInferenceSource, /stage\.params\.smokeTestEnabled === true/);
+  assert.match(configPageSource, /smokeTestCountInvalid/);
+  assert.match(configPageSource, /Number\.isInteger\(Number\(smokeTestCountValue\)\)/);
+  assert.match(prdSource, /冒烟测试.*默认关闭.*25 条/s);
+  assert.match(prdSource, /关闭后保留用户最后填写的值/);
+});
+
 test("高级推理参数默认继承所选模型并允许用户覆盖", () => {
   assert.match(createDrawerSource, /useState<ModelType \| "">\(initialModelType\)/);
   assert.match(evaluationSource, /MODEL_DEFAULT_PARAMS/);

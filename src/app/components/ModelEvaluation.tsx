@@ -163,6 +163,8 @@ const EMPTY_FLOW_TEMPLATE_INFERENCE_PARAMS = {
   temperature: "",
   topK: "",
   batchSize: "",
+  smokeTestEnabled: false,
+  smokeTestCount: 25,
 };
 
 interface CreateDatasetOption {
@@ -320,6 +322,11 @@ function cloneFlowStages(stages: FlowStage[]) {
   return stages.map(stage => {
     const params = { ...stage.params };
     delete params.customLogic;
+    if (stage.name === "模型推理") {
+      const smokeTestCount = Number(params.smokeTestCount);
+      params.smokeTestEnabled = params.smokeTestEnabled === true;
+      params.smokeTestCount = Number.isInteger(smokeTestCount) && smokeTestCount >= 1 ? smokeTestCount : 25;
+    }
     return {
       ...stage,
       params,
@@ -849,6 +856,43 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
     <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 7 }}>
       {required && <span style={{ color: "#ef4444", marginRight: 2 }}>*</span>}{children}
     </div>
+  );
+}
+
+function CompactSwitch({ checked, label, onChange }: { checked: boolean; label: string; onChange: (checked: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      title={`${label}：${checked ? "已开启" : "已关闭"}`}
+      onClick={() => onChange(!checked)}
+      style={{
+        width: 32,
+        height: 18,
+        padding: 0,
+        border: "none",
+        borderRadius: 9,
+        background: checked ? "#4f6ef7" : "#cfd4dc",
+        cursor: "pointer",
+        position: "relative",
+        transition: "background 160ms ease",
+        flexShrink: 0,
+      }}
+    >
+      <span style={{
+        position: "absolute",
+        top: 2,
+        left: checked ? 16 : 2,
+        width: 14,
+        height: 14,
+        borderRadius: "50%",
+        background: "#fff",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+        transition: "left 160ms ease",
+      }} />
+    </button>
   );
 }
 
@@ -2513,6 +2557,20 @@ export function EvaluationConfigPage() {
   const updateStageParam = (stageName: FlowStage["name"], key: string, value: string | number | boolean) => {
     setFlowStages(current => current.map(stage => stage.name === stageName ? { ...stage, params: { ...stage.params, [key]: value } } : stage));
   };
+  const updateSmokeTestEnabled = (enabled: boolean) => {
+    setFlowStages(current => current.map(stage => {
+      if (stage.name !== "模型推理") return stage;
+      const currentCount = Number(stage.params.smokeTestCount);
+      return {
+        ...stage,
+        params: {
+          ...stage.params,
+          smokeTestEnabled: enabled,
+          smokeTestCount: Number.isInteger(currentCount) && currentCount >= 1 ? currentCount : 25,
+        },
+      };
+    }));
+  };
   const updateMetricConditionRule = (updater: (rule: MetricConditionRule) => MetricConditionRule) => {
     setFlowStages(current => current.map(stage => stage.name === "指标计算"
       ? { ...stage, conditionRule: updater(cloneMetricConditionRule(stage.conditionRule)) }
@@ -2574,11 +2632,16 @@ export function EvaluationConfigPage() {
   const temperatureValue = inferenceStage?.params.temperature ?? "";
   const topKValue = inferenceStage?.params.topK ?? "";
   const batchSizeValue = inferenceStage?.params.batchSize ?? "";
+  const smokeTestEnabled = inferenceStage?.params.smokeTestEnabled === true;
+  const smokeTestCountValue = inferenceStage?.params.smokeTestCount ?? 25;
+  const smokeTestCountInvalid = smokeTestEnabled
+    && (!Number.isInteger(Number(smokeTestCountValue)) || Number(smokeTestCountValue) < 1);
   const customInferenceParamsInvalid = (
     (maxTokensValue !== "" && (!Number.isInteger(Number(maxTokensValue)) || Number(maxTokensValue) < 1))
     || (temperatureValue !== "" && (Number(temperatureValue) < 0 || Number(temperatureValue) > 2))
     || (topKValue !== "" && (!Number.isInteger(Number(topKValue)) || Number(topKValue) < 1 || Number(topKValue) > 100))
     || (batchSizeValue !== "" && (!Number.isInteger(Number(batchSizeValue)) || Number(batchSizeValue) < 1 || Number(batchSizeValue) > 128))
+    || smokeTestCountInvalid
   );
   const flowParamsIncomplete = !preprocessingStage?.params.cleaningRule
     || !preprocessingStage.params.samplingStrategy
@@ -2761,6 +2824,31 @@ export function EvaluationConfigPage() {
                                 <span style={{ display: "block", minHeight: 28, marginTop: 4, color: "#8a909e", lineHeight: 1.4 }}>{field.hint}</span>
                               </label>
                             ))}
+                          </div>
+                          <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #eef0f5" }}>
+                            <div className="flex items-center" style={{ gap: 8, minWidth: 0, whiteSpace: "nowrap" }}>
+                              <CompactSwitch checked={stage.params.smokeTestEnabled === true} label="冒烟测试" onChange={updateSmokeTestEnabled} />
+                              <span style={{ color: "#374151", fontSize: 12.5, fontWeight: 600 }}>冒烟测试</span>
+                              {stage.params.smokeTestEnabled === true && (
+                                <>
+                                  <input
+                                    aria-label="冒烟测试条数"
+                                    title="冒烟测试条数"
+                                    type="number"
+                                    min={1}
+                                    step={1}
+                                    value={String(stage.params.smokeTestCount ?? 25)}
+                                    onChange={event => updateStageParam(stage.name, "smokeTestCount", event.target.value === "" ? "" : Number(event.target.value))}
+                                    style={{ ...inputSt, width: 80, height: 30, padding: "0 8px", background: "#fff", flexShrink: 0 }}
+                                  />
+                                  <span style={{ color: "#6b7280", fontSize: 11.5 }}>条</span>
+                                </>
+                              )}
+                              <span style={{ minWidth: 0, color: "#8a909e", fontSize: 11.5, overflow: "hidden", textOverflow: "ellipsis" }} title="适用于快速验证端口的可用性">
+                                适用于快速验证端口的可用性
+                              </span>
+                              {smokeTestCountInvalid && <span style={{ color: "#dc2626", fontSize: 11.5 }}>请输入大于 0 的整数</span>}
+                            </div>
                           </div>
                           {customInferenceParamsInvalid && <div style={{ marginTop: 4, color: "#dc2626", fontSize: 12 }}>请检查已填写的模型推理参数及取值范围。</div>}
                         </div>

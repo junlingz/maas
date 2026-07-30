@@ -72,11 +72,14 @@ const MODELS: MyModel[] = [
   },
 ];
 
-function CardMenu({ onDownload, onDelete }: { onDownload: () => void; onDelete: () => void }) {
+const VISIBILITY_OPTIONS: ModelVisibility[] = ["仅自己", "团队成员可见", "团队成员可编辑"];
+
+function CardMenu({ visibility, onDownload, onDelete, onVisibilityChange }: { visibility: ModelVisibility; onDownload: () => void; onDelete: () => void; onVisibilityChange: (v: ModelVisibility) => void }) {
   const [open, setOpen] = useState(false);
+  const [visOpen, setVisOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setVisOpen(false); } };
     document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h);
   }, []);
   return (
@@ -87,23 +90,44 @@ function CardMenu({ onDownload, onDelete }: { onDownload: () => void; onDelete: 
         onMouseLeave={e => (e.currentTarget.style.background = "none")}>
         <MoreVertical size={15} />
       </button>
-      {open && (
-        <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "#fff", border: "1px solid #e0e3ed", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", zIndex: 50, minWidth: 100, overflow: "hidden" }}>
+      {open && !visOpen && (
+        <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "#fff", border: "1px solid #e0e3ed", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", zIndex: 50, minWidth: 120, overflow: "hidden" }}>
           <button onClick={() => { onDownload(); setOpen(false); }}
             style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 14px", fontSize: 13, border: "none", background: "none", cursor: "pointer", color: "#374151" }}
             onMouseEnter={e => (e.currentTarget.style.background = "#f5f7fa")}
             onMouseLeave={e => (e.currentTarget.style.background = "none")}>下载</button>
+          <button onClick={() => setVisOpen(true)}
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", textAlign: "left", padding: "9px 14px", fontSize: 13, border: "none", background: "none", cursor: "pointer", color: "#374151" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#f5f7fa")}
+            onMouseLeave={e => (e.currentTarget.style.background = "none")}>
+            更改可见性 <ChevronRight size={12} color="#9ca3af" />
+          </button>
           <button onClick={() => { onDelete(); setOpen(false); }}
             style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 14px", fontSize: 13, border: "none", background: "none", cursor: "pointer", color: "#ef4444" }}
             onMouseEnter={e => (e.currentTarget.style.background = "#fff5f5")}
             onMouseLeave={e => (e.currentTarget.style.background = "none")}>删除</button>
         </div>
       )}
+      {open && visOpen && (
+        <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "#fff", border: "1px solid #e0e3ed", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", zIndex: 50, minWidth: 160, overflow: "hidden" }}>
+          <div style={{ padding: "8px 14px", fontSize: 11.5, color: "#9ca3af", borderBottom: "1px solid #f0f2f7", fontWeight: 500 }}>更改可见性</div>
+          {VISIBILITY_OPTIONS.map(v => (
+            <button key={v}
+              onClick={() => { onVisibilityChange(v); setVisOpen(false); setOpen(false); }}
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", textAlign: "left", padding: "9px 14px", fontSize: 13, border: "none", background: v === visibility ? "#f5f7ff" : "none", cursor: "pointer", color: v === visibility ? "#4f6ef7" : "#374151", fontWeight: v === visibility ? 600 : 400 }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#f5f7ff")}
+              onMouseLeave={e => (e.currentTarget.style.background = v === visibility ? "#f5f7ff" : "none")}>
+              {v}
+              {v === visibility && <Check size={13} color="#4f6ef7" />}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function ModelCard({ model, onDownload, onDelete }: { model: MyModel; onDownload: () => void; onDelete: () => void }) {
+function ModelCard({ model, onDownload, onDelete, onVisibilityChange }: { model: MyModel; onDownload: () => void; onDelete: () => void; onVisibilityChange: (v: ModelVisibility) => void }) {
   const [version, setVersion] = useState<string>(model.versions[model.versions.length - 1]);
   const [vOpen, setVOpen] = useState(false);
   const vRef = useRef<HTMLDivElement>(null);
@@ -196,7 +220,7 @@ function ModelCard({ model, onDownload, onDelete }: { model: MyModel; onDownload
             onMouseLeave={e => (e.currentTarget.style.color = "#4f6ef7")}>
             查看训练任务 <ChevronRight size={12} />
           </button>
-          <CardMenu onDownload={onDownload} onDelete={onDelete} />
+          <CardMenu visibility={model.visibility} onDownload={onDownload} onDelete={onDelete} onVisibilityChange={onVisibilityChange} />
         </div>
       </div>
     </div>
@@ -266,7 +290,7 @@ export function MyModelsPage({ initialFilter }: { initialFilter?: string | null 
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
             {filtered.map(m => (
-              <ModelCard key={m.id} model={m} onDownload={() => {}} onDelete={() => setModels(prev => prev.filter(x => x.id !== m.id))} />
+              <ModelCard key={m.id} model={m} onDownload={() => {}} onDelete={() => setModels(prev => prev.filter(x => x.id !== m.id))} onVisibilityChange={v => setModels(prev => prev.map(x => x.id === m.id ? { ...x, visibility: v } : x))} />
             ))}
           </div>
         )}

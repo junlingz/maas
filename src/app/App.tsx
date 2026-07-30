@@ -105,7 +105,7 @@ const menuData: MenuItem[] = [
 
 // ─── Training Task List ───────────────────────────────────────────────────────
 
-type TrainingStatus = "已完成" | "训练中" | "已失败" | "已停止" | "";
+type TrainingStatus = "已完成" | "训练中" | "排队中" | "已失败" | "已停止" | "";
 
 interface TrainingRow {
   id: number; name: string; outputModel: string; type: "继续预训练" | "监督微调";
@@ -129,6 +129,7 @@ const trainingRows: TrainingRow[] = [
 const statusCfg: Record<TrainingStatus, { bg: string; text: string; dot: string }> = {
   "已完成": { bg: "#f0faf5", text: "#16a34a", dot: "#22c55e" },
   "训练中": { bg: "#eff6ff", text: "#2563eb", dot: "#3b82f6" },
+  "排队中": { bg: "#fffbeb", text: "#d97706", dot: "#f59e0b" },
   "已失败": { bg: "#fef2f2", text: "#dc2626", dot: "#ef4444" },
   "已停止": { bg: "#f3f4f6", text: "#6b7280", dot: "#9ca3af" },
   "":       { bg: "transparent", text: "#9ca3af", dot: "transparent" },
@@ -224,7 +225,23 @@ function TrainingTaskList({ onCreate, onEvalReport, onJumpToMyModel }: { onCreat
                   <td style={{ padding: "11px 14px" }}>
                     <span style={{ fontSize: 12, padding: "2px 8px", background: "#eff4ff", color: "#4f6ef7", fontWeight: 500, borderRadius: 4 }}>{row.type}</span>
                   </td>
-                  <td style={{ padding: "11px 14px" }}><StatusBadge status={row.status} /></td>
+                  <td style={{ padding: "11px 14px" }}>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={row.status} />
+                      {(row.status === "训练中" || row.status === "排队中") && (
+                        <button
+                          style={{ fontSize: 12.5, color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500, whiteSpace: "nowrap" }}
+                          onMouseEnter={e => (e.currentTarget.style.color = "#dc2626")}
+                          onMouseLeave={e => (e.currentTarget.style.color = "#ef4444")}>停止</button>
+                      )}
+                      {(row.status === "已停止" || row.status === "已失败") && (
+                        <button
+                          style={{ fontSize: 12.5, color: "#4f6ef7", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500, whiteSpace: "nowrap" }}
+                          onMouseEnter={e => (e.currentTarget.style.color = "#3b5de8")}
+                          onMouseLeave={e => (e.currentTarget.style.color = "#4f6ef7")}>重启</button>
+                      )}
+                    </div>
+                  </td>
                   <td style={{ padding: "11px 14px", color: "#6b7280", fontFamily: "monospace", fontSize: 12 }}>{row.taskId}</td>
                   <td style={{ padding: "11px 14px", color: "#6b7280", fontSize: 12 }}>{row.baseModel}</td>
                   <td style={{ padding: "11px 14px", color: "#374151" }}>{row.creator}</td>
@@ -233,7 +250,7 @@ function TrainingTaskList({ onCreate, onEvalReport, onJumpToMyModel }: { onCreat
                   <td style={{ padding: "11px 14px", color: "#6b7280", fontSize: 12, whiteSpace: "nowrap" }}>{row.duration}</td>
                   <td style={{ padding: "11px 14px" }}>
                     <div className="flex items-center gap-3">
-                      {row.actions.filter(a => a !== "评估报告" || row.status === "已完成").map(a => {
+                      {row.actions.filter(a => a === "查看详情" || a === "删除" || (a === "评估报告" && row.status === "已完成")).map(a => {
                         const s = actionStyle(a);
                         return (
                           <button key={a}

@@ -54,7 +54,7 @@ const menuData: MenuItem[] = [
     children: [
       { label: "模型训练", key: "training-task" },
       { label: "训练数据", key: "training-data" },
-      { label: "我的模型", key: "my-model", highlight: true },
+      { label: "我的模型", key: "my-model" },
     ],
   },
   {
@@ -2017,7 +2017,7 @@ function Sidebar({ active, onSelect }: { active: string; onSelect: (key: string)
                       <button key={child.key} className="w-full flex items-center"
                         style={{ padding: "7px 16px 7px 44px", background: isActive ? "rgba(79,110,247,0.18)" : "transparent", borderLeft: isActive ? "2px solid #4f6ef7" : "2px solid transparent" }}
                         onClick={() => onSelect(child.key)}>
-                        <span style={{ fontSize: 12.5, fontWeight: isActive ? 500 : 400, color: isActive ? "#7c9bfa" : child.highlight ? "#f59e42" : "rgba(255,255,255,0.5)" }}>{child.label}</span>
+                        <span style={{ fontSize: 12.5, fontWeight: isActive ? 500 : 400, color: isActive ? "#7c9bfa" : "rgba(255,255,255,0.5)" }}>{child.label}</span>
                       </button>
                     );
                   })}

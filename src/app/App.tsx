@@ -21,13 +21,8 @@ import {
   DocumentationCenterPage,
   ResourceRoleConfigPage,
   ResourceRoleQueuePage,
-  SampleRepositoryPage,
   TaskLogPage,
 } from "./components/SuperAdminPages";
-import {
-  TrainingAboutPage,
-  TrainingDocsPage,
-} from "./components/AutoregressiveTraining";
 import { INITIAL_DEPLOYMENTS, INITIAL_INSTANCES, INITIAL_MODELS } from "./model-management/data";
 import type { DeploymentRecord, ModelInstanceRecord, ModelRecord } from "./model-management/types";
 import {
@@ -104,20 +99,6 @@ const menuData: MenuItem[] = [
       { label: "用量统计", key: "usage-stats" },
       { label: "任务日志", key: "log-mining" },
       { label: "操作审计事件", key: "audit-events" },
-    ],
-  },
-  {
-    label: "文档中心", key: "documentation-center", icon: <BookOpen size={16} />,
-    children: [
-      { label: "在线文档", key: "docs-center" },
-      { label: "示例代码库", key: "sample-repository" },
-    ],
-  },
-  {
-    label: "技术支持", key: "technical-support", icon: <BookOpen size={16} />,
-    children: [
-      { label: "训练手册", key: "training-docs" },
-      { label: "关于平台", key: "training-about" },
     ],
   },
 ];
@@ -2072,7 +2053,8 @@ export default function App() {
   const activeParent = menuData.find(m => m.children?.some(c => c.key === activeMenu));
   const activeLabel =
     menuData.find(m => m.key === activeMenu)?.label ??
-    menuData.flatMap(m => m.children ?? []).find(c => c.key === activeMenu)?.label ?? "";
+    menuData.flatMap(m => m.children ?? []).find(c => c.key === activeMenu)?.label ??
+    (activeMenu === "docs-center" ? "文档中心" : "");
 
   return (
     <div className="flex h-screen w-full overflow-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
@@ -2092,6 +2074,12 @@ export default function App() {
             )}
           </div>
           <div className="flex items-center gap-3">
+            <button onClick={() => handleMenuSelect("docs-center")}
+              style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 500, color: activeMenu === "docs-center" ? "#4f6ef7" : "#6b7280", background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 6 }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#f3f4f6")}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+              <BookOpen size={14} /> 文档中心
+            </button>
             <span style={{ color: "#98a2b3", fontSize: 12 }}>MaaS 3.6</span>
           </div>
         </header>
@@ -2137,10 +2125,6 @@ export default function App() {
               setDeployPrefillModelId(model.id);
               handleMenuSelect("model-deploy");
             }} />
-          ) : activeMenu === "training-docs" ? (
-            <TrainingDocsPage />
-          ) : activeMenu === "training-about" ? (
-            <TrainingAboutPage />
           ) : activeMenu === "model-deploy" ? (
             <ModelDeploymentPage models={models} deployments={deployments} onDeploymentsChange={setDeployments} instances={instances} onInstancesChange={setInstances} prefillModelId={deployPrefillModelId} onPrefillConsumed={() => setDeployPrefillModelId(null)} />
           ) : activeMenu === "deploy-instance" ? (
@@ -2171,8 +2155,6 @@ export default function App() {
             <TaskLogPage />
           ) : activeMenu === "docs-center" ? (
             <DocumentationCenterPage />
-          ) : activeMenu === "sample-repository" ? (
-            <SampleRepositoryPage />
           ) : activeMenu === "model-router" ? (
             <ModelRoutingPage />
           ) : activeMenu === "evaluation-task" ? (

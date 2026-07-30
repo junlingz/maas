@@ -47,7 +47,7 @@ const menuData: MenuItem[] = [
   {
     label: "模型训练", key: "model-training", icon: <BrainCircuit size={16} />,
     children: [
-      { label: "模型训练", key: "training-task" },
+      { label: "训练任务", key: "training-task" },
       { label: "训练数据", key: "training-data" },
       { label: "我的模型", key: "my-model" },
     ],
@@ -167,7 +167,7 @@ function TrainingTaskList({ onCreate, onEvalReport, onJumpToMyModel }: { onCreat
       <div className="flex items-center gap-1.5 flex-shrink-0" style={{ padding: "14px 24px 0", fontSize: 13, color: "#6b7280" }}>
         <span style={{ color: "#4f6ef7", cursor: "pointer" }}>模型训练</span>
         <ChevronRight size={13} />
-        <span style={{ color: "#1a1d23", fontWeight: 500 }}>模型训练</span>
+        <span style={{ color: "#1a1d23", fontWeight: 500 }}>训练任务</span>
       </div>
       <div className="flex-1 flex flex-col min-h-0 rounded-xl" style={{ margin: "14px 24px 24px", background: "#fff", border: "1px solid #e8ebf2" }}>
         <div className="flex items-center justify-between flex-shrink-0" style={{ padding: "14px 16px", borderBottom: "1px solid #f0f2f7" }}>
@@ -403,7 +403,7 @@ function CreateTrainingTaskPage({ onCancel, initialModel, models }: { onCancel: 
   const [selectedModelId, setSelectedModelId] = useState<string>(initialModel?.id ?? "");
 
   // Step 3: model output
-  const [resourceGroup, setResourceGroup] = useState("4090");
+  const [resourceGroup, setResourceGroup] = useState("普通用户");
   const [outputModelName, setOutputModelName] = useState("");
   const [outputModelDesc, setOutputModelDesc] = useState("");
   const [outputModelVersion, setOutputModelVersion] = useState("v1.0");
@@ -919,11 +919,11 @@ function CreateTrainingTaskPage({ onCancel, initialModel, models }: { onCancel: 
                 </div>
               )}
 
-              {/* 资源组 */}
+              {/* 角色权益 */}
               <div style={{ marginBottom: 20 }}>
-                <FieldLabel required>资源组</FieldLabel>
+                <FieldLabel required>角色权益</FieldLabel>
                 <div className="flex items-center gap-3">
-                  {["4090", "A100", "H800"].map(rg => {
+                  {["普通用户", "VIP用户", "普通机构用户"].map(rg => {
                     const checked = resourceGroup === rg;
                     return (
                       <button key={rg} onClick={() => setResourceGroup(rg)} style={{

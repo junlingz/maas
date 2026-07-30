@@ -1974,7 +1974,7 @@ function PlaceholderPage({ label }: { label: string }) {
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 function Sidebar({ active, onSelect }: { active: string; onSelect: (key: string) => void }) {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set(["model-management"]));
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const toggle = (key: string) => {
     setExpanded(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });

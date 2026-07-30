@@ -334,6 +334,16 @@ test("报告、看板、指标详情和流程约束具备可演示交互", () =>
   assert.match(evaluationSource, /saveEvaluationTasks\(tasks\)/);
 });
 
+test("评测结果数据明细仅使用通过和未通过二元判分", () => {
+  const taskDetailSource = evaluationSource.slice(evaluationSource.indexOf("function TaskDetailPage"), evaluationSource.indexOf("function EvaluationTaskListPage"));
+  assert.match(evaluationSource, /verdict: "通过" \| "未通过"/);
+  assert.doesNotMatch(evaluationSource, /部分通过/);
+  assert.match(taskDetailSource, /<option>通过<\/option><option>未通过<\/option>/);
+  assert.match(taskDetailSource, /sample\.verdict === "通过" \? "green" : "orange"/);
+  assert.match(prdSource, /判分结果仅包含“通过”和“未通过”/);
+  assert.match(prdSource, /未满足完整通过条件的样本统一记为“未通过”/);
+});
+
 test("流程模板删除自定义评估逻辑", () => {
   assert.doesNotMatch(evaluationSource, /自定义评估逻辑/);
   assert.match(evaluationSource, /delete params\.customLogic/);

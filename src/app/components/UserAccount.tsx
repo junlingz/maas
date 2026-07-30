@@ -19,20 +19,20 @@ const ROLE_FILTER_OPTIONS = ["全部", ...ROLE_OPTIONS];
 const STATUS_OPTIONS = ["全部", "正常", "禁用"];
 
 const ALL_USERS: UserRow[] = [
-  { id: 1,     account: "admin",            name: "admin",                    team: "系统",   roles: ["超管"],                          status: "正常", createdAt: "2025-06-28 10:11:27", addType: "系统创建" },
-  { id: 10000, account: "testuser1",        name: "testuser1@demo.com",       team: "智谱1",  roles: ["普通机构用户"],                   status: "正常", createdAt: "2025-06-19 14:11:45", addType: "手动创建" },
-  { id: 10001, account: "xun.wu",           name: "xun.wu@aminer.cn",         team: "智谱1",  roles: ["普通用户", "VIP用户"],            status: "正常", createdAt: "2025-06-19 18:03:16", addType: "手动创建" },
-  { id: 10002, account: "xiao.liu",         name: "xiao001.liu@aminer.cn",    team: "企业2",  roles: ["普通机构用户"],                   status: "正常", createdAt: "2025-06-19 18:03:54", addType: "手动创建" },
-  { id: 10003, account: "qixiang.ding",     name: "qixiang.ding@aminer.cn",   team: "企业2",  roles: ["VIP机构用户"],                    status: "正常", createdAt: "2025-06-23 11:18:12", addType: "手动创建" },
-  { id: 10004, account: "zhonghua.zhang",   name: "zhonghua.zhang@aminer.cn", team: "机构3",  roles: ["政府用户"],                       status: "正常", createdAt: "2025-06-23 23:23:08", addType: "手动创建" },
-  { id: 10005, account: "jiahe.zhang",      name: "jiahe.zhang@aminer.cn",    team: "企业4",  roles: ["普通机构用户"],                   status: "正常", createdAt: "2025-06-23 11:25:18", addType: "手动创建" },
-  { id: 10006, account: "xiang.chen",       name: "xiang.chen@example.com",   team: "无团队", roles: ["独立机构A用户"],                  status: "正常", createdAt: "2025-06-23 11:26:56", addType: "手动创建" },
-  { id: 10007, account: "jiaqi.song",       name: "jiaqi.song@aminer.cn",     team: "智谱1",  roles: ["普通用户"],                       status: "正常", createdAt: "2025-06-23 11:28:29", addType: "手动创建" },
-  { id: 10008, account: "yan.sun",          name: "yan.sun@aminer.cn",        team: "无团队", roles: ["独立机构B用户"],                  status: "禁用", createdAt: "2025-06-24 10:30:00", addType: "手动创建" },
-  { id: 10009, account: "xiaoyu.xiang",     name: "xiaoyu.xiang@aminer.cn",   team: "智谱1",  roles: ["VIP用户"],                        status: "正常", createdAt: "2025-06-23 11:31:48", addType: "手动创建" },
-  { id: 10010, account: "ming.li",          name: "ming.li@aminer.cn",        team: "企业2",  roles: ["普通机构用户", "VIP机构用户"],    status: "正常", createdAt: "2025-06-24 09:05:00", addType: "手动创建" },
-  { id: 10011, account: "fang.wang",        name: "fang.wang@aminer.cn",      team: "机构3",  roles: ["政府用户"],                       status: "禁用", createdAt: "2025-06-24 09:20:00", addType: "手动创建" },
-  { id: 10012, account: "lei.zhao",         name: "lei.zhao@aminer.cn",       team: "企业4",  roles: ["VIP用户", "普通用户"],            status: "正常", createdAt: "2025-06-24 10:00:00", addType: "手动创建" },
+  { id: 1,     account: "admin@maas.com",            name: "admin",                    team: "系统",   roles: ["超管"],                          status: "正常", createdAt: "2025-06-28 10:11:27", addType: "系统创建" },
+  { id: 10000, account: "testuser1@demo.com",        name: "测试用户1",                 team: "智谱1",  roles: ["普通机构用户"],                   status: "正常", createdAt: "2025-06-19 14:11:45", addType: "手动创建" },
+  { id: 10001, account: "xun.wu@aminer.cn",          name: "吴迅",                     team: "智谱1",  roles: ["普通用户", "VIP用户"],            status: "正常", createdAt: "2025-06-19 18:03:16", addType: "手动创建" },
+  { id: 10002, account: "xiao001.liu@aminer.cn",     name: "刘晓",                     team: "企业2",  roles: ["普通机构用户"],                   status: "正常", createdAt: "2025-06-19 18:03:54", addType: "手动创建" },
+  { id: 10003, account: "qixiang.ding@aminer.cn",    name: "丁启翔",                   team: "企业2",  roles: ["VIP机构用户"],                    status: "正常", createdAt: "2025-06-23 11:18:12", addType: "手动创建" },
+  { id: 10004, account: "zhonghua.zhang@aminer.cn",  name: "张中华",                   team: "机构3",  roles: ["政府用户"],                       status: "正常", createdAt: "2025-06-23 23:23:08", addType: "手动创建" },
+  { id: 10005, account: "jiahe.zhang@aminer.cn",     name: "张嘉禾",                   team: "企业4",  roles: ["普通机构用户"],                   status: "正常", createdAt: "2025-06-23 11:25:18", addType: "手动创建" },
+  { id: 10006, account: "xiang.chen@example.com",    name: "陈翔",                     team: "无团队", roles: ["独立机构A用户"],                  status: "正常", createdAt: "2025-06-23 11:26:56", addType: "手动创建" },
+  { id: 10007, account: "jiaqi.song@aminer.cn",      name: "宋嘉琪",                   team: "智谱1",  roles: ["普通用户"],                       status: "正常", createdAt: "2025-06-23 11:28:29", addType: "手动创建" },
+  { id: 10008, account: "yan.sun@aminer.cn",         name: "孙艳",                     team: "无团队", roles: ["独立机构B用户"],                  status: "禁用", createdAt: "2025-06-24 10:30:00", addType: "手动创建" },
+  { id: 10009, account: "xiaoyu.xiang@aminer.cn",    name: "向小雨",                   team: "智谱1",  roles: ["VIP用户"],                        status: "正常", createdAt: "2025-06-23 11:31:48", addType: "手动创建" },
+  { id: 10010, account: "ming.li@aminer.cn",         name: "李明",                     team: "企业2",  roles: ["普通机构用户", "VIP机构用户"],    status: "正常", createdAt: "2025-06-24 09:05:00", addType: "手动创建" },
+  { id: 10011, account: "fang.wang@aminer.cn",       name: "王芳",                     team: "机构3",  roles: ["政府用户"],                       status: "禁用", createdAt: "2025-06-24 09:20:00", addType: "手动创建" },
+  { id: 10012, account: "lei.zhao@aminer.cn",        name: "赵磊",                     team: "企业4",  roles: ["VIP用户", "普通用户"],            status: "正常", createdAt: "2025-06-24 10:00:00", addType: "手动创建" },
 ];
 
 const TOTAL_COUNT = 141;

@@ -115,15 +115,15 @@ interface TrainingRow {
 }
 
 const trainingRows: TrainingRow[] = [
-  { id: 1, name: "07061449", outputModel: "我的模型11", type: "继续预训练", status: "已完成", taskId: "12345234543", baseModel: "GLM-4-9B", creator: "张小明", resources: "8 × A100", submitTime: "2026-07-10 16:45:24", duration: "2小时15分", actions: ["删除任务", "查看报告", "评估报告"] },
-  { id: 2, name: "公文写作模型", outputModel: "公文写作-v1", type: "监督微调", status: "训练中", taskId: "76840646", baseModel: "GLM-4-9B", creator: "张小明", resources: "4 × A100", submitTime: "2026-07-12 09:20:10", duration: "1小时32分", actions: ["删除任务", "查看报告", "停止任务"] },
-  { id: 3, name: "天气变化预报", outputModel: "天气预报模型", type: "监督微调", status: "已完成", taskId: "34536448457", baseModel: "ChatGLM3-6B", creator: "张小明", resources: "2 × A100", submitTime: "2026-07-08 14:30:00", duration: "45分", actions: ["删除任务", "查看报告", "评估报告"] },
-  { id: 4, name: "天文资料搜索", outputModel: "天文搜索模型", type: "继续预训练", status: "已失败", taskId: "346903543", baseModel: "GLM-4-9B", creator: "张小明", resources: "8 × A100", submitTime: "2026-07-11 10:15:33", duration: "12分", actions: ["删除任务", "查看报告", "重新训练"] },
-  { id: 5, name: "公文写作模型", outputModel: "公文写作-v2", type: "监督微调", status: "已完成", taskId: "3461458868", baseModel: "GLM-4-9B", creator: "张小明", resources: "4 × A100", submitTime: "2026-07-09 18:00:00", duration: "3小时02分", actions: ["删除任务", "查看报告", "评估报告"], outputModelDeleted: true },
-  { id: 6, name: "天气变化预报", outputModel: "天气预报模型", type: "监督微调", status: "训练中", taskId: "34634875987", baseModel: "ChatGLM3-6B", creator: "张小明", resources: "2 × A100", submitTime: "2026-07-12 11:45:00", duration: "22分", actions: ["删除任务", "查看报告", "停止任务"] },
-  { id: 7, name: "天文资料搜索", outputModel: "天文搜索模型", type: "继续预训练", status: "已完成", taskId: "32750657145", baseModel: "GLM-4-9B", creator: "张小明", resources: "8 × A100", submitTime: "2026-07-06 08:20:00", duration: "5小时18分", actions: ["删除任务", "查看报告", "评估报告"] },
-  { id: 8, name: "公文写作模型", outputModel: "公文写作-v3", type: "监督微调", status: "已停止", taskId: "096764453", baseModel: "GLM-4-9B", creator: "张小明", resources: "4 × A100", submitTime: "2026-07-05 16:00:00", duration: "8分", actions: ["删除任务", "查看报告", "重新训练"] },
-  { id: 9, name: "天气变化预报", outputModel: "天气预报模型", type: "监督微调", status: "已完成", taskId: "406678753", baseModel: "ChatGLM3-6B", creator: "张小明", resources: "2 × A100", submitTime: "2026-07-07 13:10:00", duration: "1小时05分", actions: ["删除任务", "查看报告", "评估报告"] },
+  { id: 1, name: "07061449", outputModel: "我的模型11", type: "继续预训练", status: "已完成", taskId: "12345234543", baseModel: "GLM-4-9B", creator: "张小明", resources: "8 × A100", submitTime: "2026-07-10 16:45:24", duration: "2小时15分", actions: ["查看详情", "评估报告", "删除"] },
+  { id: 2, name: "公文写作模型", outputModel: "公文写作-v1", type: "监督微调", status: "训练中", taskId: "76840646", baseModel: "GLM-4-9B", creator: "张小明", resources: "4 × A100", submitTime: "2026-07-12 09:20:10", duration: "1小时32分", actions: ["查看详情", "删除"] },
+  { id: 3, name: "天气变化预报", outputModel: "天气预报模型", type: "监督微调", status: "已完成", taskId: "34536448457", baseModel: "ChatGLM3-6B", creator: "张小明", resources: "2 × A100", submitTime: "2026-07-08 14:30:00", duration: "45分", actions: ["查看详情", "评估报告", "删除"] },
+  { id: 4, name: "天文资料搜索", outputModel: "天文搜索模型", type: "继续预训练", status: "已失败", taskId: "346903543", baseModel: "GLM-4-9B", creator: "张小明", resources: "8 × A100", submitTime: "2026-07-11 10:15:33", duration: "12分", actions: ["查看详情", "删除"] },
+  { id: 5, name: "公文写作模型", outputModel: "公文写作-v2", type: "监督微调", status: "已完成", taskId: "3461458868", baseModel: "GLM-4-9B", creator: "张小明", resources: "4 × A100", submitTime: "2026-07-09 18:00:00", duration: "3小时02分", actions: ["查看详情", "评估报告", "删除"], outputModelDeleted: true },
+  { id: 6, name: "天气变化预报", outputModel: "天气预报模型", type: "监督微调", status: "训练中", taskId: "34634875987", baseModel: "ChatGLM3-6B", creator: "张小明", resources: "2 × A100", submitTime: "2026-07-12 11:45:00", duration: "22分", actions: ["查看详情", "删除"] },
+  { id: 7, name: "天文资料搜索", outputModel: "天文搜索模型", type: "继续预训练", status: "已完成", taskId: "32750657145", baseModel: "GLM-4-9B", creator: "张小明", resources: "8 × A100", submitTime: "2026-07-06 08:20:00", duration: "5小时18分", actions: ["查看详情", "评估报告", "删除"] },
+  { id: 8, name: "公文写作模型", outputModel: "公文写作-v3", type: "监督微调", status: "已停止", taskId: "096764453", baseModel: "GLM-4-9B", creator: "张小明", resources: "4 × A100", submitTime: "2026-07-05 16:00:00", duration: "8分", actions: ["查看详情", "删除"] },
+  { id: 9, name: "天气变化预报", outputModel: "天气预报模型", type: "监督微调", status: "已完成", taskId: "406678753", baseModel: "ChatGLM3-6B", creator: "张小明", resources: "2 × A100", submitTime: "2026-07-07 13:10:00", duration: "1小时05分", actions: ["查看详情", "评估报告", "删除"] },
 ];
 
 const statusCfg: Record<TrainingStatus, { bg: string; text: string; dot: string }> = {
@@ -148,7 +148,7 @@ function StatusBadge({ status }: { status: TrainingStatus }) {
 }
 
 function actionStyle(a: string) {
-  return (a === "删除任务" || a === "停止任务")
+  return a === "删除"
     ? { color: "#ef4444", hover: "#dc2626" }
     : { color: "#4f6ef7", hover: "#3b5de8" };
 }
@@ -233,7 +233,7 @@ function TrainingTaskList({ onCreate, onEvalReport, onJumpToMyModel }: { onCreat
                   <td style={{ padding: "11px 14px", color: "#6b7280", fontSize: 12, whiteSpace: "nowrap" }}>{row.duration}</td>
                   <td style={{ padding: "11px 14px" }}>
                     <div className="flex items-center gap-3">
-                      {row.actions.map(a => {
+                      {row.actions.filter(a => a !== "评估报告" || row.status === "已完成").map(a => {
                         const s = actionStyle(a);
                         return (
                           <button key={a}

@@ -300,13 +300,7 @@ function DeleteTeamModal({ onClose, onConfirm }: { onClose: () => void; onConfir
   );
 }
 
-// ─── Type / Status tag helpers ─────────────────────────────────────────────────
-
-const TYPE_TAG_CFG: Record<TeamType, { bg: string; color: string }> = {
-  "系统":   { bg: "#f3f4f6", color: "#6b7280" },
-  "有团队": { bg: "#eff4ff", color: "#4f6ef7" },
-  "无团队": { bg: "#f3f4f6", color: "#6b7280" },
-};
+// ─── Status tag helpers ────────────────────────────────────────────────────────
 
 const STATUS_TAG_CFG: Record<TeamStatus, { bg: string; color: string }> = {
   "启用": { bg: "#f0faf5", color: "#16a34a" },
@@ -320,7 +314,6 @@ export function TeamManagementPage() {
 
   // Filters
   const [nameInput, setNameInput]   = useState("");
-  const [typeFilter, setTypeFilter]  = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [nameQuery, setNameQuery]   = useState("");
 
@@ -332,7 +325,6 @@ export function TeamManagementPage() {
   const [deletingTeam, setDeletingTeam] = useState<TeamRow | null>(null);
 
   const filtered = teams.filter(t => {
-    if (typeFilter   && t.type !== typeFilter) return false;
     if (statusFilter && t.status !== statusFilter) return false;
     if (nameQuery && !t.name.toLowerCase().includes(nameQuery.toLowerCase())) return false;
     return true;
@@ -344,7 +336,7 @@ export function TeamManagementPage() {
   const pageRows = filtered.slice((curPage - 1) * PAGE_SIZE, curPage * PAGE_SIZE);
 
   const doSearch = () => { setNameQuery(nameInput); setPage(1); };
-  const doReset  = () => { setNameInput(""); setTypeFilter(""); setStatusFilter(""); setNameQuery(""); setPage(1); };
+  const doReset  = () => { setNameInput(""); setStatusFilter(""); setNameQuery(""); setPage(1); };
 
   const handleCreate = (data: { name: string; code: string; role: string; members: TeamMember[] }) => {
     const now = new Date();
@@ -402,19 +394,6 @@ export function TeamManagementPage() {
                 style={{ fontSize: 13, border: "none", outline: "none", width: 140, background: "transparent", color: "#1a1d23" }} />
             </div>
 
-            {/* Team type */}
-            <div style={{ fontSize: 12.5, color: "#374151", flexShrink: 0 }}>团队类型</div>
-            <div style={{ position: "relative" }}>
-              <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1); }}
-                style={{ height: 32, padding: "0 26px 0 10px", fontSize: 13, border: "1px solid #e0e3ed", borderRadius: 6, outline: "none", background: "#fff", appearance: "none", color: typeFilter ? "#1a1d23" : "#9ca3af", width: 100 }}>
-                <option value="">全部</option>
-                <option value="系统">系统</option>
-                <option value="有团队">有团队</option>
-                <option value="无团队">无团队</option>
-              </select>
-              <ChevronDown size={13} color="#9ca3af" style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
-            </div>
-
             {/* Status */}
             <div style={{ fontSize: 12.5, color: "#374151", flexShrink: 0 }}>状态</div>
             <div style={{ position: "relative" }}>
@@ -455,7 +434,7 @@ export function TeamManagementPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr>
-                {["团队名称", "团队类型", "状态", "成员数", "创建时间", "操作"].map(c => (
+                {["团队名称", "状态", "成员数", "创建时间", "操作"].map(c => (
                   <th key={c} style={thSt}>{c}</th>
                 ))}
               </tr>
@@ -463,10 +442,9 @@ export function TeamManagementPage() {
             <tbody>
               {pageRows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ ...tdSt, textAlign: "center", color: "#9ca3af", padding: "40px 14px" }}>暂无数据</td>
+                  <td colSpan={5} style={{ ...tdSt, textAlign: "center", color: "#9ca3af", padding: "40px 14px" }}>暂无数据</td>
                 </tr>
               ) : pageRows.map(row => {
-                const tc = TYPE_TAG_CFG[row.type];
                 const sc = STATUS_TAG_CFG[row.status];
                 const operable = canOperate(row);
                 return (
@@ -474,9 +452,6 @@ export function TeamManagementPage() {
                     onMouseEnter={e => (e.currentTarget.style.background = "#fafbfd")}
                     onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
                     <td style={{ ...tdSt, fontWeight: 600, color: "#1a1d23" }}>{row.name}</td>
-                    <td style={tdSt}>
-                      <span style={{ fontSize: 12, fontWeight: 500, padding: "2px 8px", borderRadius: 4, background: tc.bg, color: tc.color }}>{row.type}</span>
-                    </td>
                     <td style={tdSt}>
                       <span className="inline-flex items-center gap-1.5" style={{ fontSize: 12.5, fontWeight: 500, padding: "2px 8px", borderRadius: 4, background: sc.bg, color: sc.color }}>
                         <span style={{ width: 6, height: 6, borderRadius: "50%", background: sc.color, display: "inline-block" }} />

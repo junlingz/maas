@@ -153,7 +153,9 @@ const MODEL_DEFAULT_PARAMS: Record<string, Required<Omit<InferenceParams, "sourc
 };
 const LANGUAGE_TASKS = ["文本理解", "代码生成", "逻辑推理", "问答"];
 const MULTIMODAL_TASKS = ["图文描述", "视觉问答", "文档解析"];
-const METRIC_OPTIONS = ["Accuracy", "Precision", "Recall", "F1", "BLEU", "ROUGE", "METEOR", "Exact Match", "Pass@1", "VQA Score", "平均时延"];
+const METRIC_OPTIONS = ["Accuracy", "Precision", "Recall", "F1", "BLEU", "ROUGE", "METEOR", "Exact Match", "Pass@1", "VQA Score", "平均时延", "平均生成速度"];
+const UNWEIGHTED_METRICS = new Set(["平均时延", "平均生成速度"]);
+const MUTUALLY_EXCLUSIVE_METRIC_CATEGORIES = new Set(["生成", "分类", "代码生成"]);
 const CHART_SCALE_MIN = 0.8;
 const CHART_SCALE_MAX = 1.5;
 const CHART_SCALE_STEP = 0.1;
@@ -206,6 +208,7 @@ const METRIC_DETAILS: Record<string, { category: string; formula: string; scene:
   "Pass@1": { category: "代码生成", formula: "Pass@1 = 首个结果通过测试的样本数 / 总样本数", scene: "代码生成", range: "0-1" },
   "VQA Score": { category: "多模态", formula: "预测答案与人工答案一致度", scene: "视觉问答", range: "0-100" },
   "平均时延": { category: "效率", formula: "平均时延 = 总推理耗时 / 完成样本数", scene: "效率", range: "毫秒，越低越好" },
+  "平均生成速度": { category: "效率", formula: "平均生成速度 = 生成 Token 总数 / 总生成耗时", scene: "效率", range: "token/s，越高越好" },
 };
 
 const METRIC_GROUPS = Array.from(new Set(METRIC_OPTIONS.map(metric => METRIC_DETAILS[metric].category)));
@@ -216,10 +219,21 @@ function recommendedMetrics(modelType: ModelType, taskTypes: string[]) {
 }
 
 function equalMetricWeights(metrics: string[]) {
-  if (!metrics.length) return {};
-  const base = Math.floor(100 / metrics.length);
-  const remainder = 100 - base * metrics.length;
-  return Object.fromEntries(metrics.map((metric, index) => [metric, base + (index < remainder ? 1 : 0)]));
+  const weightedMetrics = metrics.filter(metric => !UNWEIGHTED_METRICS.has(metric));
+  if (!weightedMetrics.length) return {};
+  const base = Math.floor(100 / weightedMetrics.length);
+  const remainder = 100 - base * weightedMetrics.length;
+  return Object.fromEntries(weightedMetrics.map((metric, index) => [metric, base + (index < remainder ? 1 : 0)]));
+}
+
+function metricValueText(metric: EvalMetric) {
+  if (metric.name === "平均时延") return `${metric.score} ms`;
+  if (metric.name === "平均生成速度") return `${metric.score} token/s`;
+  return String(metric.score);
+}
+
+function metricWeightText(metric: EvalMetric) {
+  return UNWEIGHTED_METRICS.has(metric.name) ? "—" : `${metric.weight}%`;
 }
 
 const CONDITION_FIELD_OPTIONS: { value: ConditionField; label: string }[] = [
@@ -386,17 +400,17 @@ function cloneEvaluationScheme(row: EvaluationScheme): EvaluationScheme {
 }
 
 function createInitialEvaluationSchemes() {
-  const baselineFlowV12 = createDefaultFlowStages(true, "Accuracy,F1,ROUGE");
+  const baselineFlowV12 = createDefaultFlowStages(true, "Accuracy,F1");
   const baselineFlowV11 = createDefaultFlowStages(false, "Accuracy,F1");
   const multimodalFlowV10 = createDefaultFlowStages(false, "VQA Score,Accuracy");
   const codeFlowV10 = createDefaultFlowStages(false, "Pass@1,平均时延");
   const templates: EvaluationScheme[] = [
     {
       name: "语言模型基线流程", type: "流程模板", modelType: "语言模型", tasks: "文本理解、逻辑推理、问答",
-      stages: "数据预处理 → 模型推理 → 后处理 → 指标计算", version: "v1.2", scope: "共享", flowStages: baselineFlowV12, metricWeights: { Accuracy: 40, F1: 30, ROUGE: 30 },
+      stages: "数据预处理 → 模型推理 → 后处理 → 指标计算", version: "v1.2", scope: "共享", flowStages: baselineFlowV12, metricWeights: { Accuracy: 50, F1: 50 },
       author: "admin", sharedAccess: "编辑",
       history: [
-        { version: "v1.2", date: "2026-07-18", operator: "admin", summary: "启用后处理并补充 ROUGE 及指标权重", modelType: "语言模型", tasks: "文本理解、逻辑推理、问答", stages: "数据预处理 → 模型推理 → 后处理 → 指标计算", scope: "共享", flowStages: baselineFlowV12, metricWeights: { Accuracy: 40, F1: 30, ROUGE: 30 } },
+        { version: "v1.2", date: "2026-07-18", operator: "admin", summary: "启用后处理并调整分类指标权重", modelType: "语言模型", tasks: "文本理解、逻辑推理、问答", stages: "数据预处理 → 模型推理 → 后处理 → 指标计算", scope: "共享", flowStages: baselineFlowV12, metricWeights: { Accuracy: 50, F1: 50 } },
         { version: "v1.1", date: "2026-07-12", operator: "张小明", summary: "增加指标计算配置", modelType: "语言模型", tasks: "文本理解、逻辑推理、问答", stages: "数据预处理 → 模型推理 → 指标计算", scope: "共享", flowStages: baselineFlowV11, metricWeights: { Accuracy: 50, F1: 50 } },
         { version: "v1.0", date: "2026-07-01", operator: "admin", summary: "初始版本", modelType: "语言模型", tasks: "文本理解、逻辑推理、问答", stages: "数据预处理 → 模型推理 → 指标计算", scope: "私有", flowStages: baselineFlowV11, metricWeights: { Accuracy: 50, F1: 50 } },
       ],
@@ -409,9 +423,9 @@ function createInitialEvaluationSchemes() {
     },
     {
       name: "代码能力评测流程", type: "流程模板", modelType: "语言模型", tasks: "代码生成",
-      stages: "数据预处理 → 模型推理 → 指标计算", version: "v1.0", scope: "私有", flowStages: codeFlowV10, metricWeights: { "Pass@1": 70, "平均时延": 30 },
+      stages: "数据预处理 → 模型推理 → 指标计算", version: "v1.0", scope: "私有", flowStages: codeFlowV10, metricWeights: { "Pass@1": 100 },
       author: "admin", sharedAccess: "只读",
-      history: [{ version: "v1.0", date: "2026-07-08", operator: "admin", summary: "初始版本", modelType: "语言模型", tasks: "代码生成", stages: "数据预处理 → 模型推理 → 指标计算", scope: "私有", flowStages: codeFlowV10, metricWeights: { "Pass@1": 70, "平均时延": 30 } }],
+      history: [{ version: "v1.0", date: "2026-07-08", operator: "admin", summary: "初始版本", modelType: "语言模型", tasks: "代码生成", stages: "数据预处理 → 模型推理 → 指标计算", scope: "私有", flowStages: codeFlowV10, metricWeights: { "Pass@1": 100 } }],
     },
   ];
   return { templates };
@@ -465,6 +479,12 @@ function buildReportHtml(task: EvalTask) {
   const score = scoreOf(task);
   const now = new Date().toLocaleString("zh-CN", { hour12: false });
   const metricCards = task.metrics.map(m => {
+    if (UNWEIGHTED_METRICS.has(m.name)) {
+      return `<div style="flex:1;min-width:130px;background:#f9fafb;border-radius:8px;padding:14px;text-align:center;border:1px solid #e5e7eb">
+        <div style="font-size:12px;color:#6b7280;margin-bottom:6px">${escapeHtml(m.name)}</div>
+        <div style="font-size:26px;font-weight:700;color:#1f2937">${escapeHtml(metricValueText(m))}</div>
+      </div>`;
+    }
     const pct = Math.round((m.score / 100) * 100);
     const color = pct >= 80 ? "#16a34a" : pct >= 60 ? "#f59e0b" : "#dc2626";
     return `<div style="flex:1;min-width:130px;background:#f9fafb;border-radius:8px;padding:14px;text-align:center;border:1px solid #e5e7eb">
@@ -486,8 +506,8 @@ function buildReportHtml(task: EvalTask) {
     const w = Math.round(ds);
     return `<tr><td style="border:1px solid #e5e7eb;padding:8px 12px">${escapeHtml(d)}</td><td style="border:1px solid #e5e7eb;padding:8px 12px"><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:8px;border-radius:4px;background:#e5e7eb"><div style="width:${w}%;height:100%;border-radius:4px;background:#4f6ef7"></div></div><span style="font-weight:600;font-size:13px">${ds.toFixed(1)}</span></div></td></tr>`;
   }).join("");
-  const strengths = task.metrics.filter(m => m.score >= 80).map(m => m.name);
-  const weaknesses = task.metrics.filter(m => m.score < 70).map(m => m.name);
+  const strengths = task.metrics.filter(m => !UNWEIGHTED_METRICS.has(m.name) && m.score >= 80).map(m => m.name);
+  const weaknesses = task.metrics.filter(m => !UNWEIGHTED_METRICS.has(m.name) && m.score < 70).map(m => m.name);
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>${escapeHtml(task.name)} 测评报告</title>
 <style>@page{size:A4;margin:18mm 16mm}body{font-family:"PingFang SC","Microsoft YaHei",Arial,sans-serif;max-width:820px;margin:0 auto;color:#1f2937;line-height:1.75;font-size:13px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 h1{font-size:24px;border-bottom:2px solid #e5e7eb;padding-bottom:12px;margin-bottom:6px}
@@ -542,9 +562,10 @@ th{background:#f7f8fa;font-weight:600;text-align:left}
 <h3>指标汇总</h3>
 <table><thead><tr><th style="border:1px solid #e5e7eb;padding:9px 12px">指标</th><th style="border:1px solid #e5e7eb;padding:9px 12px">得分</th><th style="border:1px solid #e5e7eb;padding:9px 12px">权重</th><th style="border:1px solid #e5e7eb;padding:9px 12px">通过率</th><th style="border:1px solid #e5e7eb;padding:9px 12px">分数分布</th></tr></thead>
 <tbody>${task.metrics.map((m, i) => {
+  const efficiencyMetric = UNWEIGHTED_METRICS.has(m.name);
   const pct = Math.round((m.score / 100) * 100);
   const pr = Math.max(58, 88 - i * 6);
-  return `<tr><td style="border:1px solid #e5e7eb;padding:9px 12px;font-weight:600">${escapeHtml(m.name)}</td><td style="border:1px solid #e5e7eb;padding:9px 12px">${m.score}</td><td style="border:1px solid #e5e7eb;padding:9px 12px">${m.weight}%</td><td style="border:1px solid #e5e7eb;padding:9px 12px">${pr}%</td><td style="border:1px solid #e5e7eb;padding:9px 12px"><div style="height:6px;border-radius:3px;background:#e5e7eb;max-width:140px"><div style="width:${pct}%;height:100%;border-radius:3px;background:#4f6ef7"></div></div></td></tr>`;
+  return `<tr><td style="border:1px solid #e5e7eb;padding:9px 12px;font-weight:600">${escapeHtml(m.name)}</td><td style="border:1px solid #e5e7eb;padding:9px 12px">${escapeHtml(metricValueText(m))}</td><td style="border:1px solid #e5e7eb;padding:9px 12px">${efficiencyMetric ? "—" : `${m.weight}%`}</td><td style="border:1px solid #e5e7eb;padding:9px 12px">${efficiencyMetric ? "—" : `${pr}%`}</td><td style="border:1px solid #e5e7eb;padding:9px 12px">${efficiencyMetric ? "—" : `<div style="height:6px;border-radius:3px;background:#e5e7eb;max-width:140px"><div style="width:${pct}%;height:100%;border-radius:3px;background:#4f6ef7"></div></div>`}</td></tr>`;
 }).join("")}</tbody></table>
 
 <h2>三、各分项任务表现分析</h2>
@@ -626,9 +647,10 @@ const INITIAL_TASKS: EvalTask[] = [
     datasets: ["C-Eval", "GSM8K", "TruthfulQA"],
     datasetVersions: { "C-Eval": "v1.0", GSM8K: "v1.1", TruthfulQA: "v1.0" },
     metrics: [
-      { name: "Accuracy", score: 86.4, weight: 45 },
-      { name: "F1", score: 84.8, weight: 35 },
-      { name: "平均时延", score: 91.5, weight: 20 },
+      { name: "Accuracy", score: 86.4, weight: 56 },
+      { name: "F1", score: 84.8, weight: 44 },
+      { name: "平均时延", score: 842, weight: 0 },
+      { name: "平均生成速度", score: 46.8, weight: 0 },
     ],
     params: { maxTokens: 2048, temperature: 0.7, topK: 50, batchSize: 8, source: "模型默认" },
     stage: "任务完成",
@@ -651,9 +673,10 @@ const INITIAL_TASKS: EvalTask[] = [
     datasets: ["MMMU", "VQAv2"],
     datasetVersions: { MMMU: "v1.0", VQAv2: "v2.0" },
     metrics: [
-      { name: "VQA Score", score: 67.8, weight: 45 },
-      { name: "Accuracy", score: 71.2, weight: 35 },
-      { name: "平均时延", score: 76.4, weight: 20 },
+      { name: "VQA Score", score: 67.8, weight: 56 },
+      { name: "Accuracy", score: 71.2, weight: 44 },
+      { name: "平均时延", score: 1180, weight: 0 },
+      { name: "平均生成速度", score: 28.4, weight: 0 },
     ],
     params: { maxTokens: 1024, temperature: 0.2, topK: 20, batchSize: 4, source: "配置方案" },
     stage: "模型推理",
@@ -703,9 +726,10 @@ const INITIAL_TASKS: EvalTask[] = [
     datasets: ["C-Eval"],
     datasetVersions: { "C-Eval": "v1.0" },
     metrics: [
-      { name: "Accuracy", score: 84.1, weight: 50 },
-      { name: "F1", score: 82.7, weight: 35 },
-      { name: "平均时延", score: 88.2, weight: 15 },
+      { name: "Accuracy", score: 84.1, weight: 59 },
+      { name: "F1", score: 82.7, weight: 41 },
+      { name: "平均时延", score: 735, weight: 0 },
+      { name: "平均生成速度", score: 52.1, weight: 0 },
     ],
     params: { maxTokens: 2048, temperature: 0.2, topK: 50, batchSize: 8, source: "配置方案" },
     stage: "任务完成",
@@ -728,8 +752,9 @@ const INITIAL_TASKS: EvalTask[] = [
     datasets: ["HumanEval"],
     datasetVersions: { HumanEval: "v1.0" },
     metrics: [
-      { name: "Pass@1", score: 78.6, weight: 70 },
-      { name: "平均时延", score: 88.2, weight: 30 },
+      { name: "Pass@1", score: 78.6, weight: 100 },
+      { name: "平均时延", score: 910, weight: 0 },
+      { name: "平均生成速度", score: 38.7, weight: 0 },
     ],
     params: { maxTokens: 4096, temperature: 0.1, topK: 10, batchSize: 4, source: "自定义" },
     stage: "任务完成",
@@ -768,20 +793,32 @@ const TASK_STORAGE_KEY = "maas-evaluation-tasks";
 
 function removeRetiredMetrics(metrics: EvalMetric[] = []) {
   const retiredMetricName = ["Reasoning", "Score"].join(" ");
-  const retained = metrics.filter(metric => metric.name !== retiredMetricName);
-  if (retained.length === metrics.length || retained.length === 0) return retained;
-  const totalWeight = retained.reduce((sum, metric) => sum + metric.weight, 0);
+  const retained = metrics.filter(metric => metric.name !== retiredMetricName).map(metric => {
+    if (metric.name === "平均时延") {
+      const latency = metric.score > 200 ? metric.score : Math.max(100, Math.round(1600 - metric.score * 8));
+      return { ...metric, score: latency, weight: 0 };
+    }
+    if (metric.name === "平均生成速度") return { ...metric, weight: 0 };
+    return metric;
+  });
+  if (!retained.length) return retained;
+  const weighted = retained.filter(metric => !UNWEIGHTED_METRICS.has(metric.name));
+  const totalWeight = weighted.reduce((sum, metric) => sum + metric.weight, 0);
   if (totalWeight <= 0) {
-    const weights = equalMetricWeights(retained.map(metric => metric.name));
-    return retained.map(metric => ({ ...metric, weight: weights[metric.name] }));
+    const weights = equalMetricWeights(weighted.map(metric => metric.name));
+    return retained.map(metric => ({ ...metric, weight: UNWEIGHTED_METRICS.has(metric.name) ? 0 : weights[metric.name] || 0 }));
   }
-  const normalized = retained.map(metric => Math.floor(metric.weight / totalWeight * 100));
+  const normalized = weighted.map(metric => Math.floor(metric.weight / totalWeight * 100));
   let remainder = 100 - normalized.reduce((sum, weight) => sum + weight, 0);
   for (let index = 0; remainder > 0; index = (index + 1) % normalized.length) {
     normalized[index] += 1;
     remainder -= 1;
   }
-  return retained.map((metric, index) => ({ ...metric, weight: normalized[index] }));
+  const normalizedWeights = Object.fromEntries(weighted.map((metric, index) => [metric.name, normalized[index]]));
+  const withWeights = retained.map(metric => ({ ...metric, weight: UNWEIGHTED_METRICS.has(metric.name) ? 0 : normalizedWeights[metric.name] || 0 }));
+  if (!withWeights.some(metric => metric.name === "平均时延") || withWeights.some(metric => metric.name === "平均生成速度")) return withWeights;
+  const latency = withWeights.find(metric => metric.name === "平均时延")?.score || 1000;
+  return [...withWeights, { name: "平均生成速度", score: Math.round(Math.max(12, 50000 / latency) * 10) / 10, weight: 0 }];
 }
 
 function loadEvaluationTasks(): EvalTask[] {
@@ -935,9 +972,9 @@ function ToggleGroup({ options, value, onChange }: { options: string[]; value: s
 }
 
 function scoreOf(task: EvalTask) {
-  const scored = task.metrics.filter(m => m.score > 0);
+  const scored = task.metrics.filter(m => m.score > 0 && m.weight > 0 && !UNWEIGHTED_METRICS.has(m.name));
   if (!scored.length) return 0;
-  const weightSum = scored.reduce((sum, m) => sum + m.weight, 0) || scored.length;
+  const weightSum = scored.reduce((sum, m) => sum + m.weight, 0);
   return Math.round((scored.reduce((sum, m) => sum + m.score * m.weight, 0) / weightSum) * 10) / 10;
 }
 
@@ -1513,6 +1550,19 @@ function TaskDetailPage({ task, onClose, onStop, initialTab = "overview" }: { ta
   const [logsPaused, setLogsPaused] = useState(false);
   const [metricDetail, setMetricDetail] = useState<EvalMetric | null>(null);
   const score = scoreOf(task);
+  const latencyMetric = task.metrics.find(metric => metric.name === "平均时延")
+    || { name: "平均时延", score: 842, weight: 0 };
+  const generationSpeedMetric = task.metrics.find(metric => metric.name === "平均生成速度")
+    || { name: "平均生成速度", score: 46.8, weight: 0 };
+  const resultMetrics = [
+    ...task.metrics.filter(metric => !UNWEIGHTED_METRICS.has(metric.name)),
+    latencyMetric,
+    generationSpeedMetric,
+  ];
+  const resultMetricCards: EvalMetric[] = [
+    { name: "总体得分", score, weight: 100 },
+    ...resultMetrics,
+  ];
   const monitorStatus = task.status === "排队中" ? "排队中" : task.status === "运行中" ? "执行中" : task.status === "成功" ? "已完成" : task.status;
   const timelineStages = ["任务创建", "排队中", "环境加载", "数据预处理", "模型推理", "指标计算", "报告生成", "任务完成"];
   const mappedStageIndex = timelineStages.indexOf(task.stage);
@@ -1555,7 +1605,7 @@ function TaskDetailPage({ task, onClose, onStop, initialTab = "overview" }: { ta
     ["配置方案", task.scheme || "未使用配置方案"],
     ...(task.modelSource === "外部模型 API" ? [["API 地址", task.apiUrl], ["Model Key", task.modelKey || "-"], ["鉴权方式", task.authType || "-"], ["API Key", "••••••"]] : []),
     ["评测数据与版本", task.datasets.map(dataset => `${dataset} ${task.datasetVersions?.[dataset] || "未记录版本"}`).join("、")],
-    ["评估指标与权重", task.metrics.map(metric => `${metric.name} ${metric.weight}%`).join("、")],
+    ["评估指标与权重", task.metrics.map(metric => UNWEIGHTED_METRICS.has(metric.name) ? `${metric.name}（不参与权重）` : `${metric.name} ${metric.weight}%`).join("、")],
     ["样本计算范围", `${conditionRuleSummary(task.metricConditionRule)}（命中 ${metricSamples.length} 条）`],
     ["推理参数来源", task.params.source || "未记录"],
     ["创建人", task.creator],
@@ -1680,9 +1730,14 @@ function TaskDetailPage({ task, onClose, onStop, initialTab = "overview" }: { ta
                   ? <div style={{ padding: 40, textAlign: "center", color: "#9ca3af" }}>没有符合样本计算范围的数据，暂无指标结果。</div>
                   : <div style={{ padding: 14, display: "grid", gap: 12 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", border: "1px solid #e8ebf2", borderRadius: 8 }}>
-                    {[{ name: "总体得分", score, weight: 100 }, ...task.metrics.slice(0, 3)].map((metric, index) => {
+                    {resultMetricCards.map((metric, index) => {
+                      const isEfficiencyMetric = UNWEIGHTED_METRICS.has(metric.name);
                       const positive = metric.score >= 80;
-                      return <button key={metric.name} onClick={() => setMetricDetail(metric)} style={{ padding: "11px 14px", textAlign: "left", border: "none", borderRight: index < Math.min(3, task.metrics.length) ? "1px solid #eef1f6" : "none", background: "#fff", cursor: "pointer" }}><div className="flex items-center justify-between"><span style={{ fontSize: 12, color: "#6b7280" }}>{metric.name}</span>{positive ? <ArrowUp size={14} color="#16a34a" /> : <ArrowDown size={14} color="#ea580c" />}</div><div className="flex items-end justify-between" style={{ marginTop: 4 }}><span style={{ fontSize: 21, fontWeight: 700 }}>{metric.score}</span><span style={{ color: positive ? "#16a34a" : "#ea580c", fontSize: 11 }}>{positive ? "表现良好" : "建议优化"}</span></div><div style={{ fontSize: 11, color: "#4f6ef7", marginTop: 3 }}>查看指标详情</div></button>;
+                      const cardStyle = { padding: "11px 14px", textAlign: "left" as const, border: "none", borderRight: index < resultMetricCards.length - 1 ? "1px solid #eef1f6" : "none", background: "#fff" };
+                      if (isEfficiencyMetric) {
+                        return <div key={metric.name} style={cardStyle}><div style={{ fontSize: 12, color: "#6b7280" }}>{metric.name}</div><div style={{ marginTop: 8, fontSize: 21, fontWeight: 700 }}>{metricValueText(metric)}</div></div>;
+                      }
+                      return <button key={metric.name} onClick={() => setMetricDetail(metric)} style={{ ...cardStyle, cursor: "pointer" }}><div className="flex items-center justify-between"><span style={{ fontSize: 12, color: "#6b7280" }}>{metric.name}</span>{positive ? <ArrowUp size={14} color="#16a34a" /> : <ArrowDown size={14} color="#ea580c" />}</div><div className="flex items-end justify-between" style={{ marginTop: 4 }}><span style={{ fontSize: 21, fontWeight: 700 }}>{metricValueText(metric)}</span><span style={{ color: positive ? "#16a34a" : "#ea580c", fontSize: 11 }}>{positive ? "表现良好" : "建议优化"}</span></div><div style={{ fontSize: 11, color: "#4f6ef7", marginTop: 3 }}>查看指标详情</div></button>;
                     })}
                   </div>
                   {/* Bar chart: 不同数据集得分 */}
@@ -1767,7 +1822,10 @@ function TaskDetailPage({ task, onClose, onStop, initialTab = "overview" }: { ta
                     </div>
                   </div>
 
-                  <div style={{ border: "1px solid #e8ebf2", borderRadius: 8, overflow: "hidden" }}><div style={{ padding: "12px 14px", fontSize: 14, fontWeight: 600, borderBottom: "1px solid #f0f2f7" }}>指标汇总</div><table style={{ width: "100%", borderCollapse: "collapse" }}><thead><tr>{["指标", "得分", "权重", "通过率", "操作"].map(column => <th key={column} style={thSt}>{column}</th>)}</tr></thead><tbody>{task.metrics.map((metric, index) => <tr key={metric.name}><td style={{ ...tdSt, fontWeight: 600 }}>{metric.name}</td><td style={tdSt}>{metric.score}</td><td style={tdSt}>{metric.weight}%</td><td style={tdSt}>{Math.max(58, 88 - index * 6)}%</td><td style={tdSt}><TextButton onClick={() => setMetricDetail(metric)}>查看详情</TextButton></td></tr>)}</tbody></table></div>
+                  <div style={{ border: "1px solid #e8ebf2", borderRadius: 8, overflow: "hidden" }}><div style={{ padding: "12px 14px", fontSize: 14, fontWeight: 600, borderBottom: "1px solid #f0f2f7" }}>指标汇总</div><table style={{ width: "100%", borderCollapse: "collapse" }}><thead><tr>{["指标", "结果", "权重", "通过率", "操作"].map(column => <th key={column} style={thSt}>{column}</th>)}</tr></thead><tbody>{resultMetrics.map((metric, index) => {
+                    const isEfficiencyMetric = UNWEIGHTED_METRICS.has(metric.name);
+                    return <tr key={metric.name}><td style={{ ...tdSt, fontWeight: 600 }}>{metric.name}</td><td style={tdSt}>{metricValueText(metric)}</td><td style={tdSt}>{metricWeightText(metric)}</td><td style={tdSt}>{isEfficiencyMetric ? "—" : `${Math.max(58, 88 - index * 6)}%`}</td><td style={tdSt}>{isEfficiencyMetric ? "—" : <TextButton onClick={() => setMetricDetail(metric)}>查看详情</TextButton>}</td></tr>;
+                  })}</tbody></table></div>
                 </div> : <div>
                   <div className="flex items-center justify-between" style={{ padding: "10px 14px", background: "#f7f9ff", borderBottom: "1px solid #e6ebfb", fontSize: 12.5 }}>
                     <span><b>指标计算范围：</b>{conditionRuleSummary(task.metricConditionRule)}</span>
@@ -1828,14 +1886,14 @@ function TaskDetailPage({ task, onClose, onStop, initialTab = "overview" }: { ta
                     <div style={{ fontSize: 16, fontWeight: 700, color: "#1a1d23", marginBottom: 14, paddingLeft: 10, borderLeft: "4px solid #4f6ef7" }}>二、详细指标得分</div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(148px, 1fr))", gap: 10, marginBottom: 16 }}>
                       {task.metrics.map(m => {
+                        const isEfficiencyMetric = UNWEIGHTED_METRICS.has(m.name);
                         const pct = Math.round((m.score / 100) * 100);
                         const color = pct >= 80 ? "#16a34a" : pct >= 60 ? "#f59e0b" : "#dc2626";
                         return (
                           <div key={m.name} style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: 14, textAlign: "center" }}>
                             <div style={{ fontSize: 11.5, color: "#6b7280", marginBottom: 6 }}>{m.name}</div>
-                            <div style={{ fontSize: 26, fontWeight: 700, color }}>{m.score}</div>
-                            <div style={{ marginTop: 4, height: 6, borderRadius: 3, background: "#e5e7eb" }}><div style={{ width: `${pct}%`, height: "100%", borderRadius: 3, background: color }} /></div>
-                            <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 5 }}>权重 {m.weight}%</div>
+                            <div style={{ fontSize: 26, fontWeight: 700, color: isEfficiencyMetric ? "#1f2937" : color }}>{metricValueText(m)}</div>
+                            {!isEfficiencyMetric && <><div style={{ marginTop: 4, height: 6, borderRadius: 3, background: "#e5e7eb" }}><div style={{ width: `${pct}%`, height: "100%", borderRadius: 3, background: color }} /></div><div style={{ fontSize: 11, color: "#9ca3af", marginTop: 5 }}>权重 {m.weight}%</div></>}
                           </div>
                         );
                       })}
@@ -1845,8 +1903,9 @@ function TaskDetailPage({ task, onClose, onStop, initialTab = "overview" }: { ta
                       <table style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead><tr>{["指标", "得分", "权重", "通过率", "分数分布"].map(c => <th key={c} style={thSt}>{c}</th>)}</tr></thead>
                         <tbody>{task.metrics.map((m, i) => {
+                          const isEfficiencyMetric = UNWEIGHTED_METRICS.has(m.name);
                           const pct = Math.round((m.score / 100) * 100);
-                          return <tr key={m.name}><td style={{ ...tdSt, fontWeight: 600 }}>{m.name}</td><td style={tdSt}>{m.score}</td><td style={tdSt}>{m.weight}%</td><td style={tdSt}>{Math.max(58, 88 - i * 6)}%</td><td style={tdSt}><div style={{ height: 6, borderRadius: 3, background: "#e5e7eb", maxWidth: 140 }}><div style={{ width: `${pct}%`, height: "100%", borderRadius: 3, background: "#4f6ef7" }} /></div></td></tr>;
+                          return <tr key={m.name}><td style={{ ...tdSt, fontWeight: 600 }}>{m.name}</td><td style={tdSt}>{metricValueText(m)}</td><td style={tdSt}>{metricWeightText(m)}</td><td style={tdSt}>{isEfficiencyMetric ? "—" : `${Math.max(58, 88 - i * 6)}%`}</td><td style={tdSt}>{isEfficiencyMetric ? "—" : <div style={{ height: 6, borderRadius: 3, background: "#e5e7eb", maxWidth: 140 }}><div style={{ width: `${pct}%`, height: "100%", borderRadius: 3, background: "#4f6ef7" }} /></div>}</td></tr>;
                         })}</tbody>
                       </table>
                     </div>
@@ -1889,16 +1948,16 @@ function TaskDetailPage({ task, onClose, onStop, initialTab = "overview" }: { ta
                       <div style={{ fontSize: 14, fontWeight: 700, color: "#16a34a", marginBottom: 6 }}>综合表现</div>
                       <p style={{ margin: 0, fontSize: 13.5, color: "#374151", lineHeight: 1.8 }}>{task.evalModels[0]} 在 {task.taskTypes.join("、")} 任务上的总体得分为 <b>{score}</b>，整体表现{score >= 80 ? "优秀，已达到业务试用标准" : score >= 65 ? "良好，建议在特定场景下试用" : "有待提升，建议针对性优化后再评测"}。</p>
                     </div>
-                    {task.metrics.filter(m => m.score >= 80).length > 0 && (
+                    {task.metrics.filter(m => !UNWEIGHTED_METRICS.has(m.name) && m.score >= 80).length > 0 && (
                       <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: 16, marginBottom: 10 }}>
                         <div style={{ fontSize: 14, fontWeight: 700, color: "#16a34a", marginBottom: 6 }}>优势领域</div>
-                        <p style={{ margin: 0, fontSize: 13.5, color: "#374151", lineHeight: 1.8 }}>在 {task.metrics.filter(m => m.score >= 80).map(m => m.name).join("、")} 指标上表现突出，得分均超过 80 分，表明模型在这些维度上具备较强能力。</p>
+                        <p style={{ margin: 0, fontSize: 13.5, color: "#374151", lineHeight: 1.8 }}>在 {task.metrics.filter(m => !UNWEIGHTED_METRICS.has(m.name) && m.score >= 80).map(m => m.name).join("、")} 指标上表现突出，得分均超过 80 分，表明模型在这些维度上具备较强能力。</p>
                       </div>
                     )}
-                    {task.metrics.filter(m => m.score < 70).length > 0 && (
+                    {task.metrics.filter(m => !UNWEIGHTED_METRICS.has(m.name) && m.score < 70).length > 0 && (
                       <div style={{ background: "#fefce8", border: "1px solid #fde68a", borderRadius: 8, padding: 16, marginBottom: 10 }}>
                         <div style={{ fontSize: 14, fontWeight: 700, color: "#b45309", marginBottom: 6 }}>待改进项</div>
-                        <p style={{ margin: 0, fontSize: 13.5, color: "#374151", lineHeight: 1.8 }}>{task.metrics.filter(m => m.score < 70).map(m => m.name).join("、")} 指标得分低于 70 分，建议针对相关任务类型补充高质量训练数据，并调整推理参数后复测。</p>
+                        <p style={{ margin: 0, fontSize: 13.5, color: "#374151", lineHeight: 1.8 }}>{task.metrics.filter(m => !UNWEIGHTED_METRICS.has(m.name) && m.score < 70).map(m => m.name).join("、")} 指标得分低于 70 分，建议针对相关任务类型补充高质量训练数据，并调整推理参数后复测。</p>
                       </div>
                     )}
                     <div style={{ background: "#eff4ff", border: "1px solid #dbe5ff", borderRadius: 8, padding: 16 }}>
@@ -2482,6 +2541,7 @@ export function EvaluationConfigPage() {
     { category: "分类", name: "F1", principle: "使用精确率与召回率的调和平均衡量综合表现。", formula: "F1 = 2 × Precision × Recall / (Precision + Recall)", scene: "分类、抽取", range: "0-1" },
     { category: "代码生成", name: "Pass@1", principle: "统计每个样本首个生成程序通过全部测试用例的比例。", formula: "Pass@1 = 首个结果通过测试的样本数 / 总样本数", scene: "代码生成", range: "0-1" },
     { category: "效率", name: "平均时延", principle: "统计所有成功样本从请求发出到响应完成的平均耗时。", formula: "平均时延 = 总推理耗时 / 完成样本数", scene: "模型推理效率", range: "毫秒，越低越好" },
+    { category: "效率", name: "平均生成速度", principle: "统计成功请求在生成阶段每秒输出的平均 Token 数。", formula: "平均生成速度 = 生成 Token 总数 / 总生成耗时", scene: "模型推理效率", range: "token/s，越高越好" },
   ];
 
   const create = () => {
@@ -2495,7 +2555,7 @@ export function EvaluationConfigPage() {
     const scope = existing && existing.author !== CURRENT_USER ? existing.scope : draftScope;
     const sharedAccess = existing && existing.author !== CURRENT_USER ? existing.sharedAccess : draftSharedAccess;
     const savedFlowStages = cloneFlowStages(flowStages);
-    const savedWeights = Object.fromEntries(Object.entries(metricWeights).filter(([, weight]) => weight > 0));
+    const savedWeights = Object.fromEntries(Object.entries(metricWeights).filter(([metric, weight]) => !UNWEIGHTED_METRICS.has(metric) && weight > 0));
     const stages = savedFlowStages.filter(stage => stage.enabled).map(stage => stage.name).join(" → ");
     const content: SchemeContent = { modelType: draftModelType, tasks, stages, scope, flowStages: savedFlowStages, metricWeights: savedWeights };
     const next: EvaluationScheme = {
@@ -2529,7 +2589,9 @@ export function EvaluationConfigPage() {
     const stages = cloneFlowStages(row.flowStages || createDefaultFlowStages(false, "Accuracy"));
     const configuredMetrics = String(stages.find(stage => stage.name === "指标计算")?.params.metrics || "").split(",").filter(Boolean);
     setFlowStages(stages);
-    setMetricWeights(row.metricWeights ? { ...row.metricWeights } : equalMetricWeights(configuredMetrics));
+    setMetricWeights(row.metricWeights
+      ? Object.fromEntries(Object.entries(row.metricWeights).filter(([metric]) => !UNWEIGHTED_METRICS.has(metric)))
+      : equalMetricWeights(configuredMetrics));
     setShowCreate(true);
   };
   const openSharing = (row: EvaluationScheme) => {
@@ -2605,7 +2667,6 @@ export function EvaluationConfigPage() {
     setHistoryName(null);
     setMessage("已按历史内容生成新版本");
   };
-  const totalWeight = Object.values(metricWeights).reduce((sum, value) => sum + value, 0);
   const enabledFlowNames = flowStages.filter(stage => stage.enabled).map(stage => stage.name);
   const preprocessingIndex = enabledFlowNames.indexOf("数据预处理");
   const inferenceIndex = enabledFlowNames.indexOf("模型推理");
@@ -2621,6 +2682,10 @@ export function EvaluationConfigPage() {
   const preprocessingStage = flowStages.find(stage => stage.name === "数据预处理");
   const inferenceStage = flowStages.find(stage => stage.name === "模型推理");
   const metricStage = flowStages.find(stage => stage.name === "指标计算");
+  const configuredMetricNames = String(metricStage?.params.metrics || "").split(",").filter(Boolean);
+  const totalWeight = configuredMetricNames
+    .filter(metric => !UNWEIGHTED_METRICS.has(metric))
+    .reduce((sum, metric) => sum + (metricWeights[metric] || 0), 0);
   const metricConditionRule = cloneMetricConditionRule(metricStage?.conditionRule);
   const metricConditionInvalid = metricConditionRule.mode === "filter"
     && (!metricConditionRule.conditions.length || metricConditionRule.conditions.some(condition => {
@@ -2651,27 +2716,43 @@ export function EvaluationConfigPage() {
     || totalWeight !== 100;
   const editingScheme = editingName ? templates.find(item => item.name === editingName) : null;
   const canManageDraftSharing = !editingScheme || editingScheme.author === CURRENT_USER;
-  const renderMetricConfiguration = (selectedMetrics: string[], stage: FlowStage) => (
-    <div style={{ marginTop: 10, borderTop: "1px solid #eef0f5", paddingTop: 8 }}>
+  const renderMetricConfiguration = (selectedMetrics: string[], stage: FlowStage) => {
+    const selectedPrimaryCategory = metricLibrary.find(metric =>
+      selectedMetrics.includes(metric.name) && MUTUALLY_EXCLUSIVE_METRIC_CATEGORIES.has(metric.category)
+    )?.category;
+    return <div style={{ marginTop: 10, borderTop: "1px solid #eef0f5", paddingTop: 8 }}>
       <div style={{ marginBottom: 8, color: "#6b7280", fontSize: 12, lineHeight: 1.6 }}>
-        勾选参与计算的指标后填写权重；所有已选指标权重合计必须为 100%。
+        生成、分类、代码生成类指标互斥，只能选择其中一类；该类已选指标权重合计必须为 100%。效率类指标可随时选择，不参与权重计算。
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "22px 88px minmax(0, 1fr) 96px", gap: 8, alignItems: "center", padding: "7px 0", color: "#6b7280", fontSize: 11.5, borderBottom: "1px solid #e8ebf2" }}>
         <span>选择</span><span>指标</span><span>指标说明</span><span>权重（%）</span>
       </div>
-      {["生成", "分类", "代码生成", "效率"].map(category => (
-        <div key={category} style={{ marginBottom: 8 }}>
-          <div style={{ padding: "7px 9px", background: "#f7f8fa", color: "#374151", fontSize: 12.5, fontWeight: 600 }}>{category}类指标</div>
-          {metricLibrary.filter(metric => metric.category === category).map(metric => (
-            <div key={metric.name} style={{ display: "grid", gridTemplateColumns: "22px 88px minmax(0, 1fr) 96px", gap: 8, alignItems: "center", borderBottom: "1px solid #f0f2f7", padding: "9px 0", fontSize: 12.5 }}>
-              <input type="checkbox" checked={selectedMetrics.includes(metric.name)} onChange={event => updateSelectedMetrics(event.target.checked ? [...selectedMetrics, metric.name] : selectedMetrics.filter(name => name !== metric.name))} />
-              <b>{metric.name}</b>
+      {["生成", "分类", "代码生成", "效率"].map(category => {
+        const categoryDisabled = MUTUALLY_EXCLUSIVE_METRIC_CATEGORIES.has(category)
+          && Boolean(selectedPrimaryCategory)
+          && selectedPrimaryCategory !== category;
+        return <div key={category} style={{ marginBottom: 8, opacity: categoryDisabled ? 0.52 : 1 }}>
+          <div style={{ padding: "7px 9px", background: categoryDisabled ? "#f3f4f6" : "#f7f8fa", color: categoryDisabled ? "#9ca3af" : "#374151", fontSize: 12.5, fontWeight: 600 }}>
+            {category}类指标{categoryDisabled ? "（不可选）" : ""}
+          </div>
+          {metricLibrary.filter(metric => metric.category === category).map(metric => {
+            const isEfficiencyMetric = UNWEIGHTED_METRICS.has(metric.name);
+            return <div key={metric.name} style={{ display: "grid", gridTemplateColumns: "22px 88px minmax(0, 1fr) 96px", gap: 8, alignItems: "center", borderBottom: "1px solid #f0f2f7", padding: "9px 0", fontSize: 12.5, background: categoryDisabled ? "#fafafa" : "#fff" }}>
+              <input
+                type="checkbox"
+                aria-label={metric.name}
+                checked={selectedMetrics.includes(metric.name)}
+                disabled={categoryDisabled}
+                title={categoryDisabled ? `已选择${selectedPrimaryCategory}类指标，不能同时选择${category}类指标` : undefined}
+                onChange={event => updateSelectedMetrics(event.target.checked ? [...selectedMetrics, metric.name] : selectedMetrics.filter(name => name !== metric.name))}
+              />
+              <b style={{ color: categoryDisabled ? "#9ca3af" : "#1f2937" }}>{metric.name}</b>
               <span style={{ color: "#6b7280", lineHeight: 1.55 }}>
                 <span style={{ display: "block" }}>计算原理：{metric.principle}</span>
                 <span style={{ display: "block" }}>数学公式：{metric.formula}</span>
                 <span style={{ display: "block" }}>适用场景：{metric.scene}；取值范围：{metric.range}</span>
               </span>
-              <input
+              {isEfficiencyMetric ? <span style={{ color: "#9ca3af", fontSize: 12 }}>不参与权重</span> : <input
                 aria-label={`${metric.name} 权重`}
                 title={selectedMetrics.includes(metric.name) ? "请输入 1～100 的权重" : "请先勾选该指标"}
                 type="number"
@@ -2682,13 +2763,13 @@ export function EvaluationConfigPage() {
                 placeholder="勾选后填写"
                 onChange={event => setMetricWeights(current => ({ ...current, [metric.name]: Number(event.target.value) }))}
                 style={{ ...inputSt, height: 32, padding: "0 8px", background: selectedMetrics.includes(metric.name) ? "#fff" : "#f3f4f6", color: "#1f2937" }}
-              />
-            </div>
-          ))}
-        </div>
-      ))}
+              />}
+            </div>;
+          })}
+        </div>;
+      })}
       <div style={{ marginTop: 8, color: totalWeight === 100 ? "#16a34a" : "#dc2626", fontSize: 12.5 }}>
-        当前权重合计：{totalWeight}%（保存时必须为 100%）。系统按权重计算加权总体得分。
+        质量指标权重合计：{totalWeight}%（保存时必须为 100%）。效率类指标不参与加权总体得分。
       </div>
       <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #eef0f5" }}>
         <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
@@ -2742,8 +2823,8 @@ export function EvaluationConfigPage() {
           </div>
         )}
       </div>
-    </div>
-  );
+    </div>;
+  };
 
   return (
     <WorkbenchPage title="配置方案" crumb="配置方案">

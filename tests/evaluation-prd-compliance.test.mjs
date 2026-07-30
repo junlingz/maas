@@ -151,11 +151,27 @@ test("创建评测任务使用单页弹窗并直接开始测评", () => {
 test("指标选择和权重统一配置在流程模板的指标计算阶段", () => {
   assert.match(evaluationSource, /统一管理执行流程、阶段参数、评估指标、指标权重和样本计算范围/);
   assert.match(evaluationSource, /renderMetricConfiguration\(selectedMetrics, stage\)/);
-  assert.match(evaluationSource, /当前权重合计：\{totalWeight\}%/);
+  assert.match(evaluationSource, /质量指标权重合计：\{totalWeight\}%/);
   assert.match(evaluationSource, /metricWeights: savedWeights/);
   assert.match(evaluationSource, /flowStages: savedFlowStages/);
   assert.doesNotMatch(evaluationSource, /指标方案|指标组合方案/);
   assert.match(prdSource, /不再维护独立指标方案/);
+});
+
+test("流程模板限制质量指标类别互斥且效率指标不配置权重", () => {
+  assert.match(evaluationSource, /const MUTUALLY_EXCLUSIVE_METRIC_CATEGORIES = new Set\(\["生成", "分类", "代码生成"\]\)/);
+  assert.match(evaluationSource, /const UNWEIGHTED_METRICS = new Set\(\["平均时延", "平均生成速度"\]\)/);
+  assert.match(evaluationSource, /disabled=\{categoryDisabled\}/);
+  assert.match(evaluationSource, /效率类指标可随时选择，不参与权重计算/);
+  assert.match(evaluationSource, /平均生成速度 = 生成 Token 总数 \/ 总生成耗时/);
+  assert.match(evaluationSource, /不参与权重/);
+});
+
+test("指标统计以原始单位展示效率指标且不提供详情入口", () => {
+  assert.match(evaluationSource, /if \(metric\.name === "平均时延"\) return `\$\{metric\.score\} ms`/);
+  assert.match(evaluationSource, /if \(metric\.name === "平均生成速度"\) return `\$\{metric\.score\} token\/s`/);
+  assert.match(evaluationSource, /if \(isEfficiencyMetric\) \{\s*return <div key=\{metric\.name\}/);
+  assert.match(evaluationSource, /const resultMetricCards: EvalMetric\[]/);
 });
 
 test("配置方案列表展示创建人", () => {

@@ -324,11 +324,22 @@ function conditionRuleSummary(rule?: MetricConditionRule) {
     .join(` ${normalized.combinator} `);
 }
 
+const POSTPROCESS_RULE_OPTIONS = [
+  { id: "trim", label: "去除首尾空白" },
+  { id: "normalize_newlines", label: "统一换行符" },
+  { id: "strip_outer_code_fence", label: "去除代码块包裹" },
+] as const;
+
+function parsePostprocessRules(value: unknown) {
+  const supportedRuleIds = new Set(POSTPROCESS_RULE_OPTIONS.map(option => option.id));
+  return String(value || "").split(",").filter(ruleId => supportedRuleIds.has(ruleId as typeof POSTPROCESS_RULE_OPTIONS[number]["id"]));
+}
+
 function createDefaultFlowStages(postprocessEnabled = false, metrics = ""): FlowStage[] {
   return [
     { name: "数据预处理", enabled: true, params: { cleaningRule: "不清洗", samplingStrategy: "全量采样" } },
     { name: "模型推理", enabled: true, params: { ...EMPTY_FLOW_TEMPLATE_INFERENCE_PARAMS } },
-    { name: "后处理", enabled: postprocessEnabled, params: { normalizationRule: postprocessEnabled ? "去除首尾空白并统一换行符" : "" } },
+    { name: "后处理", enabled: postprocessEnabled, params: { normalizationRules: postprocessEnabled ? "trim,normalize_newlines" : "" } },
     { name: "指标计算", enabled: true, params: { metrics }, conditionRule: createDefaultMetricConditionRule() },
   ];
 }
@@ -341,6 +352,17 @@ function cloneFlowStages(stages: FlowStage[]) {
       const smokeTestCount = Number(params.smokeTestCount);
       params.smokeTestEnabled = params.smokeTestEnabled === true;
       params.smokeTestCount = Number.isInteger(smokeTestCount) && smokeTestCount >= 1 ? smokeTestCount : 25;
+    }
+    if (stage.name === "后处理") {
+      const legacyRule = String(params.normalizationRule || "");
+      const migratedRules = parsePostprocessRules(params.normalizationRules);
+      if (!migratedRules.length && legacyRule) {
+        if (legacyRule.includes("首尾空白")) migratedRules.push("trim");
+        if (legacyRule.includes("换行")) migratedRules.push("normalize_newlines");
+        if (legacyRule.includes("代码块")) migratedRules.push("strip_outer_code_fence");
+      }
+      params.normalizationRules = migratedRules.join(",");
+      delete params.normalizationRule;
     }
     return {
       ...stage,
@@ -2538,6 +2560,9 @@ export function EvaluationConfigPage() {
   const [historyName, setHistoryName] = useState<string | null>(null);
   const [applySchemeName, setApplySchemeName] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [templateQuery, setTemplateQuery] = useState("");
+  const [templateModelType, setTemplateModelType] = useState<ModelType | "">("");
+  const [templateAuthor, setTemplateAuthor] = useState("");
   const [flowStages, setFlowStages] = useState<FlowStage[]>(createDefaultFlowStages());
   const [metricWeights, setMetricWeights] = useState<Record<string, number>>({});
 
@@ -2546,6 +2571,13 @@ export function EvaluationConfigPage() {
       templates: templates.map(cloneEvaluationScheme),
     };
   }, [templates]);
+  const templateAuthors = Array.from(new Set(templates.map(template => template.author)));
+  const normalizedTemplateQuery = templateQuery.trim().toLowerCase();
+  const filteredTemplates = templates.filter(template => (
+    (!normalizedTemplateQuery || template.name.toLowerCase().includes(normalizedTemplateQuery))
+    && (!templateModelType || template.modelType === templateModelType)
+    && (!templateAuthor || template.author === templateAuthor)
+  ));
   const metricLibrary = [
     { category: "生成", name: "BLEU", principle: "计算候选文本与参考文本的加权 n-gram 精确率，并用长度惩罚抑制过短答案。", formula: "BLEU = BP × exp(Σₙ wₙ log pₙ)", scene: "翻译、文本生成", range: "0-1" },
     { category: "生成", name: "ROUGE", principle: "按参考文本中的 n-gram 被生成文本覆盖的比例计算召回率。", formula: "ROUGE-N = 重叠 n-gram 数 / 参考文本 n-gram 数", scene: "摘要、文本生成", range: "0-1" },
@@ -2648,6 +2680,24 @@ export function EvaluationConfigPage() {
       };
     }));
   };
+  const updatePostprocessRule = (ruleId: typeof POSTPROCESS_RULE_OPTIONS[number]["id"], checked: boolean) => {
+    setFlowStages(current => current.map(stage => {
+      if (stage.name !== "后处理") return stage;
+      const selectedRules = new Set(parsePostprocessRules(stage.params.normalizationRules));
+      if (checked) selectedRules.add(ruleId);
+      else selectedRules.delete(ruleId);
+      return {
+        ...stage,
+        params: {
+          ...stage.params,
+          normalizationRules: POSTPROCESS_RULE_OPTIONS
+            .filter(option => selectedRules.has(option.id))
+            .map(option => option.id)
+            .join(","),
+        },
+      };
+    }));
+  };
   const updateMetricConditionRule = (updater: (rule: MetricConditionRule) => MetricConditionRule) => {
     setFlowStages(current => current.map(stage => stage.name === "指标计算"
       ? { ...stage, conditionRule: updater(cloneMetricConditionRule(stage.conditionRule)) }
@@ -2696,7 +2746,10 @@ export function EvaluationConfigPage() {
       : "";
   const preprocessingStage = flowStages.find(stage => stage.name === "数据预处理");
   const inferenceStage = flowStages.find(stage => stage.name === "模型推理");
+  const postprocessStage = flowStages.find(stage => stage.name === "后处理");
   const metricStage = flowStages.find(stage => stage.name === "指标计算");
+  const selectedPostprocessRules = parsePostprocessRules(postprocessStage?.params.normalizationRules);
+  const postprocessRulesInvalid = postprocessStage?.enabled === true && selectedPostprocessRules.length === 0;
   const configuredMetricNames = String(metricStage?.params.metrics || "").split(",").filter(Boolean);
   const totalWeight = configuredMetricNames
     .filter(metric => !UNWEIGHTED_METRICS.has(metric))
@@ -2726,6 +2779,7 @@ export function EvaluationConfigPage() {
   const flowParamsIncomplete = !preprocessingStage?.params.cleaningRule
     || !preprocessingStage.params.samplingStrategy
     || customInferenceParamsInvalid
+    || postprocessRulesInvalid
     || !String(metricStage?.params.metrics || "")
     || metricConditionInvalid
     || totalWeight !== 100;
@@ -2844,8 +2898,23 @@ export function EvaluationConfigPage() {
   return (
     <WorkbenchPage title="配置方案" crumb="配置方案">
       <div style={{ ...panelSt, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-        <div className="flex items-center justify-between" style={{ padding: "14px 16px", borderBottom: "1px solid #f0f2f7" }}>
-          <div><div style={{ fontSize: 15, fontWeight: 600, color: "#1a1d23" }}>流程模板</div><div style={{ marginTop: 3, fontSize: 12, color: "#6b7280" }}>统一管理执行流程、阶段参数、评估指标、指标权重和样本计算范围</div></div>
+        <div className="flex items-center justify-between gap-3 flex-wrap" style={{ padding: "12px 16px", borderBottom: "1px solid #f0f2f7" }}>
+          <div className="flex items-center gap-2 flex-wrap" style={{ flex: "1 1 560px", minWidth: 0 }}>
+            <div className="flex items-center" style={{ width: 240, maxWidth: "100%", height: 34, padding: "0 9px", border: "1px solid #e0e3ed", borderRadius: 6, background: "#fff" }}>
+              <Search size={14} color="#9ca3af" />
+              <input aria-label="方案名称搜索" value={templateQuery} onChange={event => setTemplateQuery(event.target.value)} placeholder="搜索方案名称" style={{ minWidth: 0, flex: 1, height: "100%", padding: "0 7px", border: "none", outline: "none", background: "transparent", fontSize: 13 }} />
+              {templateQuery && <button type="button" aria-label="清除方案名称搜索" onClick={() => setTemplateQuery("")} style={{ display: "inline-flex", border: "none", background: "none", padding: 2, color: "#9ca3af", cursor: "pointer" }}><X size={13} /></button>}
+            </div>
+            <select aria-label="适用范围筛选" value={templateModelType} onChange={event => setTemplateModelType(event.target.value as ModelType | "")} style={{ ...inputSt, width: 150, height: 34 }}>
+              <option value="">全部适用范围</option>
+              <option value="语言模型">语言模型</option>
+              <option value="多模态模型">多模态模型</option>
+            </select>
+            <select aria-label="创建人筛选" value={templateAuthor} onChange={event => setTemplateAuthor(event.target.value)} style={{ ...inputSt, width: 140, height: 34 }}>
+              <option value="">全部创建人</option>
+              {templateAuthors.map(author => <option key={author} value={author}>{author}</option>)}
+            </select>
+          </div>
           <div className="flex items-center gap-3">{message && <span style={{ fontSize: 12.5, color: "#16a34a" }}>{message}</span>}<PrimaryButton onClick={openCreate}><Plus size={14} />新建流程模板</PrimaryButton></div>
         </div>
         <div style={{ overflow: "auto" }}>
@@ -2853,7 +2922,7 @@ export function EvaluationConfigPage() {
             <colgroup><col style={{ width: 145 }} /><col style={{ width: 155 }} /><col style={{ width: 210 }} /><col style={{ width: 65 }} /><col style={{ width: 80 }} /><col style={{ width: 140 }} /><col style={{ width: 220 }} /></colgroup>
             <thead><tr>{["方案名称", "适用范围", "配置内容", "版本", "创建人", "共享权限", "操作"].map((c, index) => <th key={c} style={{ ...thSt, position: "sticky", top: 0, right: index === 6 ? 0 : undefined, zIndex: index === 6 ? 3 : 2, boxShadow: index === 6 ? "-1px 0 #eef1f6" : undefined }}>{c}</th>)}</tr></thead>
             <tbody>
-              {templates.map(row => {
+              {filteredTemplates.map(row => {
                 return <tr key={row.name}>
                   <td style={{ ...tdSt, fontWeight: 600 }}>{row.name}</td>
                   <td style={tdSt}><div>{row.modelType}</div><div style={{ marginTop: 3, color: "#6b7280", fontSize: 11.5 }}>全部评测任务</div></td>
@@ -2869,6 +2938,7 @@ export function EvaluationConfigPage() {
                   </div></td>
                 </tr>;
               })}
+              {!filteredTemplates.length && <tr><td colSpan={7} style={{ padding: "48px 16px", textAlign: "center", color: "#6b7280", fontSize: 13 }}>没有符合当前筛选条件的流程模板</td></tr>}
             </tbody>
           </table>
         </div>
@@ -2893,7 +2963,7 @@ export function EvaluationConfigPage() {
                   <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>数据预处理必须在模型推理之前；指标计算必须在模型推理之后；后处理可跳过。评估指标及权重统一在“指标计算”阶段配置。</div>
                   {flowStages.map((stage, index) => {
                     const selectedMetrics = String(stage.params.metrics || "").split(",").filter(Boolean);
-                    return <div key={stage.name} style={{ border: `1px solid ${flowError ? "#fecaca" : "#e8ebf2"}`, borderRadius: 8, padding: 10, marginBottom: 8 }}>
+                    return <div key={stage.name} style={{ border: `1px solid ${flowError || (stage.name === "后处理" && postprocessRulesInvalid) ? "#fecaca" : "#e8ebf2"}`, borderRadius: 8, padding: 10, marginBottom: 8 }}>
                       <div className="flex items-center justify-between">
                         <label className="flex items-center gap-2" style={{ fontSize: 13, fontWeight: 600 }}><input type="checkbox" checked={stage.enabled} disabled={stage.name !== "后处理"} onChange={e => setFlowStages(prev => prev.map(item => item.name === stage.name ? { ...item, enabled: e.target.checked } : item))} />{index + 1}. {stage.name}</label>
                         <div className="flex items-center gap-1"><button title="上移" onClick={() => moveStage(index, -1)} disabled={index === 0} style={{ border: "none", background: "none", cursor: "pointer" }}><ArrowUp size={13} /></button><button title="下移" onClick={() => moveStage(index, 1)} disabled={index === flowStages.length - 1} style={{ border: "none", background: "none", cursor: "pointer" }}><ArrowDown size={13} /></button></div>
@@ -2948,7 +3018,25 @@ export function EvaluationConfigPage() {
                           {customInferenceParamsInvalid && <div style={{ marginTop: 4, color: "#dc2626", fontSize: 12 }}>请检查已填写的模型推理参数及取值范围。</div>}
                         </div>
                       )}
-                      {stage.enabled && stage.name === "后处理" && <label style={{ display: "block", fontSize: 11.5, color: "#6b7280", marginTop: 8 }}>标准化规则<input value={String(stage.params.normalizationRule)} placeholder="请输入标准化规则" onChange={e => updateStageParam(stage.name, "normalizationRule", e.target.value)} style={{ ...inputSt, marginTop: 4 }} /></label>}
+                      {stage.enabled && stage.name === "后处理" && (
+                        <div style={{ marginTop: 8, borderTop: "1px solid #eef0f5", paddingTop: 8 }}>
+                          <div style={{ marginBottom: 6, color: "#6b7280", fontSize: 11.5 }}>标准化规则</div>
+                          <div className="flex flex-col" style={{ gap: 8 }}>
+                            {POSTPROCESS_RULE_OPTIONS.map(option => (
+                              <label key={option.id} className="flex items-center" style={{ gap: 8, color: "#374151", fontSize: 12.5, cursor: "pointer" }}>
+                                <input
+                                  type="checkbox"
+                                  checked={parsePostprocessRules(stage.params.normalizationRules).includes(option.id)}
+                                  onChange={event => updatePostprocessRule(option.id, event.target.checked)}
+                                />
+                                <span>{option.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                          <div style={{ marginTop: 7, color: "#8a909e", fontSize: 11.5, lineHeight: 1.5 }}>仅处理模型输出格式，规则按从上到下的固定顺序执行。</div>
+                          {postprocessRulesInvalid && <div style={{ marginTop: 5, color: "#dc2626", fontSize: 11.5 }}>请选择至少一项标准化规则</div>}
+                        </div>
+                      )}
                       {stage.enabled && stage.name === "指标计算" && renderMetricConfiguration(selectedMetrics, stage)}
                     </div>;
                   })}

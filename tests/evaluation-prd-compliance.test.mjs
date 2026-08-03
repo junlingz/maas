@@ -11,6 +11,7 @@ const metricRecommendationDoc = await readFile(new URL("../docs/模型评测-评
 const createDrawerSource = evaluationSource.slice(evaluationSource.indexOf("function CreateDrawer"), evaluationSource.indexOf("function TaskDetailPage"));
 const configPageSource = evaluationSource.slice(evaluationSource.indexOf("export function EvaluationConfigPage"), evaluationSource.indexOf("function WorkbenchPage"));
 const flowInferenceSource = configPageSource.slice(configPageSource.indexOf('{stage.enabled && stage.name === "模型推理"'), configPageSource.indexOf('{stage.enabled && stage.name === "后处理"'));
+const flowPostprocessSource = configPageSource.slice(configPageSource.indexOf('{stage.enabled && stage.name === "后处理"'), configPageSource.indexOf('{stage.enabled && stage.name === "指标计算"'));
 
 test("自定义数据集使用原始需求指定的上传文案、校验状态与权限", () => {
   assert.match(dataSource, />上传数据集</);
@@ -251,6 +252,33 @@ test("流程模板支持默认关闭且条数可编辑的冒烟测试", () => {
   assert.match(prdSource, /关闭后保留用户最后填写的值/);
 });
 
+test("流程模板后处理默认关闭且使用三个固定标准化规则", () => {
+  assert.match(evaluationSource, /\{ name: "后处理", enabled: postprocessEnabled, params: \{ normalizationRules: postprocessEnabled \? "trim,normalize_newlines" : "" \} \}/);
+  assert.match(evaluationSource, /\{ id: "trim", label: "去除首尾空白" \}/);
+  assert.match(evaluationSource, /\{ id: "normalize_newlines", label: "统一换行符" \}/);
+  assert.match(evaluationSource, /\{ id: "strip_outer_code_fence", label: "去除代码块包裹" \}/);
+  assert.match(flowPostprocessSource, /POSTPROCESS_RULE_OPTIONS\.map/);
+  assert.match(flowPostprocessSource, /type="checkbox"/);
+  assert.doesNotMatch(flowPostprocessSource, /请输入标准化规则|normalizationRule\)/);
+  assert.match(configPageSource, /postprocessRulesInvalid/);
+  assert.match(configPageSource, /请选择至少一项标准化规则/);
+  assert.match(prdSource, /后处理.*默认不启用.*三项标准化规则均不勾选/s);
+  assert.match(prdSource, /去除首尾空白 → 统一换行符 → 去除代码块包裹/);
+  assert.match(prdSource, /仅在模型完整输出由单个 Markdown 代码块包裹时/);
+});
+
+test("配置方案列表使用名称、适用范围和创建人组合筛选", () => {
+  assert.match(configPageSource, /aria-label="方案名称搜索"/);
+  assert.match(configPageSource, /aria-label="适用范围筛选"/);
+  assert.match(configPageSource, /aria-label="创建人筛选"/);
+  assert.match(configPageSource, /const filteredTemplates = templates\.filter/);
+  assert.match(configPageSource, /filteredTemplates\.map/);
+  assert.match(configPageSource, /没有符合当前筛选条件的流程模板/);
+  assert.doesNotMatch(configPageSource, />流程模板<\/div><div style=\{\{ marginTop: 3/);
+  assert.doesNotMatch(configPageSource, /统一管理执行流程、阶段参数、评估指标、指标权重和样本计算范围/);
+  assert.match(prdSource, /方案名称搜索、适用范围下拉框和创建人下拉框/);
+});
+
 test("高级推理参数默认继承所选模型并允许用户覆盖", () => {
   assert.match(createDrawerSource, /useState<ModelType \| "">\(initialModelType\)/);
   assert.match(evaluationSource, /MODEL_DEFAULT_PARAMS/);
@@ -270,7 +298,7 @@ test("高级推理参数默认继承所选模型并允许用户覆盖", () => {
   assert.match(evaluationSource, /const \[selected, setSelected\] = useState<string\[]>\(\[\]\)/);
   assert.match(evaluationSource, /const \[baselineDataset, setBaselineDataset\] = useState\(""\)/);
   assert.match(evaluationSource, /cleaningRule: "不清洗", samplingStrategy: "全量采样"/);
-  assert.match(evaluationSource, /enabled: false, params: \{ normalizationRule: "" \}/);
+  assert.match(evaluationSource, /enabled: postprocessEnabled, params: \{ normalizationRules: postprocessEnabled \? "trim,normalize_newlines" : "" \}/);
   assert.match(evaluationSource, /const \[metricWeights, setMetricWeights\] = useState<Record<string, number>>\(\{\}\)/);
   assert.match(dataSource, /useState<"语言模型" \| "多模态模型" \| "">\(""\)/);
   assert.match(dataSource, /<option value="">请选择模型类型<\/option>/);

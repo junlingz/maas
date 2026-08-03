@@ -180,6 +180,16 @@ test("配置方案列表展示创建人", () => {
   assert.match(prdSource, /列表展示模板名称、适用模型\/任务、阶段、版本、创建人和共享权限/);
 });
 
+test("配置方案使用单一可见范围选择框并在权限列修改", () => {
+  assert.match(evaluationSource, /type SchemeVisibility = "仅自己可见" \| "团队可见" \| "团队编辑"/);
+  for (const visibility of ["仅自己可见", "团队可见", "团队编辑"]) {
+    assert.match(evaluationSource, new RegExp(`<option value="${visibility}"`));
+  }
+  assert.doesNotMatch(evaluationSource, /<FieldLabel>共享权限<\/FieldLabel>/);
+  assert.match(configPageSource, /schemeVisibility\(row\.scope, row\.sharedAccess\).*?<TextButton onClick=\{\(\) => openSharing\(row\)\}>修改<\/TextButton>/s);
+  assert.doesNotMatch(configPageSource, />修改权限<\/TextButton>/);
+});
+
 test("流程模板使用结构化样本条件并驱动指标计算集合", () => {
   for (const field of ["数据集", "任务类型", "语言"]) assert.match(evaluationSource, new RegExp(`label: "${field}"`));
   assert.doesNotMatch(evaluationSource, /\{ value: "category", label: "样本类别" \}/);

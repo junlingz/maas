@@ -18,6 +18,7 @@ type ModelSource = "系统已注册模型" | "外部模型 API";
 type ParamSource = "模型默认" | "配置方案" | "自定义";
 type SchemeScope = "私有" | "共享";
 type SchemeAccess = "只读" | "编辑";
+type SchemeVisibility = "仅自己可见" | "团队可见" | "团队编辑";
 
 interface InferenceParams {
   maxTokens?: number;
@@ -356,6 +357,11 @@ function metricWeightSummary(weights: Record<string, number>) {
 function bumpSchemeVersion(version: string) {
   const matched = version.match(/^v(\d+)\.(\d+)$/);
   return matched ? `v${matched[1]}.${Number(matched[2]) + 1}` : "v1.1";
+}
+
+function schemeVisibility(scope: SchemeScope, sharedAccess: SchemeAccess): SchemeVisibility {
+  if (scope === "私有") return "仅自己可见";
+  return sharedAccess === "编辑" ? "团队编辑" : "团队可见";
 }
 
 function schemeApplyConfig(row: EvaluationScheme): SchemeApplyConfig {
@@ -2491,20 +2497,29 @@ function SchemePermissionEditor({
   disabled?: boolean;
   allowPrivate?: boolean;
 }) {
-  const showShareWarning = allowPrivate && scope === "共享";
+  const visibility = schemeVisibility(scope, sharedAccess);
+  const changeVisibility = (next: SchemeVisibility) => {
+    if (next === "仅自己可见") {
+      onScopeChange("私有");
+      return;
+    }
+    onScopeChange("共享");
+    onSharedAccessChange(next === "团队编辑" ? "编辑" : "只读");
+  };
+  const showShareWarning = allowPrivate && visibility !== "仅自己可见";
   return <div>
-    <div style={{ marginBottom: scope === "共享" ? 12 : 0 }}>
+    <div>
       <FieldLabel>可见范围</FieldLabel>
-      <select aria-label="可见范围" value={scope} disabled={disabled} onChange={event => onScopeChange(event.target.value as SchemeScope)} style={inputSt}>
-      <option value="私有" disabled={!allowPrivate}>私有</option>
-      <option>共享</option>
+      <select aria-label="可见范围" value={visibility} disabled={disabled} onChange={event => changeVisibility(event.target.value as SchemeVisibility)} style={inputSt}>
+        <option value="仅自己可见" disabled={!allowPrivate}>仅自己可见</option>
+        <option value="团队可见">团队可见</option>
+        <option value="团队编辑">团队编辑</option>
       </select>
     </div>
-    {!allowPrivate && <div style={{ marginBottom: 12, color: "#f59e0b", fontSize: 12 }}>方案已共享至团队，不可改回私有。</div>}
-    {showShareWarning && <div style={{ marginBottom: 12, color: "#dc2626", fontSize: 12, fontWeight: 600 }}>共享至团队后，不可改回私有，请谨慎修改。</div>}
-    {scope === "共享" && <div><FieldLabel>共享权限</FieldLabel><select aria-label="共享权限" value={sharedAccess} disabled={disabled} onChange={event => onSharedAccessChange(event.target.value as SchemeAccess)} style={inputSt}><option>只读</option><option>编辑</option></select></div>}
+    {!allowPrivate && <div style={{ marginTop: 8, color: "#f59e0b", fontSize: 12 }}>方案已共享至团队，不可改回仅自己可见。</div>}
+    {showShareWarning && <div style={{ marginTop: 8, color: "#dc2626", fontSize: 12, fontWeight: 600 }}>共享至团队后，不可改回仅自己可见，请谨慎修改。</div>}
     <div style={{ marginTop: 6, color: "#6b7280", fontSize: 11.5, lineHeight: 1.55 }}>
-      私有方案仅创建人可用；共享为只读时其他用户可查看并在评测时选择，共享为编辑时还可编辑、保存新版本和回滚。
+      仅自己可见时只有创建人可用；团队可见时团队成员可查看并在评测时选择；团队编辑时还可编辑、保存新版本和回滚。
     </div>
   </div>;
 }
@@ -2834,8 +2849,8 @@ export function EvaluationConfigPage() {
           <div className="flex items-center gap-3">{message && <span style={{ fontSize: 12.5, color: "#16a34a" }}>{message}</span>}<PrimaryButton onClick={openCreate}><Plus size={14} />新建流程模板</PrimaryButton></div>
         </div>
         <div style={{ overflow: "auto" }}>
-          <table style={{ width: "100%", minWidth: 1000, tableLayout: "fixed", borderCollapse: "separate", borderSpacing: 0, fontSize: 13 }}>
-            <colgroup><col style={{ width: 145 }} /><col style={{ width: 170 }} /><col style={{ width: 220 }} /><col style={{ width: 70 }} /><col style={{ width: 100 }} /><col style={{ width: 130 }} /><col style={{ width: 250 }} /></colgroup>
+          <table style={{ width: "100%", minWidth: 1015, tableLayout: "fixed", borderCollapse: "separate", borderSpacing: 0, fontSize: 13 }}>
+            <colgroup><col style={{ width: 145 }} /><col style={{ width: 155 }} /><col style={{ width: 210 }} /><col style={{ width: 65 }} /><col style={{ width: 80 }} /><col style={{ width: 140 }} /><col style={{ width: 220 }} /></colgroup>
             <thead><tr>{["方案名称", "适用范围", "配置内容", "版本", "创建人", "共享权限", "操作"].map((c, index) => <th key={c} style={{ ...thSt, position: "sticky", top: 0, right: index === 6 ? 0 : undefined, zIndex: index === 6 ? 3 : 2, boxShadow: index === 6 ? "-1px 0 #eef1f6" : undefined }}>{c}</th>)}</tr></thead>
             <tbody>
               {templates.map(row => {
@@ -2845,12 +2860,11 @@ export function EvaluationConfigPage() {
                   <td style={{ ...tdSt, overflowWrap: "anywhere" }}><div>{row.stages}</div><div style={{ marginTop: 4, color: "#6b7280", fontSize: 11.5 }}>指标：{metricWeightSummary(row.metricWeights || {}) || "未配置"}</div><div style={{ marginTop: 2, color: "#6b7280", fontSize: 11.5 }}>样本范围：{conditionRuleSummary(row.flowStages?.find(stage => stage.name === "指标计算")?.conditionRule)}</div></td>
                   <td style={{ ...tdSt, whiteSpace: "nowrap" }}>{row.version}</td>
                   <td style={{ ...tdSt, whiteSpace: "nowrap" }}>{row.author}</td>
-                  <td style={{ ...tdSt, whiteSpace: "nowrap" }}>{row.scope === "私有" ? "私有" : `共享（${row.sharedAccess}）`}</td>
+                  <td style={{ ...tdSt, whiteSpace: "nowrap" }}><span>{schemeVisibility(row.scope, row.sharedAccess)}</span>{row.author === CURRENT_USER && <span style={{ marginLeft: 8 }}><TextButton onClick={() => openSharing(row)}>修改</TextButton></span>}</td>
                   <td style={{ ...tdSt, position: "sticky", right: 0, background: "#fff", boxShadow: "-1px 0 #f0f2f7" }}><div className="flex items-center" style={{ flexWrap: "wrap", gap: "5px 10px" }}>
                     {canEditScheme(row) && <TextButton onClick={() => openEdit(row)}>编辑</TextButton>}
                     <TextButton onClick={() => setApplySchemeName(row.name)}>应用到任务</TextButton>
                     <TextButton onClick={() => setHistoryName(row.name)}>版本历史</TextButton>
-                    {row.author === CURRENT_USER && <TextButton onClick={() => openSharing(row)}>修改权限</TextButton>}
                     {row.author === CURRENT_USER && <TextButton danger onClick={() => setTemplates(prev => prev.filter(item => item.name !== row.name))}>删除</TextButton>}
                   </div></td>
                 </tr>;

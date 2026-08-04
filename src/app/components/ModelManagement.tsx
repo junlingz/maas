@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type DragEvent } from "react";
-import { ArrowLeft, CheckCircle2, FileBox, FileCode2, GitBranch, HardDrive, Image as ImageIcon, LoaderCircle, MoreHorizontal, Plus, Search, Trash2, Upload, UploadCloud, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, FileBox, FileCode2, Image as ImageIcon, LoaderCircle, MoreHorizontal, Plus, Search, Trash2, Upload, UploadCloud, X } from "lucide-react";
 import { MODEL_CAPABILITIES, MODEL_CATEGORIES, type ModelCapability, type ModelCategory, type ModelRecord } from "../model-management/types";
 
 interface ModelManagementPageProps {
@@ -288,15 +288,7 @@ function ModelCard({ model, onOpen, onEdit, onDelete, onDeploy }: {
 interface ModelVersionOption {
   id: string;
   label: string;
-  createdAt: string;
-  status: "当前版本" | "历史版本";
-}
-
-function shiftDate(date: string, months: number) {
-  const parsed = new Date(`${date}T00:00:00Z`);
-  if (Number.isNaN(parsed.getTime())) return date;
-  parsed.setUTCMonth(parsed.getUTCMonth() - months);
-  return parsed.toISOString().slice(0, 10);
+  current: boolean;
 }
 
 function versionLabels(model: ModelRecord) {
@@ -317,8 +309,7 @@ function modelVersions(model: ModelRecord): ModelVersionOption[] {
   return versionLabels(model).map((label, index) => ({
     id: `version-${index}`,
     label,
-    createdAt: index ? shiftDate(model.createdAt, index * 3) : model.createdAt,
-    status: index ? "历史版本" : "当前版本",
+    current: index === 0,
   }));
 }
 
@@ -339,8 +330,6 @@ function DetailField({ label, children, mono = false }: { label: string; childre
 function ModelDetailPage({ model, onBack, onDeploy }: { model: ModelRecord; onBack: () => void; onDeploy: () => void }) {
   const versions = useMemo(() => modelVersions(model), [model]);
   const [versionId, setVersionId] = useState(versions[0].id);
-  const selectedVersion = versions.find(version => version.id === versionId) ?? versions[0];
-  const versionPath = selectedVersion.status === "当前版本" ? model.weightPath : `${model.weightPath}/${selectedVersion.label.toLowerCase().replace(/\s+/g, "-")}`;
 
   return (
     <div className="flex h-full min-h-0 flex-col" style={{ background: "#f5f7fa" }}>
@@ -351,13 +340,12 @@ function ModelDetailPage({ model, onBack, onDeploy }: { model: ModelRecord; onBa
           <ModelIcon model={model} />
           <div style={{ minWidth: 0 }}><div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}><h1 style={{ margin: 0, color: "#20242d", fontSize: 20, lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{model.name}</h1><span style={{ padding: "2px 7px", borderRadius: 5, background: "#eef9f2", color: "#16804b", fontSize: 11.5, whiteSpace: "nowrap" }}>可用</span></div><div style={{ marginTop: 5, color: "#7c8798", fontSize: 12.5 }}>{model.developer} · {model.category}</div></div>
           <div className="maas-model-detail-actions" style={{ marginLeft: "auto", display: "flex", alignItems: "flex-end", gap: 10 }}>
-            <label style={{ display: "block" }}><span style={{ display: "block", marginBottom: 5, color: "#7c8798", fontSize: 11.5 }}>模型版本</span><select aria-label="模型版本" value={versionId} onChange={event => setVersionId(event.target.value)} style={{ ...inputStyle, width: 172, background: "#fff", fontWeight: 600 }}>{versions.map(version => <option key={version.id} value={version.id}>{version.label}{version.status === "当前版本" ? "（当前）" : ""}</option>)}</select></label>
+            <label style={{ display: "block" }}><span style={{ display: "block", marginBottom: 5, color: "#7c8798", fontSize: 11.5 }}>模型版本</span><select aria-label="模型版本" value={versionId} onChange={event => setVersionId(event.target.value)} style={{ ...inputStyle, width: 172, background: "#fff", fontWeight: 600 }}>{versions.map(version => <option key={version.id} value={version.id}>{version.label}{version.current ? "（当前）" : ""}</option>)}</select></label>
             <button type="button" onClick={onDeploy} style={{ ...buttonPrimary, height: 36 }}>部署模型</button>
           </div>
         </div>
 
-        <div className="maas-model-detail-grid" style={{ marginTop: 16, display: "grid", gridTemplateColumns: "minmax(0, 1.7fr) minmax(280px, .8fr)", gap: 16, alignItems: "start" }}>
-          <main style={{ minWidth: 0, padding: 20, border: "1px solid #e1e6ee", borderRadius: 10, background: "#fff" }}>
+        <main style={{ minWidth: 0, marginTop: 16, padding: 20, border: "1px solid #e1e6ee", borderRadius: 10, background: "#fff" }}>
             <h2 style={{ margin: "0 0 18px", color: "#29303b", fontSize: 15 }}>基本信息</h2>
             <div className="maas-model-detail-fields" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "22px 28px" }}>
               <DetailField label="模型名称">{model.name}</DetailField>
@@ -370,22 +358,10 @@ function ModelDetailPage({ model, onBack, onDeploy }: { model: ModelRecord; onBa
               <DetailField label="创建时间">{model.createdAt}</DetailField>
             </div>
             <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid #edf0f4" }}><h2 style={{ margin: "0 0 10px", color: "#29303b", fontSize: 15 }}>模型简介</h2><p style={{ margin: 0, color: "#5e6878", fontSize: 13, lineHeight: 1.8 }}>{model.description || "暂无模型简介。"}</p></div>
-          </main>
-
-          <aside style={{ minWidth: 0, padding: 20, border: "1px solid #e1e6ee", borderRadius: 10, background: "#fff" }}>
-            <div style={{ marginBottom: 18, display: "flex", alignItems: "center", gap: 8 }}><GitBranch size={17} color="#4f6ef7" /><h2 style={{ margin: 0, color: "#29303b", fontSize: 15 }}>版本信息</h2></div>
-            <div style={{ display: "grid", gap: 18 }}>
-              <DetailField label="版本号">{selectedVersion.label}</DetailField>
-              <DetailField label="版本状态"><span style={{ color: selectedVersion.status === "当前版本" ? "#16804b" : "#6f7a89" }}>{selectedVersion.status}</span></DetailField>
-              <DetailField label="发布时间">{selectedVersion.createdAt}</DetailField>
-              <DetailField label="权重地址" mono>{versionPath}</DetailField>
-            </div>
-            <div style={{ marginTop: 20, padding: "12px 13px", display: "flex", alignItems: "flex-start", gap: 9, borderRadius: 7, background: "#f6f8fc", color: "#657084", fontSize: 12, lineHeight: 1.6 }}><HardDrive size={15} style={{ marginTop: 2, flex: "0 0 15px" }} /><span>切换版本可查看对应的权重地址和发布信息，不会改变当前部署。</span></div>
-          </aside>
-        </div>
+        </main>
       </div>
       <style>{`
-        @media (max-width: 900px) { .maas-model-detail-grid { grid-template-columns: 1fr !important; } .maas-model-detail-header { align-items: flex-start !important; flex-wrap: wrap; } .maas-model-detail-actions { width: 100%; margin-left: 48px !important; align-items: flex-end !important; } }
+        @media (max-width: 900px) { .maas-model-detail-header { align-items: flex-start !important; flex-wrap: wrap; } .maas-model-detail-actions { width: 100%; margin-left: 48px !important; align-items: flex-end !important; } }
         @media (max-width: 560px) { .maas-model-detail-fields { grid-template-columns: 1fr !important; } .maas-model-detail-actions { margin-left: 0 !important; flex-wrap: wrap; } .maas-model-detail-actions label { flex: 1; min-width: 160px; } .maas-model-detail-actions select { width: 100% !important; } }
       `}</style>
     </div>

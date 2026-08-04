@@ -25,6 +25,7 @@ export interface ModelRecord {
   developer: string;
   iconData: string;
   paramSize: string;
+  architecture?: string;
   category: ModelCategory;
   capabilities: ModelCapability[];
   weightPath: string;

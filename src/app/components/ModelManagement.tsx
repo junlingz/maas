@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
-import { Image as ImageIcon, MoreHorizontal, Plus, Search, Trash2, Upload, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type DragEvent } from "react";
+import { ArrowLeft, CheckCircle2, FileBox, FileCode2, GitBranch, HardDrive, Image as ImageIcon, LoaderCircle, MoreHorizontal, Plus, Search, Trash2, Upload, UploadCloud, X } from "lucide-react";
 import { MODEL_CAPABILITIES, MODEL_CATEGORIES, type ModelCapability, type ModelCategory, type ModelRecord } from "../model-management/types";
 
 interface ModelManagementPageProps {
@@ -16,6 +16,7 @@ const EMPTY_FORM: ModelRecord = {
   developer: "",
   iconData: "",
   paramSize: "",
+  architecture: "",
   category: "LLM",
   capabilities: [],
   weightPath: "",
@@ -23,6 +24,128 @@ const EMPTY_FORM: ModelRecord = {
   description: "",
   createdAt: "",
 };
+
+interface ImportedModelDraft {
+  name: string;
+  developer: string;
+  paramSize: string;
+  architecture: string;
+  category: ModelCategory;
+  capabilities: ModelCapability[];
+  weightFormat: string;
+}
+
+const IMPORT_FILE_PATTERN = /\.(safetensors|pth|json|ya?ml)$/i;
+const WEIGHT_FILE_PATTERN = /\.(safetensors|pth)$/i;
+const CONFIG_FILE_PATTERN = /\.(json|ya?ml)$/i;
+
+function formatBytes(size: number) {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  if (size < 1024 * 1024 * 1024) return `${(size / 1024 / 1024).toFixed(1)} MB`;
+  return `${(size / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+function parseYaml(text: string): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const line of text.split(/\r?\n/)) {
+    const match = line.match(/^\s*([\w.-]+)\s*:\s*(.*?)\s*$/);
+    if (!match || !match[2] || match[2].startsWith("#")) continue;
+    const raw = match[2].replace(/\s+#.*$/, "").trim();
+    if (raw.startsWith("[") && raw.endsWith("]")) {
+      result[match[1]] = raw.slice(1, -1).split(",").map(item => item.trim().replace(/^['\"]|['\"]$/g, "")).filter(Boolean);
+    } else if (/^-?\d+(\.\d+)?$/.test(raw)) {
+      result[match[1]] = Number(raw);
+    } else {
+      result[match[1]] = raw.replace(/^['\"]|['\"]$/g, "");
+    }
+  }
+  return result;
+}
+
+function firstText(...values: unknown[]) {
+  for (const value of values) {
+    if (Array.isArray(value) && value.length) return String(value[0]);
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number") return String(value);
+  }
+  return "";
+}
+
+function inferDeveloper(name: string, configured: unknown) {
+  const explicit = firstText(configured);
+  if (explicit) return explicit;
+  const lower = name.toLowerCase();
+  if (lower.includes("qwen")) return "通义千问";
+  if (lower.includes("deepseek")) return "DeepSeek";
+  if (lower.includes("llama")) return "Meta";
+  if (lower.includes("whisper")) return "OpenAI";
+  if (lower.includes("glm")) return "智谱";
+  return "本地导入";
+}
+
+function inferParamSize(config: Record<string, unknown>, name: string) {
+  const count = Number(config.num_parameters ?? config.parameter_count ?? config.parameters);
+  if (Number.isFinite(count) && count > 0) {
+    const billions = count > 1000000 ? count / 1000000000 : count;
+    return billions >= 10 ? billions.toFixed(0) : billions.toFixed(1).replace(/\.0$/, "");
+  }
+  return name.match(/(?:^|[-_\s])(\d+(?:\.\d+)?)\s*[bB](?:$|[-_\s])/)?.[1] ?? "";
+}
+
+function inferCategory(config: Record<string, unknown>, architecture: string): ModelCategory {
+  const hint = `${firstText(config.pipeline_tag, config.task, config.model_type)} ${architecture}`.toLowerCase();
+  if (/text.to.image|diffusion|stable.?diffusion|unet/.test(hint)) return "Image";
+  if (/text.to.speech|tts/.test(hint)) return "Text-to-Speech";
+  if (/speech.to.text|whisper|asr/.test(hint)) return "Speech-to-Text";
+  if (/rerank|sequenceclassification/.test(hint)) return "Reranker";
+  if (/embed|featureextraction/.test(hint)) return "Embedding";
+  return "LLM";
+}
+
+function inferCapabilities(config: Record<string, unknown>, architecture: string): ModelCapability[] {
+  const hint = `${architecture} ${firstText(config.pipeline_tag, config.task, config.model_type)}`.toLowerCase();
+  const capabilities: ModelCapability[] = [];
+  if (/vision|visual|multimodal|image/.test(hint) || config.vision_config) capabilities.push("vision");
+  if (config.tool_use === true || config.supports_tools === true) capabilities.push("tool");
+  if (config.reasoning === true || /reason|r1/.test(hint)) capabilities.push("reasoning");
+  return capabilities;
+}
+
+async function analyzeImportFiles(files: File[]): Promise<ImportedModelDraft> {
+  const weightFiles = files.filter(file => WEIGHT_FILE_PATTERN.test(file.name));
+  const configFiles = files.filter(file => CONFIG_FILE_PATTERN.test(file.name));
+  if (!weightFiles.length || !configFiles.length) throw new Error("请同时添加模型权重文件和配置文件");
+
+  const preferredConfig = [...configFiles].sort((a, b) => {
+    const score = (file: File) => file.name === "config.json" ? 0 : file.name === "model_index.json" ? 1 : 2;
+    return score(a) - score(b);
+  })[0];
+  let config: Record<string, unknown>;
+  try {
+    const text = await preferredConfig.text();
+    const parsed = preferredConfig.name.toLowerCase().endsWith(".json") ? JSON.parse(text) : parseYaml(text);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("invalid config");
+    config = parsed as Record<string, unknown>;
+  } catch {
+    throw new Error(`无法解析配置文件 ${preferredConfig.name}，请检查文件内容`);
+  }
+
+  const weightName = weightFiles[0].name.replace(/(?:-\d{5}-of-\d{5})?\.(safetensors|pth)$/i, "");
+  const configuredName = firstText(config.name, config.model_name, config._name_or_path).split(/[\\/]/).filter(Boolean).pop() ?? "";
+  const name = configuredName || weightName || "imported-model";
+  const modelType = firstText(config.model_type);
+  const architecture = firstText(config.architectures, config.architecture, config._class_name, modelType) || "未识别";
+  return {
+    name,
+    developer: inferDeveloper(name, config.developer ?? config.author ?? config.organization),
+    paramSize: inferParamSize(config, name),
+    architecture,
+    category: inferCategory(config, architecture),
+    capabilities: inferCapabilities(config, architecture),
+    weightFormat: Array.from(new Set(weightFiles.map(file => file.name.split(".").pop()?.toUpperCase()))).filter(Boolean).join(" + "),
+  };
+}
 
 const IMAGE_OPTIONS = [
   "harbor.xxx.com/lm/vllm:v0.12.0",
@@ -100,9 +223,9 @@ function ModelIcon({ model }: { model: ModelRecord }) {
   );
 }
 
-function ModelCard({ model, onView, onEdit, onDelete, onDeploy }: {
+function ModelCard({ model, onOpen, onEdit, onDelete, onDeploy }: {
   model: ModelRecord;
-  onView: () => void;
+  onOpen: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onDeploy: () => void;
@@ -111,14 +234,26 @@ function ModelCard({ model, onView, onEdit, onDelete, onDeploy }: {
   const metaLabel: CSSProperties = { color: "#9aa5b5", whiteSpace: "nowrap" };
   const metaValue: CSSProperties = { color: "#374151", textAlign: "right", fontWeight: 650, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
   return (
-    <article className="maas-model-card" style={{ minWidth: 0, minHeight: 288, padding: 16, display: "flex", flexDirection: "column", background: "#fff", border: "1px solid #dfe5ee", borderRadius: 10, boxShadow: "0 3px 12px rgba(31,41,55,.03)" }}>
+    <article
+      className="maas-model-card"
+      tabIndex={0}
+      aria-label={`查看 ${model.name} 详情`}
+      onClick={onOpen}
+      onKeyDown={event => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+      style={{ minWidth: 0, minHeight: 288, padding: 16, display: "flex", flexDirection: "column", background: "#fff", border: "1px solid #dfe5ee", borderRadius: 10, boxShadow: "0 3px 12px rgba(31,41,55,.03)", cursor: "pointer", outline: "none" }}
+    >
       <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, marginBottom: 14 }}>
         <ModelIcon model={model} />
         <h3 title={model.name} style={{ minWidth: 0, flex: 1, margin: 0, color: "#20232a", fontSize: 17, fontWeight: 700, lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{model.name}</h3>
         <div style={{ position: "relative" }}>
-          <button type="button" title="更多操作" onClick={() => setMenuOpen(v => !v)} style={{ width: 28, height: 28, border: 0, borderRadius: 6, background: "transparent", color: "#9ba6b7", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><MoreHorizontal size={18} /></button>
+          <button type="button" title="更多操作" onClick={event => { event.stopPropagation(); setMenuOpen(v => !v); }} style={{ width: 28, height: 28, border: 0, borderRadius: 6, background: "transparent", color: "#9ba6b7", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><MoreHorizontal size={18} /></button>
           {menuOpen && (
-            <div style={{ position: "absolute", top: 32, right: 0, zIndex: 20, width: 88, padding: 4, border: "1px solid #e5e7eb", borderRadius: 7, background: "#fff", boxShadow: "0 8px 24px rgba(15,23,42,.12)" }}>
+            <div onClick={event => event.stopPropagation()} style={{ position: "absolute", top: 32, right: 0, zIndex: 20, width: 88, padding: 4, border: "1px solid #e5e7eb", borderRadius: 7, background: "#fff", boxShadow: "0 8px 24px rgba(15,23,42,.12)" }}>
               <button type="button" onClick={() => { setMenuOpen(false); onDelete(); }} style={{ width: "100%", height: 30, border: 0, borderRadius: 5, background: "transparent", color: "#e5484d", fontSize: 12, cursor: "pointer" }}>删除</button>
             </div>
           )}
@@ -126,7 +261,8 @@ function ModelCard({ model, onView, onEdit, onDelete, onDeploy }: {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "70px minmax(0,1fr)", rowGap: 8, alignItems: "center", fontSize: 13, lineHeight: 1.35 }}>
-        <span style={metaLabel}>参数量</span><span style={metaValue}>{model.paramSize}B</span>
+        <span style={metaLabel}>参数量</span><span style={metaValue}>{model.paramSize ? `${model.paramSize}B` : "—"}</span>
+        {model.architecture && <><span style={metaLabel}>架构</span><span title={model.architecture} style={metaValue}>{model.architecture}</span></>}
         <span style={metaLabel}>开发者</span><span title={model.developer} style={metaValue}>{model.developer}</span>
         <span style={metaLabel}>模型分类</span>
         <span style={{ display: "flex", justifyContent: "flex-end" }}><span className="notranslate" translate="no" style={{ ...categoryTone(model.category), display: "inline-flex", alignItems: "center", minHeight: 22, padding: "2px 7px", borderRadius: 5, fontSize: 12, fontWeight: 650, whiteSpace: "nowrap" }}>{model.category}</span></span>
@@ -141,11 +277,294 @@ function ModelCard({ model, onView, onEdit, onDelete, onDeploy }: {
       </div>
 
       <div style={{ marginTop: "auto", paddingTop: 12, borderTop: "1px solid #edf0f5", display: "flex", alignItems: "center", gap: 14 }}>
-        <button type="button" onClick={onView} style={{ border: 0, background: "transparent", color: "#4169f6", fontSize: 13, fontWeight: 650, cursor: "pointer", padding: "5px 0" }}>查看</button>
-        <button type="button" onClick={onEdit} style={{ border: 0, background: "transparent", color: "#4169f6", fontSize: 13, fontWeight: 650, cursor: "pointer", padding: "5px 0" }}>编辑</button>
-        <button type="button" onClick={onDeploy} style={{ ...buttonPrimary, marginLeft: "auto", minWidth: 64, height: 34, justifyContent: "center", padding: "0 13px" }}>部署</button>
+        <button type="button" onClick={event => { event.stopPropagation(); onOpen(); }} style={{ border: 0, background: "transparent", color: "#4169f6", fontSize: 13, fontWeight: 650, cursor: "pointer", padding: "5px 0" }}>查看</button>
+        <button type="button" onClick={event => { event.stopPropagation(); onEdit(); }} style={{ border: 0, background: "transparent", color: "#4169f6", fontSize: 13, fontWeight: 650, cursor: "pointer", padding: "5px 0" }}>编辑</button>
+        <button type="button" onClick={event => { event.stopPropagation(); onDeploy(); }} style={{ ...buttonPrimary, marginLeft: "auto", minWidth: 64, height: 34, justifyContent: "center", padding: "0 13px" }}>部署</button>
       </div>
     </article>
+  );
+}
+
+interface ModelVersionOption {
+  id: string;
+  label: string;
+  createdAt: string;
+  status: "当前版本" | "历史版本";
+}
+
+function shiftDate(date: string, months: number) {
+  const parsed = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return date;
+  parsed.setUTCMonth(parsed.getUTCMonth() - months);
+  return parsed.toISOString().slice(0, 10);
+}
+
+function versionLabels(model: ModelRecord) {
+  const name = model.name.toLowerCase();
+  if (name.includes("deepseek-v3")) return ["V3", "V2.5", "V2"];
+  if (name.includes("embedding-v3")) return ["v3.0", "v2.1", "v2.0"];
+  if (name.includes("cogvlm")) return ["v1.1", "v1.0"];
+  if (name.includes("chatglm4")) return ["v4.0", "v3.0"];
+  if (name.includes("llama 3.1")) return ["3.1", "3.0", "2.0"];
+  if (name.includes("baichuan")) return ["M2 Plus", "M2", "M1"];
+  if (name.includes("qwen3")) return ["v3.0", "v2.5", "v2.0"];
+  if (name.includes("whisper")) return ["large-v3", "large-v2", "medium"];
+  if (name.includes("t1")) return ["v1.0", "v0.9"];
+  return ["v1.0.0", "v0.9.0"];
+}
+
+function modelVersions(model: ModelRecord): ModelVersionOption[] {
+  return versionLabels(model).map((label, index) => ({
+    id: `version-${index}`,
+    label,
+    createdAt: index ? shiftDate(model.createdAt, index * 3) : model.createdAt,
+    status: index ? "历史版本" : "当前版本",
+  }));
+}
+
+function inferredArchitecture(model: ModelRecord) {
+  if (model.architecture) return model.architecture;
+  if (model.category === "Embedding") return "TransformerEncoder";
+  if (model.category === "Image") return "VisionTransformer";
+  if (model.category === "Reranker") return "SequenceClassification";
+  if (model.category === "Speech-to-Text") return "WhisperForConditionalGeneration";
+  if (model.category === "Text-to-Speech") return "SpeechSynthesisModel";
+  return "TransformerForCausalLM";
+}
+
+function DetailField({ label, children, mono = false }: { label: string; children: React.ReactNode; mono?: boolean }) {
+  return <div style={{ minWidth: 0 }}><div style={{ marginBottom: 6, color: "#8a95a5", fontSize: 12 }}>{label}</div><div title={typeof children === "string" ? children : undefined} style={{ minHeight: 22, color: "#303744", fontSize: 13, fontWeight: 550, lineHeight: 1.55, overflow: "hidden", textOverflow: "ellipsis", wordBreak: mono ? "break-all" : "normal", fontFamily: mono ? "ui-monospace, SFMono-Regular, Menlo, monospace" : undefined }}>{children}</div></div>;
+}
+
+function ModelDetailPage({ model, onBack, onDeploy }: { model: ModelRecord; onBack: () => void; onDeploy: () => void }) {
+  const versions = useMemo(() => modelVersions(model), [model]);
+  const [versionId, setVersionId] = useState(versions[0].id);
+  const selectedVersion = versions.find(version => version.id === versionId) ?? versions[0];
+  const versionPath = selectedVersion.status === "当前版本" ? model.weightPath : `${model.weightPath}/${selectedVersion.label.toLowerCase().replace(/\s+/g, "-")}`;
+
+  return (
+    <div className="flex h-full min-h-0 flex-col" style={{ background: "#f5f7fa" }}>
+      <div style={{ padding: "14px 24px 0", color: "#6b7280", fontSize: 13 }}><span style={{ color: "#4f6ef7" }}>模型管理</span><span style={{ margin: "0 7px" }}>/</span><button type="button" onClick={onBack} style={{ padding: 0, border: 0, background: "transparent", color: "#4f6ef7", fontSize: 13, cursor: "pointer" }}>模型库</button><span style={{ margin: "0 7px" }}>/</span><b style={{ color: "#1a1d23", fontWeight: 500 }}>模型详情</b></div>
+      <div className="flex-1 min-h-0 overflow-auto" style={{ padding: "14px 24px 24px" }}>
+        <div className="maas-model-detail-header" style={{ minHeight: 96, padding: "18px 20px", display: "flex", alignItems: "center", gap: 14, border: "1px solid #e1e6ee", borderRadius: 10, background: "#fff" }}>
+          <button type="button" aria-label="返回模型库" onClick={onBack} style={{ width: 34, height: 34, flex: "0 0 34px", border: "1px solid #dfe4ec", borderRadius: 7, background: "#fff", color: "#657084", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><ArrowLeft size={17} /></button>
+          <ModelIcon model={model} />
+          <div style={{ minWidth: 0 }}><div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}><h1 style={{ margin: 0, color: "#20242d", fontSize: 20, lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{model.name}</h1><span style={{ padding: "2px 7px", borderRadius: 5, background: "#eef9f2", color: "#16804b", fontSize: 11.5, whiteSpace: "nowrap" }}>可用</span></div><div style={{ marginTop: 5, color: "#7c8798", fontSize: 12.5 }}>{model.developer} · {model.category}</div></div>
+          <div className="maas-model-detail-actions" style={{ marginLeft: "auto", display: "flex", alignItems: "flex-end", gap: 10 }}>
+            <label style={{ display: "block" }}><span style={{ display: "block", marginBottom: 5, color: "#7c8798", fontSize: 11.5 }}>模型版本</span><select aria-label="模型版本" value={versionId} onChange={event => setVersionId(event.target.value)} style={{ ...inputStyle, width: 172, background: "#fff", fontWeight: 600 }}>{versions.map(version => <option key={version.id} value={version.id}>{version.label}{version.status === "当前版本" ? "（当前）" : ""}</option>)}</select></label>
+            <button type="button" onClick={onDeploy} style={{ ...buttonPrimary, height: 36 }}>部署模型</button>
+          </div>
+        </div>
+
+        <div className="maas-model-detail-grid" style={{ marginTop: 16, display: "grid", gridTemplateColumns: "minmax(0, 1.7fr) minmax(280px, .8fr)", gap: 16, alignItems: "start" }}>
+          <main style={{ minWidth: 0, padding: 20, border: "1px solid #e1e6ee", borderRadius: 10, background: "#fff" }}>
+            <h2 style={{ margin: "0 0 18px", color: "#29303b", fontSize: 15 }}>基本信息</h2>
+            <div className="maas-model-detail-fields" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "22px 28px" }}>
+              <DetailField label="模型名称">{model.name}</DetailField>
+              <DetailField label="开发者">{model.developer}</DetailField>
+              <DetailField label="参数量">{model.paramSize ? `${model.paramSize}B` : "—"}</DetailField>
+              <DetailField label="模型分类"><span className="notranslate" translate="no" style={{ ...categoryTone(model.category), display: "inline-flex", padding: "2px 7px", borderRadius: 5, fontSize: 12 }}>{model.category}</span></DetailField>
+              <DetailField label="模型架构">{inferredArchitecture(model)}</DetailField>
+              <DetailField label="模型能力">{model.capabilities.length ? <span style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>{model.capabilities.map(capability => { const tone = capabilityTone(capability); return <span key={capability} style={{ padding: "1px 6px", border: `1px solid ${tone.border}`, borderRadius: 5, background: tone.background, color: tone.color, fontSize: 11.5 }}>{capability}</span>; })}</span> : "—"}</DetailField>
+              <DetailField label="模型镜像" mono>{model.imagePath}</DetailField>
+              <DetailField label="创建时间">{model.createdAt}</DetailField>
+            </div>
+            <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid #edf0f4" }}><h2 style={{ margin: "0 0 10px", color: "#29303b", fontSize: 15 }}>模型简介</h2><p style={{ margin: 0, color: "#5e6878", fontSize: 13, lineHeight: 1.8 }}>{model.description || "暂无模型简介。"}</p></div>
+          </main>
+
+          <aside style={{ minWidth: 0, padding: 20, border: "1px solid #e1e6ee", borderRadius: 10, background: "#fff" }}>
+            <div style={{ marginBottom: 18, display: "flex", alignItems: "center", gap: 8 }}><GitBranch size={17} color="#4f6ef7" /><h2 style={{ margin: 0, color: "#29303b", fontSize: 15 }}>版本信息</h2></div>
+            <div style={{ display: "grid", gap: 18 }}>
+              <DetailField label="版本号">{selectedVersion.label}</DetailField>
+              <DetailField label="版本状态"><span style={{ color: selectedVersion.status === "当前版本" ? "#16804b" : "#6f7a89" }}>{selectedVersion.status}</span></DetailField>
+              <DetailField label="发布时间">{selectedVersion.createdAt}</DetailField>
+              <DetailField label="权重地址" mono>{versionPath}</DetailField>
+            </div>
+            <div style={{ marginTop: 20, padding: "12px 13px", display: "flex", alignItems: "flex-start", gap: 9, borderRadius: 7, background: "#f6f8fc", color: "#657084", fontSize: 12, lineHeight: 1.6 }}><HardDrive size={15} style={{ marginTop: 2, flex: "0 0 15px" }} /><span>切换版本可查看对应的权重地址和发布信息，不会改变当前部署。</span></div>
+          </aside>
+        </div>
+      </div>
+      <style>{`
+        @media (max-width: 900px) { .maas-model-detail-grid { grid-template-columns: 1fr !important; } .maas-model-detail-header { align-items: flex-start !important; flex-wrap: wrap; } .maas-model-detail-actions { width: 100%; margin-left: 48px !important; align-items: flex-end !important; } }
+        @media (max-width: 560px) { .maas-model-detail-fields { grid-template-columns: 1fr !important; } .maas-model-detail-actions { margin-left: 0 !important; flex-wrap: wrap; } .maas-model-detail-actions label { flex: 1; min-width: 160px; } .maas-model-detail-actions select { width: 100% !important; } }
+      `}</style>
+    </div>
+  );
+}
+
+function ImportModelModal({ models, onClose, onImport }: {
+  models: ModelRecord[];
+  onClose: () => void;
+  onImport: (model: ModelRecord) => void;
+}) {
+  const [files, setFiles] = useState<File[]>([]);
+  const [draft, setDraft] = useState<ImportedModelDraft | null>(null);
+  const [error, setError] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!files.length) {
+      setDraft(null);
+      setError("");
+      setIsParsing(false);
+      return () => { cancelled = true; };
+    }
+    const hasWeights = files.some(file => WEIGHT_FILE_PATTERN.test(file.name));
+    const hasConfig = files.some(file => CONFIG_FILE_PATTERN.test(file.name));
+    if (!hasWeights || !hasConfig) {
+      setDraft(null);
+      setError(!hasWeights ? "还需添加 .safetensors 或 .pth 权重文件" : "还需添加 JSON 或 YAML 配置文件");
+      setIsParsing(false);
+      return () => { cancelled = true; };
+    }
+    setIsParsing(true);
+    setError("");
+    analyzeImportFiles(files)
+      .then(result => {
+        if (!cancelled) {
+          setDraft(result);
+          setError("");
+        }
+      })
+      .catch(reason => {
+        if (!cancelled) {
+          setDraft(null);
+          setError(reason instanceof Error ? reason.message : "文件解析失败");
+        }
+      })
+      .finally(() => { if (!cancelled) setIsParsing(false); });
+    return () => { cancelled = true; };
+  }, [files]);
+
+  const addFiles = (incoming: File[]) => {
+    const rejected = incoming.filter(file => !IMPORT_FILE_PATTERN.test(file.name));
+    const accepted = incoming.filter(file => IMPORT_FILE_PATTERN.test(file.name));
+    if (rejected.length) setError(`不支持 ${rejected.map(file => file.name).join("、")}；请上传权重或 JSON/YAML 配置文件`);
+    if (accepted.length) {
+      setFiles(previous => {
+        const next = [...previous];
+        for (const file of accepted) {
+          const duplicateIndex = next.findIndex(item => item.name === file.name && item.size === file.size);
+          if (duplicateIndex >= 0) next[duplicateIndex] = file;
+          else next.push(file);
+        }
+        return next;
+      });
+    }
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragging(false);
+    addFiles(Array.from(event.dataTransfer.files));
+  };
+
+  const submit = () => {
+    if (!draft || isParsing || isImporting) return;
+    const name = draft.name.trim();
+    if (!name) return setError("请输入模型名称");
+    if (models.some(model => model.name.toLowerCase() === name.toLowerCase())) return setError("模型名称已存在，请修改后再导入");
+    setIsImporting(true);
+    setError("");
+    window.setTimeout(() => {
+      const today = new Date().toISOString().slice(0, 10);
+      const slug = name.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, "-").replace(/^-|-$/g, "") || `model-${Date.now()}`;
+      onImport({
+        id: `import-${slug}-${Date.now()}`,
+        name,
+        developer: draft.developer,
+        iconData: "",
+        paramSize: draft.paramSize,
+        architecture: draft.architecture,
+        category: draft.category,
+        capabilities: draft.capabilities,
+        weightPath: `/models/imports/${slug}`,
+        imagePath: "harbor.xxx.com/lm/vllm:latest",
+        description: `由 ${files.map(file => file.name).join("、")} 导入，系统解析架构为 ${draft.architecture}。`,
+        createdAt: today,
+      });
+    }, 700);
+  };
+
+  const weights = files.filter(file => WEIGHT_FILE_PATTERN.test(file.name));
+  const configs = files.filter(file => CONFIG_FILE_PATTERN.test(file.name));
+  const secondaryButton: CSSProperties = { height: 34, padding: "0 16px", border: "1px solid #dfe3eb", borderRadius: 7, background: "#fff", color: "#374151", fontSize: 13, cursor: "pointer" };
+
+  return (
+    <div role="dialog" aria-modal="true" aria-label="导入模型" style={{ position: "fixed", inset: 0, zIndex: 110, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "rgba(31,38,49,.5)" }}>
+      <div style={{ width: "min(680px, calc(100vw - 32px))", maxHeight: "calc(100vh - 32px)", display: "flex", flexDirection: "column", overflow: "hidden", border: "1px solid rgba(255,255,255,.7)", borderRadius: 12, background: "#fff", boxShadow: "0 28px 80px rgba(15,23,42,.26)" }}>
+        <div style={{ minHeight: 66, padding: "14px 22px", display: "flex", alignItems: "center", borderBottom: "1px solid #edf0f4" }}>
+          <div>
+            <h2 style={{ margin: 0, color: "#20242d", fontSize: 18 }}>导入模型</h2>
+            <p style={{ margin: "4px 0 0", color: "#7b8494", fontSize: 12 }}>上传权重和配置文件，系统将自动解析模型架构</p>
+          </div>
+          <button type="button" aria-label="关闭" onClick={onClose} disabled={isImporting} style={{ width: 32, height: 32, marginLeft: "auto", border: 0, borderRadius: 7, background: "transparent", color: "#98a2b3", cursor: isImporting ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={20} /></button>
+        </div>
+
+        <div style={{ flex: 1, overflowY: "auto", padding: "18px 22px 20px" }}>
+          <input ref={fileRef} type="file" multiple accept=".safetensors,.pth,.json,.yaml,.yml,application/json,text/yaml,application/x-yaml" hidden onChange={event => { addFiles(Array.from(event.target.files ?? [])); event.target.value = ""; }} />
+          <div
+            className="maas-import-dropzone"
+            onDragEnter={event => { event.preventDefault(); setIsDragging(true); }}
+            onDragOver={event => event.preventDefault()}
+            onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setIsDragging(false); }}
+            onDrop={handleDrop}
+            style={{ minHeight: 150, padding: 20, border: `1px dashed ${isDragging ? "#4f6ef7" : "#bfc8d7"}`, borderRadius: 8, background: isDragging ? "#f3f6ff" : "#fafbfc", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", transition: "all .16s" }}
+          >
+            <div style={{ width: 42, height: 42, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, background: "#edf2ff", color: "#4f6ef7" }}><UploadCloud size={22} /></div>
+            <div style={{ color: "#313846", fontSize: 13, fontWeight: 650 }}>将模型文件拖到此处，或 <button type="button" onClick={() => fileRef.current?.click()} style={{ padding: 0, border: 0, background: "transparent", color: "#4169f6", font: "inherit", cursor: "pointer" }}>选择文件</button></div>
+            <div style={{ marginTop: 7, color: "#8c96a6", fontSize: 12, lineHeight: 1.6 }}>
+              <span style={{ display: "inline-block", margin: "0 6px" }}>权重：.safetensors、.pth</span><span style={{ display: "inline-block", margin: "0 6px" }}>配置：.json、.yaml、.yml</span><br />
+              支持多分片权重，请至少各上传一个权重和配置文件
+            </div>
+          </div>
+
+          {files.length > 0 && (
+            <section aria-label="已选文件" style={{ marginTop: 16 }}>
+              <div style={{ marginBottom: 8, display: "flex", alignItems: "center", color: "#3b4351", fontSize: 13, fontWeight: 650 }}><span>已选文件</span><span style={{ marginLeft: 6, color: "#8b95a5", fontWeight: 500 }}>({files.length})</span><span style={{ marginLeft: "auto", color: weights.length && configs.length ? "#14804a" : "#9aa4b2", fontSize: 12, fontWeight: 500 }}>权重 {weights.length} · 配置 {configs.length}</span></div>
+              <div style={{ maxHeight: 150, overflowY: "auto", border: "1px solid #e3e7ee", borderRadius: 8, background: "#fff" }}>
+                {files.map((file, index) => {
+                  const isWeight = WEIGHT_FILE_PATTERN.test(file.name);
+                  return <div key={`${file.name}-${file.size}`} style={{ minHeight: 44, padding: "8px 10px", display: "flex", alignItems: "center", gap: 9, borderTop: index ? "1px solid #edf0f4" : 0 }}>
+                    <span style={{ width: 28, height: 28, flex: "0 0 28px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, background: isWeight ? "#edf2ff" : "#eef9f2", color: isWeight ? "#4f6ef7" : "#198754" }}>{isWeight ? <FileBox size={15} /> : <FileCode2 size={15} />}</span>
+                    <span title={file.name} style={{ minWidth: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#394150", fontSize: 12.5 }}>{file.name}</span>
+                    <span style={{ color: "#96a0ae", fontSize: 11.5, whiteSpace: "nowrap" }}>{formatBytes(file.size)}</span>
+                    <span style={{ minWidth: 37, padding: "2px 5px", borderRadius: 4, background: isWeight ? "#f1f4ff" : "#eef9f2", color: isWeight ? "#4f6ef7" : "#198754", fontSize: 10.5, textAlign: "center" }}>{isWeight ? "权重" : "配置"}</span>
+                    <button type="button" aria-label={`移除 ${file.name}`} onClick={() => setFiles(current => current.filter(item => item !== file))} style={{ width: 24, height: 24, padding: 0, border: 0, borderRadius: 5, background: "transparent", color: "#a2aab6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={14} /></button>
+                  </div>;
+                })}
+              </div>
+            </section>
+          )}
+
+          {isParsing && <div style={{ marginTop: 14, minHeight: 40, padding: "10px 12px", display: "flex", alignItems: "center", gap: 8, borderRadius: 7, background: "#f6f8fc", color: "#657084", fontSize: 12.5 }}><LoaderCircle className="maas-spin" size={15} />正在解析模型配置…</div>}
+          {draft && !isParsing && (
+            <section aria-label="解析结果" style={{ marginTop: 16, padding: 14, border: "1px solid #dce9e2", borderRadius: 8, background: "#f8fcfa" }}>
+              <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 7, color: "#16784a", fontSize: 13, fontWeight: 650 }}><CheckCircle2 size={16} />配置解析完成</div>
+              <div className="maas-import-summary" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 18px" }}>
+                <label style={{ gridColumn: "1 / -1" }}><span style={{ ...labelStyle, fontSize: 12 }}>模型名称</span><input aria-label="导入模型名称" value={draft.name} onChange={event => setDraft(current => current ? { ...current, name: event.target.value } : current)} style={{ ...inputStyle, background: "#fff" }} /></label>
+                <div><span style={{ ...labelStyle, fontSize: 12 }}>模型架构</span><div title={draft.architecture} style={{ minHeight: 34, padding: "8px 10px", border: "1px solid #dce4df", borderRadius: 7, background: "#fff", color: "#303944", fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{draft.architecture}</div></div>
+                <div><span style={{ ...labelStyle, fontSize: 12 }}>模型分类</span><div style={{ minHeight: 34, padding: "8px 10px", border: "1px solid #dce4df", borderRadius: 7, background: "#fff", color: "#303944", fontSize: 12.5 }}>{draft.category}</div></div>
+                <div><span style={{ ...labelStyle, fontSize: 12 }}>权重格式</span><div style={{ color: "#596475", fontSize: 12.5 }}>{draft.weightFormat}</div></div>
+                <div><span style={{ ...labelStyle, fontSize: 12 }}>参数量</span><div style={{ color: "#596475", fontSize: 12.5 }}>{draft.paramSize ? `${draft.paramSize}B` : "配置中未声明"}</div></div>
+              </div>
+            </section>
+          )}
+          {error && <div role="alert" style={{ marginTop: 12, color: "#d14343", fontSize: 12 }}>{error}</div>}
+        </div>
+
+        <div style={{ minHeight: 60, padding: "12px 22px", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, borderTop: "1px solid #edf0f4", background: "#fff" }}>
+          <button type="button" onClick={onClose} disabled={isImporting} style={{ ...secondaryButton, cursor: isImporting ? "not-allowed" : "pointer", opacity: isImporting ? .6 : 1 }}>取消</button>
+          <button type="button" onClick={submit} disabled={!draft || isParsing || isImporting} style={{ ...buttonPrimary, minWidth: 94, justifyContent: "center", opacity: !draft || isParsing ? .48 : 1, cursor: !draft || isParsing || isImporting ? "not-allowed" : "pointer" }}>
+            {isImporting ? <><LoaderCircle className="maas-spin" size={14} />导入中…</> : <><Upload size={14} />开始导入</>}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -208,6 +627,8 @@ function ModelModal({ mode, model, models, onClose, onSave }: {
           <div className="maas-model-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px 18px" }}>
             <label><span style={labelStyle}><b style={{ color: "#e5484d" }}>*</b> 模型名称</span><input disabled={readOnly} value={form.name} onChange={e => set("name", e.target.value)} style={inputStyle} placeholder="请输入模型名称" /></label>
             <label><span style={labelStyle}><b style={{ color: "#e5484d" }}>*</b> 开发者</span><input disabled={readOnly} value={form.developer} onChange={e => set("developer", e.target.value)} style={inputStyle} placeholder="如 DeepSeek" /></label>
+
+            {form.architecture && <label style={{ gridColumn: "1 / -1" }}><span style={labelStyle}>模型架构</span><input disabled value={form.architecture} style={{ ...inputStyle, background: "#f7f8fa", color: "#596475" }} /></label>}
 
             <div>
               <span style={labelStyle}><b style={{ color: "#e5484d" }}>*</b> 图标</span>
@@ -280,6 +701,9 @@ export function ModelManagementPage({ models, onModelsChange, onDeploy }: ModelM
   const [category, setCategory] = useState("");
   const [developer, setDeveloper] = useState("");
   const [modal, setModal] = useState<{ mode: ModalMode; model?: ModelRecord } | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importNotice, setImportNotice] = useState("");
+  const [detailModel, setDetailModel] = useState<ModelRecord | null>(null);
 
   const developers = useMemo(
     () => Array.from(new Set(models.map(model => model.developer).filter(Boolean))).sort((a, b) => a.localeCompare(b, "zh-CN")),
@@ -301,10 +725,22 @@ export function ModelManagementPage({ models, onModelsChange, onDeploy }: ModelM
     setModal(null);
   };
 
+  const importModel = (record: ModelRecord) => {
+    onModelsChange([record, ...models]);
+    setImportOpen(false);
+    setImportNotice(`模型「${record.name}」导入成功，已解析架构 ${record.architecture || "未识别"}`);
+    window.setTimeout(() => setImportNotice(""), 4200);
+  };
+
+  if (detailModel) {
+    return <ModelDetailPage model={detailModel} onBack={() => setDetailModel(null)} onDeploy={() => onDeploy?.(detailModel)} />;
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col" style={{ background: "#f5f7fa" }}>
       <div style={{ padding: "14px 24px 0", color: "#6b7280", fontSize: 13 }}><span style={{ color: "#4f6ef7" }}>模型管理</span><span style={{ margin: "0 7px" }}>/</span><b style={{ color: "#1a1d23", fontWeight: 500 }}>模型库</b></div>
       <div className="flex-1 min-h-0 overflow-auto" style={{ padding: "14px 24px 24px" }}>
+        {importNotice && <div role="status" style={{ minHeight: 42, marginBottom: 12, padding: "10px 13px", display: "flex", alignItems: "center", gap: 8, border: "1px solid #cdebd9", borderRadius: 8, background: "#f2fbf5", color: "#16784a", fontSize: 12.5 }}><CheckCircle2 size={16} />{importNotice}<button type="button" aria-label="关闭提示" onClick={() => setImportNotice("")} style={{ width: 22, height: 22, marginLeft: "auto", padding: 0, border: 0, background: "transparent", color: "#6e9b81", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={14} /></button></div>}
         <div style={{ minHeight: 66, marginBottom: 16, padding: "14px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", border: "1px solid #e3e8f1", borderRadius: 10, background: "#fff" }}>
           <div style={{ position: "relative", width: 260 }}>
             <Search size={16} color="#aab2bf" style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
@@ -314,23 +750,28 @@ export function ModelManagementPage({ models, onModelsChange, onDeploy }: ModelM
           <select value={category} onChange={e => setCategory(e.target.value)} className="notranslate" translate="no" style={{ ...inputStyle, width: 150 }}><option value="">全部类型</option>{MODEL_CATEGORIES.map(item => <option key={item} className="notranslate" translate="no">{item}</option>)}</select>
           <select value={developer} onChange={e => setDeveloper(e.target.value)} aria-label="开发者筛选" style={{ ...inputStyle, width: 160 }}><option value="">全部开发者</option>{developers.map(item => <option key={item}>{item}</option>)}</select>
           <div style={{ flex: 1 }} />
+          <button type="button" onClick={() => setImportOpen(true)} style={{ height: 36, padding: "0 14px", border: "1px solid #cfd7e6", borderRadius: 7, background: "#fff", color: "#3f5fd7", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><Upload size={14} />导入模型</button>
           <button type="button" onClick={() => setModal({ mode: "add" })} style={buttonPrimary}><Plus size={14} />新建模型</button>
         </div>
 
         {filtered.length ? (
           <div className="maas-model-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16 }}>
-            {filtered.map(model => <ModelCard key={model.id} model={model} onView={() => setModal({ mode: "view", model })} onEdit={() => setModal({ mode: "edit", model })} onDelete={() => onModelsChange(models.filter(item => item.id !== model.id))} onDeploy={() => onDeploy?.(model)} />)}
+            {filtered.map(model => <ModelCard key={model.id} model={model} onOpen={() => setDetailModel(model)} onEdit={() => setModal({ mode: "edit", model })} onDelete={() => onModelsChange(models.filter(item => item.id !== model.id))} onDeploy={() => onDeploy?.(model)} />)}
           </div>
         ) : <div style={{ padding: 70, textAlign: "center", color: "#98a2b3", border: "1px dashed #d8dee9", borderRadius: 10, background: "#fff" }}>暂无符合条件的模型</div>}
       </div>
 
       {modal && <ModelModal key={`${modal.mode}-${modal.model?.id || "new"}`} mode={modal.mode} model={modal.model} models={models} onClose={() => setModal(null)} onSave={save} />}
+      {importOpen && <ImportModelModal models={models} onClose={() => setImportOpen(false)} onImport={importModel} />}
 
       <style>{`
         @media (max-width: 1180px) { .maas-model-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
-        @media (max-width: 720px) { .maas-model-grid { grid-template-columns: 1fr !important; } .maas-model-form-grid { grid-template-columns: 1fr !important; } .maas-model-form-grid > * { grid-column: auto !important; } }
+        @media (max-width: 720px) { .maas-model-grid { grid-template-columns: 1fr !important; } .maas-model-form-grid, .maas-import-summary { grid-template-columns: 1fr !important; } .maas-model-form-grid > *, .maas-import-summary > * { grid-column: auto !important; } .maas-import-dropzone { min-height: 132px !important; padding: 16px 12px !important; } }
         .maas-model-card { transition: transform .16s, box-shadow .16s, border-color .16s; }
         .maas-model-card:hover { transform: translateY(-2px); border-color: #cad4e4 !important; box-shadow: 0 8px 20px rgba(31,41,55,.07) !important; }
+        .maas-model-card:focus-visible { border-color: #7190ff !important; box-shadow: 0 0 0 3px rgba(79,110,247,.14) !important; }
+        @keyframes maas-spin { to { transform: rotate(360deg); } }
+        .maas-spin { animation: maas-spin .8s linear infinite; }
       `}</style>
     </div>
   );

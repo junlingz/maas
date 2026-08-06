@@ -12,9 +12,13 @@ import { ModelRoutingPage } from "./components/ModelRouting";
 import { EvaluationConfigPage, ModelComparePage, ModelEvaluationPage } from "./components/ModelEvaluation";
 import { EvaluationDataPage } from "./components/EvaluationData";
 import { ModelDeploymentPage } from "./components/ModelDeployment";
-import { ClusterListPage } from "./components/ClusterList";
 import { NodeListPage, ResourceGroupPage } from "./components/NodeResourceGroup";
 import { ModelExperiencePage } from "./components/ModelExperience";
+import { ParallelTrainingConfig } from "./components/ParallelTrainingConfig";
+import { SupervisedFineTuningConfig } from "./components/SupervisedFineTuningConfig";
+import { TrainingTaskDetail } from "./components/TrainingTaskDetail";
+import { DistributedClusterMonitor } from "./components/DistributedClusterMonitor";
+import { UnifiedExtensionManagement, type EnabledFineTuningExtension } from "./components/UnifiedExtensionManagement";
 import {
   AdminUsageStatsPage,
   ApiKeyManagementPage,
@@ -50,6 +54,7 @@ const menuData: MenuItem[] = [
       { label: "训练任务", key: "training-task" },
       { label: "训练数据", key: "training-data" },
       { label: "我的模型", key: "my-model" },
+      { label: "框架扩展", key: "training-extension" },
     ],
   },
   {
@@ -105,24 +110,27 @@ const menuData: MenuItem[] = [
 
 // ─── Training Task List ───────────────────────────────────────────────────────
 
-type TrainingStatus = "已完成" | "训练中" | "排队中" | "已失败" | "已停止" | "";
+type TrainingStatus = "已完成" | "训练中" | "排队中" | "已暂停" | "已失败" | "已停止" | "";
 
 interface TrainingRow {
   id: number; name: string; outputModel: string; type: "继续预训练" | "监督微调";
   status: TrainingStatus; taskId: string; baseModel: string; creator: string; actions: string[];
   resources: string; submitTime: string; duration: string;
+  priority?: "高" | "普通" | "低";
+  estimatedDuration?: string;
+  queueReason?: string;
   outputModelDeleted?: boolean;
 }
 
 const trainingRows: TrainingRow[] = [
   { id: 1, name: "07061449", outputModel: "我的模型11", type: "继续预训练", status: "已完成", taskId: "12345234543", baseModel: "GLM-4-9B", creator: "张小明", resources: "8 × A100", submitTime: "2026-07-10 16:45:24", duration: "2小时15分", actions: ["查看详情", "评估报告", "删除"] },
-  { id: 2, name: "公文写作模型", outputModel: "公文写作-v1", type: "监督微调", status: "训练中", taskId: "76840646", baseModel: "GLM-4-9B", creator: "张小明", resources: "4 × A100", submitTime: "2026-07-12 09:20:10", duration: "1小时32分", actions: ["查看详情", "删除"] },
+  { id: 2, name: "公文写作模型", outputModel: "公文写作-v1", type: "监督微调", status: "训练中", taskId: "76840646", baseModel: "GLM-4-9B", creator: "张小明", resources: "2 节点 × 4 A100", submitTime: "2026-07-12 09:20:10", duration: "已运行 1小时32分", estimatedDuration: "剩余约 38 分", priority: "高", actions: ["查看详情", "删除"] },
   { id: 3, name: "天气变化预报", outputModel: "天气预报模型", type: "监督微调", status: "已完成", taskId: "34536448457", baseModel: "ChatGLM3-6B", creator: "张小明", resources: "2 × A100", submitTime: "2026-07-08 14:30:00", duration: "45分", actions: ["查看详情", "评估报告", "删除"] },
   { id: 4, name: "天文资料搜索", outputModel: "天文搜索模型", type: "继续预训练", status: "已失败", taskId: "346903543", baseModel: "GLM-4-9B", creator: "张小明", resources: "8 × A100", submitTime: "2026-07-11 10:15:33", duration: "12分", actions: ["查看详情", "删除"] },
   { id: 5, name: "公文写作模型", outputModel: "公文写作-v2", type: "监督微调", status: "已完成", taskId: "3461458868", baseModel: "GLM-4-9B", creator: "张小明", resources: "4 × A100", submitTime: "2026-07-09 18:00:00", duration: "3小时02分", actions: ["查看详情", "评估报告", "删除"], outputModelDeleted: true },
-  { id: 6, name: "天气变化预报", outputModel: "天气预报模型", type: "监督微调", status: "训练中", taskId: "34634875987", baseModel: "ChatGLM3-6B", creator: "张小明", resources: "2 × A100", submitTime: "2026-07-12 11:45:00", duration: "22分", actions: ["查看详情", "删除"] },
+  { id: 6, name: "天气变化预报", outputModel: "天气预报模型", type: "监督微调", status: "排队中", taskId: "34634875987", baseModel: "ChatGLM3-6B", creator: "张小明", resources: "2 节点 × 4 A100", submitTime: "2026-07-12 11:45:00", duration: "尚未开始", estimatedDuration: "预计 2小时10分", queueReason: "等待 8 张 GPU 同时可用", priority: "普通", actions: ["查看详情", "删除"] },
   { id: 7, name: "天文资料搜索", outputModel: "天文搜索模型", type: "继续预训练", status: "已完成", taskId: "32750657145", baseModel: "GLM-4-9B", creator: "张小明", resources: "8 × A100", submitTime: "2026-07-06 08:20:00", duration: "5小时18分", actions: ["查看详情", "评估报告", "删除"] },
-  { id: 8, name: "公文写作模型", outputModel: "公文写作-v3", type: "监督微调", status: "已停止", taskId: "096764453", baseModel: "GLM-4-9B", creator: "张小明", resources: "4 × A100", submitTime: "2026-07-05 16:00:00", duration: "8分", actions: ["查看详情", "删除"] },
+  { id: 8, name: "公文写作模型", outputModel: "公文写作-v3", type: "监督微调", status: "已暂停", taskId: "096764453", baseModel: "GLM-4-9B", creator: "张小明", resources: "2 节点 × 4 A100", submitTime: "2026-07-05 16:00:00", duration: "已运行 8 分", estimatedDuration: "剩余约 1小时48分", priority: "普通", actions: ["查看详情", "删除"] },
   { id: 9, name: "天气变化预报", outputModel: "天气预报模型", type: "监督微调", status: "已完成", taskId: "406678753", baseModel: "ChatGLM3-6B", creator: "张小明", resources: "2 × A100", submitTime: "2026-07-07 13:10:00", duration: "1小时05分", actions: ["查看详情", "评估报告", "删除"] },
 ];
 
@@ -130,6 +138,7 @@ const statusCfg: Record<TrainingStatus, { bg: string; text: string; dot: string 
   "已完成": { bg: "#f0faf5", text: "#16a34a", dot: "#22c55e" },
   "训练中": { bg: "#eff6ff", text: "#2563eb", dot: "#3b82f6" },
   "排队中": { bg: "#fffbeb", text: "#d97706", dot: "#f59e0b" },
+  "已暂停": { bg: "#f3f4f6", text: "#6b7280", dot: "#9ca3af" },
   "已失败": { bg: "#fef2f2", text: "#dc2626", dot: "#ef4444" },
   "已停止": { bg: "#f3f4f6", text: "#6b7280", dot: "#9ca3af" },
   "":       { bg: "transparent", text: "#9ca3af", dot: "transparent" },
@@ -154,13 +163,27 @@ function actionStyle(a: string) {
     : { color: "#4f6ef7", hover: "#3b5de8" };
 }
 
-function TrainingTaskList({ onCreate, onEvalReport, onJumpToMyModel }: { onCreate: () => void; onEvalReport: (name: string) => void; onJumpToMyModel: (outputModel: string, deleted: boolean) => void }) {
-  const [page, setPage] = useState(1);
+function TrainingTaskList({ onCreate, onEvalReport, onOpenDetail, onJumpToMyModel }: {
+  onCreate: () => void;
+  onEvalReport: (name: string) => void;
+  onOpenDetail: (task: TrainingRow) => void;
+  onJumpToMyModel: (outputModel: string, deleted: boolean) => void;
+}) {
   const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
-  const total = 200;
-  const totalPages = Math.ceil(total / 10);
-  const pages = [1, 2, 3, 4, 5];
+  const [statusFilter, setStatusFilter] = useState("");
+  const [priorities, setPriorities] = useState<Record<number, string>>(() => Object.fromEntries(trainingRows.map(row => [row.id, row.priority ?? "普通"])));
+  const filteredRows = trainingRows.filter(row => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const matchesQuery = !normalizedQuery
+      || row.name.toLowerCase().includes(normalizedQuery)
+      || row.outputModel.toLowerCase().includes(normalizedQuery)
+      || row.taskId.toLowerCase().includes(normalizedQuery);
+    return matchesQuery
+      && (!typeFilter || row.type === typeFilter)
+      && (!statusFilter || row.status === statusFilter);
+  });
 
   return (
     <div className="flex flex-col h-full" style={{ background: "#f5f7fa" }}>
@@ -170,8 +193,8 @@ function TrainingTaskList({ onCreate, onEvalReport, onJumpToMyModel }: { onCreat
         <span style={{ color: "#1a1d23", fontWeight: 500 }}>训练任务</span>
       </div>
       <div className="flex-1 flex flex-col min-h-0 rounded-xl" style={{ margin: "14px 24px 24px", background: "#fff", border: "1px solid #e8ebf2" }}>
-        <div className="flex items-center justify-between flex-shrink-0" style={{ padding: "14px 16px", borderBottom: "1px solid #f0f2f7" }}>
-          <div className="flex items-center gap-2">
+        <div className="training-list-toolbar flex items-center justify-between flex-shrink-0" style={{ padding: "14px 16px", borderBottom: "1px solid #f0f2f7", gap: 12, flexWrap: "wrap" }}>
+          <div className="flex items-center gap-2" style={{ flexWrap: "wrap" }}>
             <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{
               fontSize: 13, color: typeFilter ? "#1a1d23" : "#9ca3af", padding: "5px 10px",
               border: "1px solid #e0e3ed", borderRadius: 6, background: "#fff", outline: "none", height: 32,
@@ -180,14 +203,22 @@ function TrainingTaskList({ onCreate, onEvalReport, onJumpToMyModel }: { onCreat
               <option value="继续预训练">继续预训练</option>
               <option value="监督微调">监督微调</option>
             </select>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{
+              fontSize: 13, color: statusFilter ? "#1a1d23" : "#9ca3af", padding: "5px 10px",
+              border: "1px solid #e0e3ed", borderRadius: 6, background: "#fff", outline: "none", height: 32,
+            }}>
+              <option value="">任务状态</option>
+              {(["排队中", "训练中", "已暂停", "已完成", "已失败", "已停止"] as TrainingStatus[]).map(status => <option key={status} value={status}>{status}</option>)}
+            </select>
             <div className="flex items-center rounded-md" style={{ border: "1px solid #e0e3ed", padding: "0 10px", height: 32 }}>
-              <input type="text" placeholder="请输入任务名搜索" value={search} onChange={e => setSearch(e.target.value)}
+              <input type="text" placeholder="任务名 / 模型 / ID" value={search} onChange={e => setSearch(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") setQuery(search); }}
                 style={{ fontSize: 13, border: "none", outline: "none", width: 160, background: "transparent" }} />
             </div>
-            <button style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500, color: "#fff", background: "#4f6ef7", border: "none", borderRadius: 6, padding: "0 14px", height: 32, cursor: "pointer" }}>
+            <button onClick={() => setQuery(search)} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500, color: "#fff", background: "#4f6ef7", border: "none", borderRadius: 6, padding: "0 14px", height: 32, cursor: "pointer" }}>
               <Search size={13} /> 查询
             </button>
-            <button onClick={() => { setSearch(""); setTypeFilter(""); }} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500, color: "#4f6ef7", background: "#fff", border: "1px solid #4f6ef7", borderRadius: 6, padding: "0 14px", height: 32, cursor: "pointer" }}>
+            <button onClick={() => { setSearch(""); setQuery(""); setTypeFilter(""); setStatusFilter(""); }} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500, color: "#4f6ef7", background: "#fff", border: "1px solid #4f6ef7", borderRadius: 6, padding: "0 14px", height: 32, cursor: "pointer" }}>
               <RotateCcw size={13} /> 重置
             </button>
           </div>
@@ -196,16 +227,16 @@ function TrainingTaskList({ onCreate, onEvalReport, onJumpToMyModel }: { onCreat
           </button>
         </div>
         <div className="flex-1 overflow-auto">
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <table style={{ width: "100%", minWidth: 1320, borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "#f8f9fc" }}>
-                {["任务名称", "输出模型名称", "任务类型", "任务状态", "任务ID", "基础模型", "创建人", "占用资源", "提交时间", "运行时长", "操作"].map(col => (
+                {["任务名称", "输出模型名称", "任务类型", "任务状态 / 调度", "优先级", "任务ID", "基础模型", "创建人", "资源需求", "提交时间", "预计 / 运行时长", "操作"].map(col => (
                   <th key={col} style={{ padding: "10px 14px", textAlign: "left", fontWeight: 500, color: "#6b7280", fontSize: 12.5, borderBottom: "1px solid #f0f2f7", whiteSpace: "nowrap" }}>{col}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {trainingRows.map(row => {
+              {filteredRows.map(row => {
                 const jumpable = row.status === "已完成" && !!row.outputModel;
                 return (
                 <tr key={row.id} style={{ borderBottom: "1px solid #f5f7fa" }}
@@ -226,35 +257,61 @@ function TrainingTaskList({ onCreate, onEvalReport, onJumpToMyModel }: { onCreat
                     <span style={{ fontSize: 12, padding: "2px 8px", background: "#eff4ff", color: "#4f6ef7", fontWeight: 500, borderRadius: 4 }}>{row.type}</span>
                   </td>
                   <td style={{ padding: "11px 14px" }}>
-                    <div className="flex items-center gap-2">
-                      <StatusBadge status={row.status} />
-                      {(row.status === "训练中" || row.status === "排队中") && (
+                    <div className="flex flex-col items-start gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <StatusBadge status={row.status} />
+                        {row.status === "训练中" && (
+                          <>
+                            <button
+                              style={{ fontSize: 12, color: "#4f6ef7", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500, whiteSpace: "nowrap" }}>暂停</button>
+                            <button
+                              style={{ fontSize: 12, color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500, whiteSpace: "nowrap" }}>取消</button>
+                          </>
+                        )}
+                        {row.status === "排队中" && (
                         <button
-                          style={{ fontSize: 12.5, color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500, whiteSpace: "nowrap" }}
-                          onMouseEnter={e => (e.currentTarget.style.color = "#dc2626")}
-                          onMouseLeave={e => (e.currentTarget.style.color = "#ef4444")}>停止</button>
-                      )}
-                      {(row.status === "已停止" || row.status === "已失败") && (
+                          style={{ fontSize: 12, color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500, whiteSpace: "nowrap" }}>取消</button>
+                        )}
+                        {row.status === "已暂停" && (
+                          <>
+                            <button style={{ fontSize: 12, color: "#4f6ef7", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500, whiteSpace: "nowrap" }}>恢复</button>
+                            <button style={{ fontSize: 12, color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500, whiteSpace: "nowrap" }}>取消</button>
+                          </>
+                        )}
+                        {(row.status === "已停止" || row.status === "已失败") && (
                         <button
-                          style={{ fontSize: 12.5, color: "#4f6ef7", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500, whiteSpace: "nowrap" }}
+                          title="沿用原训练配置重新排队"
+                          style={{ fontSize: 12, color: "#4f6ef7", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500, whiteSpace: "nowrap" }}
                           onMouseEnter={e => (e.currentTarget.style.color = "#3b5de8")}
-                          onMouseLeave={e => (e.currentTarget.style.color = "#4f6ef7")}>重启</button>
-                      )}
+                          onMouseLeave={e => (e.currentTarget.style.color = "#4f6ef7")}>按原配置重提</button>
+                        )}
+                      </div>
+                      {row.queueReason && <span style={{ color: "#d97706", fontSize: 10.5, whiteSpace: "nowrap" }}>{row.queueReason}</span>}
                     </div>
+                  </td>
+                  <td style={{ padding: "11px 14px" }}>
+                    {row.type === "监督微调" && (row.status === "排队中" || row.status === "训练中" || row.status === "已暂停") ? (
+                      <select aria-label={`${row.name}优先级`} value={priorities[row.id]} onChange={event => setPriorities(current => ({ ...current, [row.id]: event.target.value }))} style={{ height: 28, padding: "0 6px", border: "1px solid #e0e3ed", borderRadius: 5, background: "#fff", color: priorities[row.id] === "高" ? "#dc2626" : "#374151", fontSize: 11.5, outline: "none" }}>
+                        <option>高</option><option>普通</option><option>低</option>
+                      </select>
+                    ) : <span style={{ color: "#9ca3af", fontSize: 12 }}>—</span>}
                   </td>
                   <td style={{ padding: "11px 14px", color: "#6b7280", fontFamily: "monospace", fontSize: 12 }}>{row.taskId}</td>
                   <td style={{ padding: "11px 14px", color: "#6b7280", fontSize: 12 }}>{row.baseModel}</td>
                   <td style={{ padding: "11px 14px", color: "#374151" }}>{row.creator}</td>
                   <td style={{ padding: "11px 14px", color: "#6b7280", fontSize: 12 }}>{row.resources}</td>
                   <td style={{ padding: "11px 14px", color: "#6b7280", fontSize: 12, whiteSpace: "nowrap" }}>{row.submitTime}</td>
-                  <td style={{ padding: "11px 14px", color: "#6b7280", fontSize: 12, whiteSpace: "nowrap" }}>{row.duration}</td>
+                  <td style={{ padding: "11px 14px", color: "#6b7280", fontSize: 12, whiteSpace: "nowrap" }}>
+                    <span style={{ display: "block" }}>{row.duration}</span>
+                    {row.estimatedDuration && <span style={{ display: "block", marginTop: 3, color: "#4f6ef7", fontSize: 10.5 }}>{row.estimatedDuration}</span>}
+                  </td>
                   <td style={{ padding: "11px 14px" }}>
                     <div className="flex items-center gap-3">
                       {row.actions.filter(a => a === "查看详情" || a === "删除" || (a === "评估报告" && row.status === "已完成")).map(a => {
                         const s = actionStyle(a);
                         return (
                           <button key={a}
-                            onClick={() => a === "评估报告" ? onEvalReport(row.name) : undefined}
+                            onClick={() => a === "评估报告" ? onEvalReport(row.name) : a === "查看详情" ? onOpenDetail(row) : undefined}
                             style={{ fontSize: 12.5, color: s.color, background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500, whiteSpace: "nowrap" }}
                             onMouseEnter={e => (e.currentTarget.style.color = s.hover)}
                             onMouseLeave={e => (e.currentTarget.style.color = s.color)}>{a}</button>
@@ -265,37 +322,15 @@ function TrainingTaskList({ onCreate, onEvalReport, onJumpToMyModel }: { onCreat
                 </tr>
                 );
               })}
+              {filteredRows.length === 0 && (
+                <tr><td colSpan={12} style={{ padding: 56, textAlign: "center", color: "#9ca3af" }}>暂无符合条件的训练任务</td></tr>
+              )}
             </tbody>
           </table>
         </div>
         <div className="flex items-center justify-between flex-shrink-0" style={{ padding: "12px 16px", borderTop: "1px solid #f0f2f7" }}>
-          <span style={{ fontSize: 12.5, color: "#9ca3af" }}>共 {total} 条</span>
-          <div className="flex items-center gap-1">
-            <button onClick={() => setPage(Math.max(1, page - 1))} style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid #e0e3ed", borderRadius: 5, background: "#fff", cursor: "pointer" }}>
-              <ChevronLeft size={13} />
-            </button>
-            {pages.map(n => (
-              <button key={n} onClick={() => setPage(n)} style={{
-                width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
-                border: "1px solid", borderColor: page === n ? "#4f6ef7" : "#e0e3ed", borderRadius: 5,
-                background: page === n ? "#4f6ef7" : "#fff", color: page === n ? "#fff" : "#374151",
-                fontSize: 12.5, fontWeight: page === n ? 600 : 400, cursor: "pointer",
-              }}>{n}</button>
-            ))}
-            <span style={{ padding: "0 4px", color: "#9ca3af", fontSize: 13 }}>...</span>
-            <button onClick={() => setPage(20)} style={{
-              width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
-              border: "1px solid", borderColor: page === 20 ? "#4f6ef7" : "#e0e3ed", borderRadius: 5,
-              background: page === 20 ? "#4f6ef7" : "#fff", color: page === 20 ? "#fff" : "#374151", fontSize: 12.5, cursor: "pointer",
-            }}>20</button>
-            <button onClick={() => setPage(Math.min(totalPages, page + 1))} style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid #e0e3ed", borderRadius: 5, background: "#fff", cursor: "pointer" }}>
-              <ChevronRight size={13} />
-            </button>
-            <div className="flex items-center gap-1.5 ml-2">
-              <span style={{ fontSize: 12.5, color: "#9ca3af" }}>10条/页</span>
-              <ChevronDown size={12} color="#9ca3af" />
-            </div>
-          </div>
+          <span style={{ fontSize: 12.5, color: "#9ca3af" }}>共 {filteredRows.length} 条</span>
+          <span style={{ fontSize: 12.5, color: "#9ca3af" }}>当前页展示全部结果</span>
         </div>
       </div>
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
@@ -388,8 +423,8 @@ function NumInput({ value, onChange }: { value: number; onChange: (v: number) =>
   );
 }
 
-function CreateTrainingTaskPage({ onCancel, initialModel, models }: { onCancel: () => void; initialModel?: ModelRecord | null; models: ModelRecord[] }) {
-  const [currentStep, setCurrentStep] = useState(1);
+function CreateTrainingTaskPage({ onCancel, initialModel, models, onOpenExtensionManagement, enabledExtensions }: { onCancel: () => void; initialModel?: ModelRecord | null; models: ModelRecord[]; onOpenExtensionManagement?: () => void; enabledExtensions?: EnabledFineTuningExtension[] }) {
+  const [currentStep, setCurrentStep] = useState(initialModel ? 2 : 1);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [submitted, setSubmitted] = useState(false);
 
@@ -426,6 +461,7 @@ function CreateTrainingTaskPage({ onCancel, initialModel, models }: { onCancel: 
   const [gradCheckpoint, setGradCheckpoint] = useState(true);
   const [ckptInterval, setCkptInterval] = useState(500);
   const [ckptMaxKeep, setCkptMaxKeep] = useState(3);
+  const [parallelConfigValid, setParallelConfigValid] = useState(false);
 
   // Datasets & eval
   const [selectedDatasetIds, setSelectedDatasetIds] = useState<number[]>([]);
@@ -919,9 +955,9 @@ function CreateTrainingTaskPage({ onCancel, initialModel, models }: { onCancel: 
                 </div>
               )}
 
-              {/* 角色权益 */}
+              {/* 资源组 */}
               <div style={{ marginBottom: 20 }}>
-                <FieldLabel required>角色权益</FieldLabel>
+                <FieldLabel required>资源组</FieldLabel>
                 <div className="flex items-center gap-3">
                   {["普通用户", "VIP用户", "普通机构用户"].map(rg => {
                     const checked = resourceGroup === rg;
@@ -995,10 +1031,10 @@ function CreateTrainingTaskPage({ onCancel, initialModel, models }: { onCancel: 
                   )}
                 </div>
 
-                {/* 预训练框架 */}
+                {/* 训练框架 */}
                 <div style={{ marginBottom: 16, maxWidth: 400 }}>
-                  <FieldLabel>预训练框架</FieldLabel>
-                  <select value={detectPretrainFramework(selectedModel)} style={selectStyle}>
+                  <FieldLabel>训练框架</FieldLabel>
+                  <select aria-label="训练框架" value={detectPretrainFramework(selectedModel)} disabled style={readonlyInput}>
                     {["自回归预训练框架", "序列到序列预训练框架", "文-图生成训练框架"].map(o => <option key={o} value={o}>{o}</option>)}
                   </select>
                 </div>
@@ -1006,7 +1042,7 @@ function CreateTrainingTaskPage({ onCancel, initialModel, models }: { onCancel: 
                 {/* 模型架构 */}
                 <div style={{ marginBottom: 16, maxWidth: 400 }}>
                   <FieldLabel>模型架构</FieldLabel>
-                  <select value={detectModelArch(selectedModel)} style={selectStyle}>
+                  <select aria-label="模型架构" value={detectModelArch(selectedModel)} disabled style={readonlyInput}>
                     {["Decoder-only", "T5-style", "BERT-style", "混合专家（MoE）", "扩散模型"].map(o => <option key={o} value={o}>{o}</option>)}
                   </select>
                 </div>
@@ -1034,6 +1070,23 @@ function CreateTrainingTaskPage({ onCancel, initialModel, models }: { onCancel: 
 
               {/* 训练超参-高级 */}
               {advancedSection}
+
+              {/* 分布式与调度：SFT 默认自动推荐，CPT 保留原有高级配置 */}
+              {taskType === "sft" ? (
+                <SupervisedFineTuningConfig
+                  model={selectedModel ? { name: selectedModel.name, paramSize: selectedModel.paramSize, category: selectedModel.category } : null}
+                  batchSize={batchSize}
+                  onValidationChange={setParallelConfigValid}
+                  onOpenExtensionManagement={onOpenExtensionManagement}
+                  enabledExtensions={enabledExtensions}
+                />
+              ) : (
+                <ParallelTrainingConfig
+                  model={selectedModel ? { name: selectedModel.name, paramSize: selectedModel.paramSize, category: selectedModel.category } : null}
+                  batchSize={batchSize}
+                  onValidationChange={setParallelConfigValid}
+                />
+              )}
 
               {/* 数据集区块 */}
               <div style={{ marginBottom: 20, padding: 16, background: "#f8f9fc", borderRadius: 8 }}>
@@ -1129,7 +1182,7 @@ function CreateTrainingTaskPage({ onCancel, initialModel, models }: { onCancel: 
               下一步
             </button>
           ) : (
-            <button onClick={handleSubmit} style={{ fontSize: 13, fontWeight: 500, color: "#fff", background: "#16a34a", border: "none", borderRadius: 6, padding: "8px 24px", cursor: "pointer" }}>
+            <button onClick={handleSubmit} disabled={!parallelConfigValid} title={!parallelConfigValid ? "请先校验并行训练配置；如不使用可关闭该功能" : undefined} style={{ fontSize: 13, fontWeight: 500, color: "#fff", background: "#16a34a", border: "none", borderRadius: 6, padding: "8px 24px", cursor: parallelConfigValid ? "pointer" : "not-allowed", opacity: parallelConfigValid ? 1 : 0.5 }}>
               确认创建
             </button>
           )}
@@ -2039,7 +2092,7 @@ function Sidebar({ active, onSelect }: { active: string; onSelect: (key: string)
 
 export default function App() {
   const [activeMenu, setActiveMenu] = useState("model-plaza");
-  const [trainingView, setTrainingView] = useState<"list" | "create" | "evaluation">("list");
+  const [trainingView, setTrainingView] = useState<"list" | "create" | "detail" | "evaluation">("list");
   const [models, setModels] = useState<ModelRecord[]>(INITIAL_MODELS);
   const [deployments, setDeployments] = useState<DeploymentRecord[]>(INITIAL_DEPLOYMENTS);
   const [instances, setInstances] = useState<ModelInstanceRecord[]>(INITIAL_INSTANCES);
@@ -2047,8 +2100,10 @@ export default function App() {
   const [experiencePrefillModel, setExperiencePrefillModel] = useState<string | null>(null);
   const [trainingPrefillModelId, setTrainingPrefillModelId] = useState<string | null>(null);
   const [evalTaskName, setEvalTaskName] = useState("");
+  const [selectedTrainingTask, setSelectedTrainingTask] = useState<TrainingRow | null>(null);
   const [myModelFilter, setMyModelFilter] = useState<string | null>(null);
   const [deletedModelAlert, setDeletedModelAlert] = useState<string | null>(null);
+  const [enabledExtensions, setEnabledExtensions] = useState<EnabledFineTuningExtension[]>([]);
 
   useEffect(() => {
     const requestedPage = new URLSearchParams(window.location.search).get("page");
@@ -2059,6 +2114,7 @@ export default function App() {
     setActiveMenu(key);
     if (key === "training-task") {
       setTrainingPrefillModelId(null);
+      setSelectedTrainingTask(null);
       setTrainingView("list");
     }
   };
@@ -2088,6 +2144,9 @@ export default function App() {
             )}
             {activeMenu === "training-task" && trainingView === "evaluation" && (
               <><ChevronRight size={12} /><span style={{ color: "#1a1d23", fontWeight: 500 }}>评估报告</span></>
+            )}
+            {activeMenu === "training-task" && trainingView === "detail" && (
+              <><ChevronRight size={12} /><span style={{ color: "#1a1d23", fontWeight: 500 }}>任务详情</span></>
             )}
           </div>
           <div className="flex items-center gap-3">
@@ -2122,14 +2181,26 @@ export default function App() {
             />
           ) : activeMenu === "training-task" ? (
             trainingView === "create"
-              ? <CreateTrainingTaskPage models={models} onCancel={() => setTrainingView("list")} />
+              ? <CreateTrainingTaskPage
+                  key={trainingPrefillModelId ?? "manual"}
+                  models={models}
+                  initialModel={trainingPrefillModel}
+                  onCancel={() => { setTrainingPrefillModelId(null); setTrainingView("list"); }}
+                  onOpenExtensionManagement={() => handleMenuSelect("training-extension")}
+                  enabledExtensions={enabledExtensions}
+                />
+              : trainingView === "detail" && selectedTrainingTask
+                ? <TrainingTaskDetail
+                    task={selectedTrainingTask}
+                    onBack={() => { setSelectedTrainingTask(null); setTrainingView("list"); }}
+                    onOpenNodeResources={() => handleMenuSelect("node-list")}
+                  />
               : trainingView === "evaluation"
-                ? <EvaluationReportPage taskName={evalTaskName || "电商客服大模型预训练"} onBack={() => undefined} />
-                : trainingPrefillModel
-              ? <CreateTrainingTaskPage key={trainingPrefillModelId ?? "manual"} models={models} initialModel={trainingPrefillModel} onCancel={() => { setTrainingPrefillModelId(null); setTrainingView("list"); }} />
-              : <TrainingTaskList
-                  onCreate={() => setTrainingView("create")}
-                  onEvalReport={setEvalTaskName}
+                ? <EvaluationReportPage taskName={evalTaskName || "电商客服大模型预训练"} onBack={() => setTrainingView("list")} />
+                : <TrainingTaskList
+                  onCreate={() => { setTrainingPrefillModelId(null); setTrainingView("create"); }}
+                  onEvalReport={name => { setEvalTaskName(name); setTrainingView("evaluation"); }}
+                  onOpenDetail={task => { setSelectedTrainingTask(task); setTrainingView("detail"); }}
                   onJumpToMyModel={(outputModel, deleted) => {
                     if (deleted) { setDeletedModelAlert(outputModel); }
                     else { setMyModelFilter(outputModel); setActiveMenu("my-model"); }
@@ -2137,6 +2208,8 @@ export default function App() {
                 />
           ) : activeMenu === "training-data" ? (
             <TrainingDataPage />
+          ) : activeMenu === "training-extension" ? (
+            <UnifiedExtensionManagement onEnable={(ext) => setEnabledExtensions(prev => prev.some(e => e.id === ext.id) ? prev : [...prev, ext])} />
           ) : activeMenu === "model-list" ? (
             <ModelManagementPage models={models} onModelsChange={setModels} onDeploy={model => {
               setDeployPrefillModelId(model.id);
@@ -2149,7 +2222,7 @@ export default function App() {
           ) : activeMenu === "inference-service" ? (
             <InferenceServicePage />
           ) : activeMenu === "cluster-list" ? (
-            <ClusterListPage />
+            <DistributedClusterMonitor />
           ) : activeMenu === "node-list" ? (
             <NodeListPage />
           ) : activeMenu === "resource-group" ? (

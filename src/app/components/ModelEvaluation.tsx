@@ -24,6 +24,7 @@ interface InferenceParams {
   maxTokens?: number;
   temperature?: number;
   topK?: number;
+  topP?: number;
   batchSize?: number;
   source?: ParamSource;
 }
@@ -125,6 +126,7 @@ interface SchemeApplyConfig {
     maxTokens?: number;
     temperature?: number;
     topK?: number;
+    topP?: number;
     batchSize?: number;
   };
 }
@@ -145,12 +147,12 @@ const MODEL_VERSIONS: Record<string, { versions: string[]; recommended: string }
 
 // 原型中用静态数据模拟模型注册中心返回的推理默认值。
 const MODEL_DEFAULT_PARAMS: Record<string, Required<Omit<InferenceParams, "source">>> = {
-  "qwen3-8b": { maxTokens: 2048, temperature: 0.7, topK: 50, batchSize: 8 },
-  "qwen3.6-27b": { maxTokens: 4096, temperature: 0.6, topK: 40, batchSize: 4 },
-  "glm-4-flash": { maxTokens: 2048, temperature: 0.8, topK: 50, batchSize: 16 },
-  "DeepSeek-R1": { maxTokens: 8192, temperature: 0.6, topK: 50, batchSize: 4 },
-  "GLM-4V": { maxTokens: 2048, temperature: 0.7, topK: 40, batchSize: 4 },
-  "Qwen2.5-VL": { maxTokens: 4096, temperature: 0.7, topK: 50, batchSize: 4 },
+  "qwen3-8b": { maxTokens: 2048, temperature: 0.7, topK: 50, topP: 1.0, batchSize: 8 },
+  "qwen3.6-27b": { maxTokens: 4096, temperature: 0.6, topK: 40, topP: 1.0, batchSize: 4 },
+  "glm-4-flash": { maxTokens: 2048, temperature: 0.8, topK: 50, topP: 1.0, batchSize: 16 },
+  "DeepSeek-R1": { maxTokens: 8192, temperature: 0.6, topK: 50, topP: 1.0, batchSize: 4 },
+  "GLM-4V": { maxTokens: 2048, temperature: 0.7, topK: 40, topP: 1.0, batchSize: 4 },
+  "Qwen2.5-VL": { maxTokens: 4096, temperature: 0.7, topK: 50, topP: 1.0, batchSize: 4 },
 };
 const LANGUAGE_TASKS = ["文本理解", "代码生成", "逻辑推理", "问答"];
 const MULTIMODAL_TASKS = ["图文描述", "视觉问答", "文档解析"];
@@ -165,6 +167,7 @@ const EMPTY_FLOW_TEMPLATE_INFERENCE_PARAMS = {
   maxTokens: "",
   temperature: "",
   topK: "",
+  topP: "",
   batchSize: "",
   smokeTestEnabled: false,
   smokeTestCount: 25,
@@ -409,6 +412,7 @@ function schemeApplyConfig(row: EvaluationScheme): SchemeApplyConfig {
       maxTokens: numberParam("maxTokens"),
       temperature: numberParam("temperature"),
       topK: numberParam("topK"),
+      topP: numberParam("topP"),
       batchSize: numberParam("batchSize"),
     },
   };
@@ -582,7 +586,7 @@ th{background:#f7f8fa;font-weight:600;text-align:left}
   <div class="summary-box"><div class="summary-label">任务目标</div><p style="margin:0;font-size:13px;color:#374151">${escapeHtml(task.desc || `评估模型在 ${task.taskTypes.join("、")} 任务上的综合表现，衡量模型能力水平与业务适配性。`)}</p></div>
   <div class="summary-box"><div class="summary-label">模型信息</div><p style="margin:0;font-size:13px;color:#374151">评测对象：${escapeHtml(task.evalModels.join("、"))}<br/>模型类型：${escapeHtml(task.modelType)} · 版本：${escapeHtml(task.modelVersion)}<br/>来源：${escapeHtml(task.modelSource)}${task.modelSource === "外部模型 API" ? ` · API：${escapeHtml(task.apiUrl)}` : ""}</p></div>
   <div class="summary-box"><div class="summary-label">数据集介绍</div><p style="margin:0;font-size:13px;color:#374151">${escapeHtml(task.datasets.map(d => `${d}（${datasetVersionOf(task, d)}）`).join("、"))}<br/>覆盖任务：${escapeHtml(task.taskTypes.join("、"))}<br/>样本计算范围：${escapeHtml(conditionRuleSummary(task.metricConditionRule))}</p></div>
-  <div class="summary-box"><div class="summary-label">推理参数</div><p style="margin:0;font-size:13px;color:#374151">来源：${escapeHtml(task.params.source || "未记录")}<br/>最大 Token：${escapeHtml(inferenceParamText(task.params.maxTokens, task.params.source))} · Temperature：${escapeHtml(inferenceParamText(task.params.temperature, task.params.source))} · Top-K：${escapeHtml(inferenceParamText(task.params.topK, task.params.source))} · Batch Size：${escapeHtml(inferenceParamText(task.params.batchSize, task.params.source))}</p></div>
+  <div class="summary-box"><div class="summary-label">推理参数</div><p style="margin:0;font-size:13px;color:#374151">来源：${escapeHtml(task.params.source || "未记录")}<br/>最大 Token：${escapeHtml(inferenceParamText(task.params.maxTokens, task.params.source))} · Temperature：${escapeHtml(inferenceParamText(task.params.temperature, task.params.source))} · Top-K：${escapeHtml(inferenceParamText(task.params.topK, task.params.source))} · Top-p：${escapeHtml(inferenceParamText(task.params.topP, task.params.source))} · Batch Size：${escapeHtml(inferenceParamText(task.params.batchSize, task.params.source))}</p></div>
 </div>
 
 <h2>二、详细指标得分</h2>
@@ -1142,8 +1146,9 @@ function CreateDrawer({ initialModel, initialScheme, initialSchemeConfig, onClos
   const [maxTokens, setMaxTokens] = useState<number | "">(4096);
   const [temperature, setTemperature] = useState<number | "">(1);
   const [topK, setTopK] = useState<number | "">(5);
+  const [topP, setTopP] = useState<number | "">(1.0);
   const [batchSize, setBatchSize] = useState<number | "">("");
-  const [schemeParams, setSchemeParams] = useState<{ maxTokens: number | ""; temperature: number | ""; topK: number | ""; batchSize: number | "" }>({ maxTokens: "", temperature: "", topK: "", batchSize: "" });
+  const [schemeParams, setSchemeParams] = useState<{ maxTokens: number | ""; temperature: number | ""; topK: number | ""; topP: number | ""; batchSize: number | "" }>({ maxTokens: "", temperature: "", topK: "", topP: "", batchSize: "" });
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [paramSource, setParamSource] = useState<ParamSource>("模型默认");
   const [errors, setErrors] = useState<string[]>([]);
@@ -1188,16 +1193,18 @@ function CreateDrawer({ initialModel, initialScheme, initialSchemeConfig, onClos
     setMaxTokens(4096);
     setTemperature(1);
     setTopK(5);
+    setTopP(1.0);
     setBatchSize("");
-    setSchemeParams({ maxTokens: "", temperature: "", topK: "", batchSize: "" });
+    setSchemeParams({ maxTokens: "", temperature: "", topK: "", topP: "", batchSize: "" });
     setParamSource("自定义");
   };
 
-  const updateInferenceOverride = (field: "maxTokens" | "temperature" | "topK" | "batchSize", value: number | "") => {
-    const values = { maxTokens, temperature, topK, batchSize, [field]: value };
+  const updateInferenceOverride = (field: "maxTokens" | "temperature" | "topK" | "topP" | "batchSize", value: number | "") => {
+    const values = { maxTokens, temperature, topK, topP, batchSize, [field]: value };
     if (field === "maxTokens") setMaxTokens(value);
     if (field === "temperature") setTemperature(value);
     if (field === "topK") setTopK(value);
+    if (field === "topP") setTopP(value);
     if (field === "batchSize") setBatchSize(value);
     if (!flowScheme) setParamSource(Object.values(values).some(item => item !== "") ? "自定义" : "模型默认");
   };
@@ -1230,9 +1237,9 @@ function CreateDrawer({ initialModel, initialScheme, initialSchemeConfig, onClos
     setMetrics(Object.keys(config.metricWeights));
     setMetricWeights({ ...config.metricWeights });
     setMetricConditionRule(cloneMetricConditionRule(config.conditionRule));
-    setMaxTokens(4096); setTemperature(1); setTopK(5);
+    setMaxTokens(4096); setTemperature(1); setTopK(5); setTopP(1.0);
     setBatchSize(config.params.batchSize ?? "");
-    setSchemeParams({ maxTokens: config.params.maxTokens ?? "", temperature: config.params.temperature ?? "", topK: config.params.topK ?? "", batchSize: config.params.batchSize ?? "" });
+    setSchemeParams({ maxTokens: config.params.maxTokens ?? "", temperature: config.params.temperature ?? "", topK: config.params.topK ?? "", topP: config.params.topP ?? "", batchSize: config.params.batchSize ?? "" });
     setParamSource("配置方案");
   };
 
@@ -1268,6 +1275,7 @@ function CreateDrawer({ initialModel, initialScheme, initialSchemeConfig, onClos
     if (maxTokens !== "" && (!Number.isInteger(maxTokens) || maxTokens < 1)) next.push("最大 Token 必须为大于 0 的整数");
     if (temperature !== "" && (temperature < 0 || temperature > 2)) next.push("Temperature 必须在 0～2 之间");
     if (topK !== "" && (!Number.isInteger(topK) || topK < 1 || topK > 100)) next.push("Top-K 必须为 1～100 的整数");
+    if (topP !== "" && (topP <= 0 || topP > 1)) next.push("Top-p 必须在 (0, 1.0] 之间");
     if (batchSize === "") next.push("请填写 Batch Size");
     else if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 128) next.push("Batch Size 必须为 1～128 的整数");
     setErrors(next);
@@ -1278,7 +1286,7 @@ function CreateDrawer({ initialModel, initialScheme, initialSchemeConfig, onClos
     if (!validate() || !modelType) return;
     const modelDefaults = modelSource === "系统已注册模型" ? MODEL_DEFAULT_PARAMS[models[0]] : undefined;
     const usesSchemeParams = Boolean(selectedFlowConfig);
-    const hasOverrides = [maxTokens, temperature, topK, batchSize].some(value => value !== "");
+    const hasOverrides = [maxTokens, temperature, topK, topP, batchSize].some(value => value !== "");
     const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
     const created: EvalTask = {
       id: `eval_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}_${Math.floor(1000 + Math.random() * 9000)}`,
@@ -1302,6 +1310,7 @@ function CreateDrawer({ initialModel, initialScheme, initialSchemeConfig, onClos
         maxTokens: maxTokens !== "" ? maxTokens : usesSchemeParams && schemeParams.maxTokens !== "" ? schemeParams.maxTokens : modelDefaults?.maxTokens,
         temperature: temperature !== "" ? temperature : usesSchemeParams && schemeParams.temperature !== "" ? schemeParams.temperature : modelDefaults?.temperature,
         topK: topK !== "" ? topK : usesSchemeParams && schemeParams.topK !== "" ? schemeParams.topK : modelDefaults?.topK,
+        topP: topP !== "" ? topP : usesSchemeParams && schemeParams.topP !== "" ? schemeParams.topP : modelDefaults?.topP,
         batchSize: batchSize !== "" ? batchSize : usesSchemeParams && schemeParams.batchSize !== "" ? schemeParams.batchSize : modelDefaults?.batchSize,
         source: hasOverrides ? "自定义" : usesSchemeParams ? "配置方案" : "模型默认",
       },
@@ -1327,9 +1336,9 @@ function CreateDrawer({ initialModel, initialScheme, initialSchemeConfig, onClos
   const appliedParamSummary = (() => {
     if (selectedFlowConfig) {
       const sp = schemeParams;
-      return [sp.maxTokens !== "" ? `最大 Token ${sp.maxTokens}` : null, sp.temperature !== "" ? `Temperature ${sp.temperature}` : null, sp.topK !== "" ? `Top-K ${sp.topK}` : null, sp.batchSize !== "" ? `Batch Size ${sp.batchSize}` : null].filter(Boolean).join("、") || "未覆盖，跟随模型默认配置";
+      return [sp.maxTokens !== "" ? `最大 Token ${sp.maxTokens}` : null, sp.temperature !== "" ? `Temperature ${sp.temperature}` : null, sp.topK !== "" ? `Top-K ${sp.topK}` : null, sp.topP !== "" ? `Top-p ${sp.topP}` : null, sp.batchSize !== "" ? `Batch Size ${sp.batchSize}` : null].filter(Boolean).join("、") || "未覆盖，跟随模型默认配置";
     }
-    return [maxTokens !== "" ? `最大 Token ${maxTokens}` : null, temperature !== "" ? `Temperature ${temperature}` : null, topK !== "" ? `Top-K ${topK}` : null, batchSize !== "" ? `Batch Size ${batchSize}` : null].filter(Boolean).join("、") || "未覆盖，跟随模型默认配置";
+    return [maxTokens !== "" ? `最大 Token ${maxTokens}` : null, temperature !== "" ? `Temperature ${temperature}` : null, topK !== "" ? `Top-K ${topK}` : null, topP !== "" ? `Top-p ${topP}` : null, batchSize !== "" ? `Batch Size ${batchSize}` : null].filter(Boolean).join("、") || "未覆盖，跟随模型默认配置";
   })();
 
   return (
@@ -1535,6 +1544,7 @@ function CreateDrawer({ initialModel, initialScheme, initialSchemeConfig, onClos
                         { key: "maxTokens" as const, label: "最大 Token", min: 1, step: 1, value: maxTokens, hint: "正整数，不得超过模型支持上限；控制单次最大输出长度。" },
                         { key: "temperature" as const, label: "Temperature", min: 0, max: 2, step: 0.1, value: temperature, hint: "0～2；数值越低输出越稳定，建议使用 0.1～1.0。" },
                         { key: "topK" as const, label: "Top-K", min: 1, max: 100, step: 1, value: topK, hint: "1～100 的整数；数值越小，候选词范围越集中。" },
+                        { key: "topP" as const, label: "Top-p", min: 0, max: 1.0, step: 0.1, value: topP, hint: "(0, 1.0]；核采样概率阈值，1.0 即全部候选词。默认 1.0。" },
                       ].map(field => (
                         <label key={field.key} style={{ minWidth: 0, fontSize: 12, color: "#374151" }}>
                           <span style={{ display: "block", marginBottom: 5, fontWeight: 500 }}>{field.label}</span>
@@ -1691,6 +1701,10 @@ function TaskDetailPage({ task, onClose, onStop, initialTab = "overview" }: { ta
                 <div style={{ display: "contents" }}>
                   <span style={{ color: "#6b7280" }}>Top-K</span>
                   <span style={{ color: "#1a1d23", wordBreak: "break-all" }}>{inferenceParamText(task.params.topK, task.params.source)}</span>
+                </div>
+                <div style={{ display: "contents" }}>
+                  <span style={{ color: "#6b7280" }}>Top-p</span>
+                  <span style={{ color: "#1a1d23", wordBreak: "break-all" }}>{inferenceParamText(task.params.topP, task.params.source)}</span>
                 </div>
                 <div style={{ display: "contents" }}>
                   <span style={{ color: "#6b7280" }}>Batch Size</span>
@@ -1899,7 +1913,7 @@ function TaskDetailPage({ task, onClose, onStop, initialTab = "overview" }: { ta
                         ["任务目标", task.desc || `评估模型在 ${task.taskTypes.join("、")} 任务上的综合表现，衡量模型能力水平与业务适配性。`],
                         ["模型信息", `评测对象：${task.evalModels.join("、")} ｜ 模型类型：${task.modelType} ｜ 版本：${task.modelVersion} ｜ 来源：${task.modelSource}${task.modelSource === "外部模型 API" ? ` ｜ API：${task.apiUrl}` : ""}`],
                         ["数据集介绍", `${task.datasets.map(d => `${d}（${datasetVersionOf(task, d)}）`).join("、")}，覆盖 ${task.taskTypes.join("、")} 任务。`],
-                        ["推理参数", `来源：${task.params.source || "未记录"} ｜ 最大 Token：${inferenceParamText(task.params.maxTokens, task.params.source)} ｜ Temperature：${inferenceParamText(task.params.temperature, task.params.source)} ｜ Top-K：${inferenceParamText(task.params.topK, task.params.source)} ｜ Batch Size：${inferenceParamText(task.params.batchSize, task.params.source)}`],
+                        ["推理参数", `来源：${task.params.source || "未记录"} ｜ 最大 Token：${inferenceParamText(task.params.maxTokens, task.params.source)} ｜ Temperature：${inferenceParamText(task.params.temperature, task.params.source)} ｜ Top-K：${inferenceParamText(task.params.topK, task.params.source)} ｜ Top-p：${inferenceParamText(task.params.topP, task.params.source)} ｜ Batch Size：${inferenceParamText(task.params.batchSize, task.params.source)}`],
                       ].map(([label, value]) => (
                         <div key={label} style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: "14px 16px" }}>
                           <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 6, fontWeight: 600 }}>{label}</div>
@@ -2764,6 +2778,7 @@ export function EvaluationConfigPage() {
   const maxTokensValue = inferenceStage?.params.maxTokens ?? "";
   const temperatureValue = inferenceStage?.params.temperature ?? "";
   const topKValue = inferenceStage?.params.topK ?? "";
+  const topPValue = inferenceStage?.params.topP ?? "";
   const batchSizeValue = inferenceStage?.params.batchSize ?? "";
   const smokeTestEnabled = inferenceStage?.params.smokeTestEnabled === true;
   const smokeTestCountValue = inferenceStage?.params.smokeTestCount ?? 25;
@@ -2773,6 +2788,7 @@ export function EvaluationConfigPage() {
     (maxTokensValue !== "" && (!Number.isInteger(Number(maxTokensValue)) || Number(maxTokensValue) < 1))
     || (temperatureValue !== "" && (Number(temperatureValue) < 0 || Number(temperatureValue) > 2))
     || (topKValue !== "" && (!Number.isInteger(Number(topKValue)) || Number(topKValue) < 1 || Number(topKValue) > 100))
+    || (topPValue !== "" && (Number(topPValue) <= 0 || Number(topPValue) > 1))
     || (batchSizeValue !== "" && (!Number.isInteger(Number(batchSizeValue)) || Number(batchSizeValue) < 1 || Number(batchSizeValue) > 128))
     || smokeTestCountInvalid
   );
@@ -2979,6 +2995,7 @@ export function EvaluationConfigPage() {
                               { label: "最大 Token", key: "maxTokens", min: 1, step: 1, hint: "选填；填写正整数，且不得超过模型支持上限。" },
                               { label: "Temperature", key: "temperature", min: 0, max: 2, step: 0.1, hint: "选填；填写 0～2，数值越低输出越稳定。" },
                               { label: "Top-K", key: "topK", min: 1, max: 100, step: 1, hint: "选填；填写 1～100 的整数，越小候选越集中。" },
+                              { label: "Top-p", key: "topP", min: 0, max: 1.0, step: 0.1, hint: "选填；(0, 1.0]，核采样概率阈值。默认 1.0。" },
                               { label: "Batch Size", key: "batchSize", min: 1, max: 128, step: 1, hint: "选填；填写 1～128 的整数，数值越大显存占用越高。" },
                             ].map(field => (
                               <label key={field.key} style={{ fontSize: 11.5, color: "#6b7280" }}>{field.label}

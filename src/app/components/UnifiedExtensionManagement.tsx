@@ -169,7 +169,7 @@ export function UnifiedExtensionManagement({ onEnable }: UnifiedExtensionManagem
         <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ width: 34, height: 34, display: "grid", placeItems: "center", borderRadius: 8, color: C.primary, background: C.primarySoft }}><Puzzle size={17} /></span>
           <div style={{ flex: 1 }}><h1 style={{ margin: 0, fontSize: 19, fontWeight: 720 }}>扩展管理</h1><p style={{ margin: "3px 0 0", color: C.muted, fontSize: 11.5 }}>从标准模板开发到上传验证与启用</p></div>
-          <button onClick={() => { setUploadGroupKey(null); setUploadTemplateId(null); uploadRef.current?.click(); }} style={{ height: 34, padding: "0 14px", display: "inline-flex", alignItems: "center", gap: 6, border: 0, borderRadius: 6, background: C.primary, color: "#fff", fontSize: 12, fontWeight: 650, cursor: "pointer" }}><Upload size={14} />上传扩展包</button>
+          <button onClick={() => { setUploadGroupKey(null); setUploadTemplateId(null); uploadRef.current?.click(); }} style={{ height: 34, padding: "0 14px", display: "inline-flex", alignItems: "center", gap: 6, border: 0, borderRadius: 6, background: C.primary, color: "#fff", fontSize: 12, fontWeight: 650, cursor: "pointer" }}><Upload size={14} />上传扩展模板</button>
           <input ref={uploadRef} type="file" accept=".zip,.tar.gz,.tgz" onChange={upload} style={{ display: "none" }} />
         </div>
 
@@ -177,7 +177,7 @@ export function UnifiedExtensionManagement({ onEnable }: UnifiedExtensionManagem
 
         {/* 模板卡片 */}
         <section style={{ ...surface, marginBottom: 14, overflow: "hidden" }}>
-          <div style={{ padding: "12px 14px", borderBottom: `1px solid ${C.lineSoft}` }}><Package size={15} color={C.primary} style={{ marginRight: 8, verticalAlign: -2 }} /><span style={{ fontSize: 13, fontWeight: 700 }}>标准模板</span><span style={{ marginLeft: 10, color: C.faint, fontSize: 10.5 }}>选择一个模板查看开发指引和代码示例</span></div>
+          <div style={{ padding: "12px 14px", borderBottom: `1px solid ${C.lineSoft}` }}><Package size={15} color={C.primary} style={{ marginRight: 8, verticalAlign: -2 }} /><span style={{ fontSize: 13, fontWeight: 700 }}>基础模板</span><span style={{ marginLeft: 10, color: C.faint, fontSize: 10.5 }}>选择一个模板查看开发指引和代码示例</span></div>
           <div style={{ padding: 12, display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 10 }}>
             {TEMPLATES.map(t => {
               const tc: Record<ExtensionType, string> = { "微调算法": "#4f46e5", "优化器": "#0369a1", "数据处理": "#047857", "评估方法": "#a15c07" };
@@ -201,7 +201,7 @@ export function UnifiedExtensionManagement({ onEnable }: UnifiedExtensionManagem
         {/* 版本分组表格 */}
         {groups.length > 0 && (
           <section style={{ ...surface, overflow: "hidden" }}>
-            <div style={{ padding: "12px 14px", borderBottom: `1px solid ${C.lineSoft}`, display: "flex", alignItems: "center", gap: 8 }}><SlidersHorizontal size={15} color={C.primary} /><span style={{ fontSize: 13, fontWeight: 700 }}>扩展版本与验证</span><span style={{ color: C.faint, fontSize: 10.5 }}>五类验证全部通过后可启用</span></div>
+            <div style={{ padding: "12px 14px", borderBottom: `1px solid ${C.lineSoft}`, display: "flex", alignItems: "center", gap: 8 }}><SlidersHorizontal size={15} color={C.primary} /><span style={{ fontSize: 13, fontWeight: 700 }}>扩展模板</span><span style={{ color: C.faint, fontSize: 10.5 }}>五类验证全部通过后可启用</span></div>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
                 <thead><tr style={{ color: C.muted, background: "#fbfcfe", borderBottom: `1px solid ${C.lineSoft}` }}>

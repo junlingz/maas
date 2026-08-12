@@ -62,7 +62,7 @@ test("数据集详情按任务映射展示评价指标建议和 Schema", () => {
   assert.match(metricRecommendationSource, /"文档解析": \["Accuracy", "F1"\]/);
   assert.doesNotMatch(metricRecommendationSource, /Precision|Recall|VQA Score/);
   assert.match(metricRecommendationDoc, /任务与指标映射/);
-  assert.match(metricRecommendationDoc, /Exact Match.*不在建议指标范围内/);
+  assert.match(metricRecommendationDoc, /关键词匹配率.*不进入本表的默认推荐范围/);
   assert.match(prdSource, /任务与字段映射候选方案/);
   assert.match(prdSource, /model_type \+ task_type \+ schema_version/);
 });
@@ -160,12 +160,24 @@ test("指标选择和权重统一配置在流程模板的指标计算阶段", ()
 });
 
 test("流程模板限制质量指标类别互斥且效率指标不配置权重", () => {
-  assert.match(evaluationSource, /const MUTUALLY_EXCLUSIVE_METRIC_CATEGORIES = new Set\(\["生成", "分类", "代码生成"\]\)/);
+  assert.match(evaluationSource, /const MUTUALLY_EXCLUSIVE_METRIC_CATEGORIES = new Set\(\["生成", "分类", "匹配", "代码生成"\]\)/);
   assert.match(evaluationSource, /const UNWEIGHTED_METRICS = new Set\(\["平均时延", "平均生成速度"\]\)/);
   assert.match(evaluationSource, /disabled=\{categoryDisabled\}/);
   assert.match(evaluationSource, /效率类指标可随时选择，不参与权重计算/);
   assert.match(evaluationSource, /平均生成速度 = 生成 Token 总数 \/ 总生成耗时/);
   assert.match(evaluationSource, /不参与权重/);
+});
+
+test("流程模板提供关键词匹配率并移除 Exact Match", () => {
+  assert.match(evaluationSource, /\{ category: "匹配", name: "关键词匹配率"/);
+  assert.match(evaluationSource, /标准化模型预测答案和参考关键词后，判断预测答案是否命中预设参考关键词/);
+  assert.match(evaluationSource, /KMR = 命中参考关键词的样本数 \/ 总样本数/);
+  assert.match(evaluationSource, /scene: "问答、信息匹配", range: "0-1"/);
+  assert.match(evaluationSource, /\["生成", "分类", "匹配", "代码生成", "效率"\]\.map\(category/);
+  assert.doesNotMatch(evaluationSource, /Exact Match/);
+  assert.doesNotMatch(dataSource, /Exact Match/);
+  assert.match(prdSource, /匹配类包含关键词匹配率/);
+  assert.match(metricRecommendationDoc, /关键词匹配率.*不进入本表的默认推荐范围/);
 });
 
 test("指标统计以原始单位展示效率指标且不提供详情入口", () => {
@@ -220,7 +232,7 @@ test("页面和需求文档均取消 Reasoning Score 指标", () => {
   assert.doesNotMatch(metricRecommendationSource, /Exact Match/);
   assert.match(evaluationSource, /removeRetiredMetrics\(task\.metrics\)/);
   assert.match(dataStoreSource, /metrics\.filter\(\(metric: string\) => metric !== retiredMetricName\)/);
-  assert.match(prdSource, /配置方案模板不提供匹配类指标 Exact Match/);
+  assert.match(prdSource, /匹配类包含关键词匹配率/);
   assert.match(prdSource, /不提供或计算 `Reasoning Score`/);
 });
 
@@ -380,8 +392,7 @@ test("报告、看板、指标详情和流程约束具备可演示交互", () =>
   assert.match(evaluationSource, /PolarRadiusAxis domain=\{\[0, 100\]\}/);
   assert.match(evaluationSource, /清洗规则/);
   assert.match(evaluationSource, /采样策略/);
-  assert.match(evaluationSource, /\["生成", "分类", "代码生成", "效率"\]\.map\(category/);
-  assert.doesNotMatch(evaluationSource, /\{ category: "匹配", name: "Exact Match"/);
+  assert.match(evaluationSource, /\["生成", "分类", "匹配", "代码生成", "效率"\]\.map\(category/);
   assert.match(evaluationSource, /\{category\}类指标/);
   assert.match(evaluationSource, /计算原理 \/ 公式/);
   assert.match(evaluationSource, /系统按权重计算加权综合得分/);

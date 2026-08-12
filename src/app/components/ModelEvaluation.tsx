@@ -120,6 +120,11 @@ interface SchemeApplyConfig {
   modelType: ModelType;
   taskTypes: string[];
   summary: string;
+  preprocessing: {
+    cleaningRule: string;
+    samplingStrategy: "全量采样" | "随机采样";
+    samplingCount?: number;
+  };
   metricWeights: Record<string, number>;
   conditionRule: MetricConditionRule;
   params: {
@@ -163,14 +168,13 @@ const CHART_SCALE_MIN = 0.8;
 const CHART_SCALE_MAX = 1.5;
 const CHART_SCALE_STEP = 0.1;
 const CHART_SCALE_DEFAULT = 1;
+const DEFAULT_RANDOM_SAMPLE_COUNT = 25;
 const EMPTY_FLOW_TEMPLATE_INFERENCE_PARAMS = {
   maxTokens: "",
   temperature: "",
   topK: "",
   topP: "",
   batchSize: "",
-  smokeTestEnabled: false,
-  smokeTestCount: 25,
 };
 
 interface CreateDatasetOption {
@@ -340,7 +344,7 @@ function parsePostprocessRules(value: unknown) {
 
 function createDefaultFlowStages(postprocessEnabled = false, metrics = ""): FlowStage[] {
   return [
-    { name: "数据预处理", enabled: true, params: { cleaningRule: "不清洗", samplingStrategy: "全量采样" } },
+    { name: "数据预处理", enabled: true, params: { cleaningRule: "不清洗", samplingStrategy: "全量采样", samplingCount: DEFAULT_RANDOM_SAMPLE_COUNT } },
     { name: "模型推理", enabled: true, params: { ...EMPTY_FLOW_TEMPLATE_INFERENCE_PARAMS } },
     { name: "后处理", enabled: postprocessEnabled, params: { normalizationRules: postprocessEnabled ? "trim,normalize_newlines" : "" } },
     { name: "指标计算", enabled: true, params: { metrics }, conditionRule: createDefaultMetricConditionRule() },
@@ -348,13 +352,27 @@ function createDefaultFlowStages(postprocessEnabled = false, metrics = ""): Flow
 }
 
 function cloneFlowStages(stages: FlowStage[]) {
+  const legacyInferenceStage = stages.find(stage => stage.name === "模型推理");
+  const legacySmokeTestEnabled = legacyInferenceStage?.params.smokeTestEnabled === true;
+  const legacySmokeTestCount = Number(legacyInferenceStage?.params.smokeTestCount);
+  const migratedSmokeTestCount = Number.isInteger(legacySmokeTestCount) && legacySmokeTestCount >= 1
+    ? legacySmokeTestCount
+    : DEFAULT_RANDOM_SAMPLE_COUNT;
   return stages.map(stage => {
     const params = { ...stage.params };
     delete params.customLogic;
+    if (stage.name === "数据预处理") {
+      const samplingCount = Number(params.samplingCount);
+      const hasValidSamplingCount = Number.isInteger(samplingCount) && samplingCount >= 1;
+      const migrateLegacySmokeTest = legacySmokeTestEnabled && params.samplingStrategy !== "随机采样";
+      params.samplingStrategy = params.samplingStrategy === "随机采样" || migrateLegacySmokeTest ? "随机采样" : "全量采样";
+      params.samplingCount = migrateLegacySmokeTest
+        ? migratedSmokeTestCount
+        : hasValidSamplingCount ? samplingCount : DEFAULT_RANDOM_SAMPLE_COUNT;
+    }
     if (stage.name === "模型推理") {
-      const smokeTestCount = Number(params.smokeTestCount);
-      params.smokeTestEnabled = params.smokeTestEnabled === true;
-      params.smokeTestCount = Number.isInteger(smokeTestCount) && smokeTestCount >= 1 ? smokeTestCount : 25;
+      delete params.smokeTestEnabled;
+      delete params.smokeTestCount;
     }
     if (stage.name === "后处理") {
       const legacyRule = String(params.normalizationRule || "");
@@ -392,8 +410,12 @@ function schemeVisibility(scope: SchemeScope, sharedAccess: SchemeAccess): Schem
 function schemeApplyConfig(row: EvaluationScheme): SchemeApplyConfig {
   // 配置方案只与模型类型挂钩，不再以评测任务作为适用范围。
   const taskTypes = row.modelType === "语言模型" ? LANGUAGE_TASKS : MULTIMODAL_TASKS;
+  const preprocessingStage = row.flowStages?.find(stage => stage.name === "数据预处理");
   const metricStage = row.flowStages?.find(stage => stage.name === "指标计算");
   const inferenceStage = row.flowStages?.find(stage => stage.name === "模型推理");
+  const samplingStrategy = preprocessingStage?.params.samplingStrategy === "随机采样" ? "随机采样" : "全量采样";
+  const rawSamplingCount = Number(preprocessingStage?.params.samplingCount);
+  const samplingCount = Number.isInteger(rawSamplingCount) && rawSamplingCount >= 1 ? rawSamplingCount : DEFAULT_RANDOM_SAMPLE_COUNT;
   const flowMetrics = String(metricStage?.params.metrics || "").split(",").filter(Boolean);
   const metricWeights = row.metricWeights || equalMetricWeights(flowMetrics.length ? flowMetrics : recommendedMetrics(row.modelType, taskTypes));
   const numberParam = (key: string) => {
@@ -406,6 +428,11 @@ function schemeApplyConfig(row: EvaluationScheme): SchemeApplyConfig {
     modelType: row.modelType,
     taskTypes,
     summary: row.stages,
+    preprocessing: {
+      cleaningRule: String(preprocessingStage?.params.cleaningRule || "不清洗"),
+      samplingStrategy,
+      samplingCount: samplingStrategy === "随机采样" ? samplingCount : undefined,
+    },
     metricWeights,
     conditionRule: cloneMetricConditionRule(metricStage?.conditionRule),
     params: {
@@ -928,43 +955,6 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
   );
 }
 
-function CompactSwitch({ checked, label, onChange }: { checked: boolean; label: string; onChange: (checked: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      title={`${label}：${checked ? "已开启" : "已关闭"}`}
-      onClick={() => onChange(!checked)}
-      style={{
-        width: 32,
-        height: 18,
-        padding: 0,
-        border: "none",
-        borderRadius: 9,
-        background: checked ? "#4f6ef7" : "#cfd4dc",
-        cursor: "pointer",
-        position: "relative",
-        transition: "background 160ms ease",
-        flexShrink: 0,
-      }}
-    >
-      <span style={{
-        position: "absolute",
-        top: 2,
-        left: checked ? 16 : 2,
-        width: 14,
-        height: 14,
-        borderRadius: "50%",
-        background: "#fff",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-        transition: "left 160ms ease",
-      }} />
-    </button>
-  );
-}
-
 function TextButton({ children, onClick, danger }: { children: React.ReactNode; onClick?: () => void; danger?: boolean }) {
   return (
     <button onClick={onClick} style={{ fontSize: 12.5, color: danger ? "#ef4444" : "#4f6ef7", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500, whiteSpace: "nowrap" }}>
@@ -1333,6 +1323,9 @@ function CreateDrawer({ initialModel, initialScheme, initialSchemeConfig, onClos
   );
   const appliedMetricSummary = metrics.map(metric => `${metric} ${metricWeights[metric] || 0}%`).join("、");
   const appliedConditionSummary = conditionRuleSummary(metricConditionRule);
+  const appliedPreprocessingSummary = selectedFlowConfig
+    ? `${selectedFlowConfig.preprocessing.cleaningRule}、${selectedFlowConfig.preprocessing.samplingStrategy}${selectedFlowConfig.preprocessing.samplingCount ? ` ${selectedFlowConfig.preprocessing.samplingCount} 条` : ""}`
+    : "";
   const appliedParamSummary = (() => {
     if (selectedFlowConfig) {
       const sp = schemeParams;
@@ -1408,11 +1401,12 @@ function CreateDrawer({ initialModel, initialScheme, initialSchemeConfig, onClos
                   <div style={{ padding: "10px 12px", background: "#f7f9ff", borderLeft: "3px solid #4f6ef7", borderRadius: 4, fontSize: 12.5, color: "#374151", lineHeight: 1.75 }}>
                     <div><b>流程模板：</b>{selectedFlowConfig.name} · {selectedFlowConfig.version}</div>
                     <div><b>执行流程：</b>{selectedFlowConfig.summary}</div>
+                    <div><b>数据预处理：</b>{appliedPreprocessingSummary}</div>
                     <div><b>推理参数：</b>{appliedParamSummary}</div>
                     <div><b>评估指标：</b>{appliedMetricSummary || "未配置"}</div>
                     <div><b>样本计算范围：</b>{appliedConditionSummary}</div>
                     <div style={{ marginTop: 3, color: "#6b7280" }}>
-                      模型与数据集需继续选择；评估指标及权重来自流程模板的“指标计算”阶段。
+                      模型与数据集需继续选择；数据预处理、评估指标及权重均来自流程模板。
                     </div>
                   </div>
                 </FormRow>
@@ -2681,16 +2675,16 @@ export function EvaluationConfigPage() {
   const updateStageParam = (stageName: FlowStage["name"], key: string, value: string | number | boolean) => {
     setFlowStages(current => current.map(stage => stage.name === stageName ? { ...stage, params: { ...stage.params, [key]: value } } : stage));
   };
-  const updateSmokeTestEnabled = (enabled: boolean) => {
+  const updateSamplingStrategy = (samplingStrategy: "全量采样" | "随机采样") => {
     setFlowStages(current => current.map(stage => {
-      if (stage.name !== "模型推理") return stage;
-      const currentCount = Number(stage.params.smokeTestCount);
+      if (stage.name !== "数据预处理") return stage;
+      const currentCount = Number(stage.params.samplingCount);
       return {
         ...stage,
         params: {
           ...stage.params,
-          smokeTestEnabled: enabled,
-          smokeTestCount: Number.isInteger(currentCount) && currentCount >= 1 ? currentCount : 25,
+          samplingStrategy,
+          samplingCount: Number.isInteger(currentCount) && currentCount >= 1 ? currentCount : DEFAULT_RANDOM_SAMPLE_COUNT,
         },
       };
     }));
@@ -2781,20 +2775,20 @@ export function EvaluationConfigPage() {
   const topKValue = inferenceStage?.params.topK ?? "";
   const topPValue = inferenceStage?.params.topP ?? "";
   const batchSizeValue = inferenceStage?.params.batchSize ?? "";
-  const smokeTestEnabled = inferenceStage?.params.smokeTestEnabled === true;
-  const smokeTestCountValue = inferenceStage?.params.smokeTestCount ?? 25;
-  const smokeTestCountInvalid = smokeTestEnabled
-    && (!Number.isInteger(Number(smokeTestCountValue)) || Number(smokeTestCountValue) < 1);
+  const samplingStrategy = preprocessingStage?.params.samplingStrategy;
+  const samplingCountValue = preprocessingStage?.params.samplingCount ?? DEFAULT_RANDOM_SAMPLE_COUNT;
+  const samplingCountInvalid = samplingStrategy === "随机采样"
+    && (!Number.isInteger(Number(samplingCountValue)) || Number(samplingCountValue) < 1);
   const customInferenceParamsInvalid = (
     (maxTokensValue !== "" && (!Number.isInteger(Number(maxTokensValue)) || Number(maxTokensValue) < 1))
     || (temperatureValue !== "" && (Number(temperatureValue) < 0 || Number(temperatureValue) > 2))
     || (topKValue !== "" && (!Number.isInteger(Number(topKValue)) || Number(topKValue) < 1 || Number(topKValue) > 100))
     || (topPValue !== "" && (Number(topPValue) <= 0 || Number(topPValue) > 1))
     || (batchSizeValue !== "" && (!Number.isInteger(Number(batchSizeValue)) || Number(batchSizeValue) < 1 || Number(batchSizeValue) > 128))
-    || smokeTestCountInvalid
   );
   const flowParamsIncomplete = !preprocessingStage?.params.cleaningRule
     || !preprocessingStage.params.samplingStrategy
+    || samplingCountInvalid
     || customInferenceParamsInvalid
     || postprocessRulesInvalid
     || !String(metricStage?.params.metrics || "")
@@ -2940,10 +2934,12 @@ export function EvaluationConfigPage() {
             <thead><tr>{["方案名称", "适用范围", "配置内容", "版本", "创建人", "共享权限", "操作"].map((c, index) => <th key={c} style={{ ...thSt, position: "sticky", top: 0, right: index === 6 ? 0 : undefined, zIndex: index === 6 ? 3 : 2, boxShadow: index === 6 ? "-1px 0 #eef1f6" : undefined }}>{c}</th>)}</tr></thead>
             <tbody>
               {filteredTemplates.map(row => {
+                const preprocessing = schemeApplyConfig(row).preprocessing;
+                const samplingSummary = `${preprocessing.samplingStrategy}${preprocessing.samplingCount ? ` ${preprocessing.samplingCount} 条` : ""}`;
                 return <tr key={row.name}>
                   <td style={{ ...tdSt, fontWeight: 600 }}>{row.name}</td>
                   <td style={tdSt}><div>{row.modelType}</div><div style={{ marginTop: 3, color: "#6b7280", fontSize: 11.5 }}>全部评测任务</div></td>
-                  <td style={{ ...tdSt, overflowWrap: "anywhere" }}><div>{row.stages}</div><div style={{ marginTop: 4, color: "#6b7280", fontSize: 11.5 }}>指标：{metricWeightSummary(row.metricWeights || {}) || "未配置"}</div><div style={{ marginTop: 2, color: "#6b7280", fontSize: 11.5 }}>样本范围：{conditionRuleSummary(row.flowStages?.find(stage => stage.name === "指标计算")?.conditionRule)}</div></td>
+                  <td style={{ ...tdSt, overflowWrap: "anywhere" }}><div>{row.stages}</div><div style={{ marginTop: 4, color: "#6b7280", fontSize: 11.5 }}>采样：{samplingSummary}</div><div style={{ marginTop: 2, color: "#6b7280", fontSize: 11.5 }}>指标：{metricWeightSummary(row.metricWeights || {}) || "未配置"}</div><div style={{ marginTop: 2, color: "#6b7280", fontSize: 11.5 }}>样本范围：{conditionRuleSummary(row.flowStages?.find(stage => stage.name === "指标计算")?.conditionRule)}</div></td>
                   <td style={{ ...tdSt, whiteSpace: "nowrap" }}>{row.version}</td>
                   <td style={{ ...tdSt, whiteSpace: "nowrap" }}>{row.author}</td>
                   <td style={{ ...tdSt, whiteSpace: "nowrap" }}><span>{schemeVisibility(row.scope, row.sharedAccess)}</span>{row.author === CURRENT_USER && <span style={{ marginLeft: 8 }}><TextButton onClick={() => openSharing(row)}>修改</TextButton></span>}</td>
@@ -2980,12 +2976,50 @@ export function EvaluationConfigPage() {
                   <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>数据预处理必须在模型推理之前；指标计算必须在模型推理之后；后处理可跳过。评估指标及权重统一在“指标计算”阶段配置。</div>
                   {flowStages.map((stage, index) => {
                     const selectedMetrics = String(stage.params.metrics || "").split(",").filter(Boolean);
-                    return <div key={stage.name} style={{ border: `1px solid ${flowError || (stage.name === "后处理" && postprocessRulesInvalid) ? "#fecaca" : "#e8ebf2"}`, borderRadius: 8, padding: 10, marginBottom: 8 }}>
+                    return <div key={stage.name} style={{ border: `1px solid ${flowError || (stage.name === "数据预处理" && samplingCountInvalid) || (stage.name === "后处理" && postprocessRulesInvalid) ? "#fecaca" : "#e8ebf2"}`, borderRadius: 8, padding: 10, marginBottom: 8 }}>
                       <div className="flex items-center justify-between">
                         <label className="flex items-center gap-2" style={{ fontSize: 13, fontWeight: 600 }}><input type="checkbox" checked={stage.enabled} disabled={stage.name !== "后处理"} onChange={e => setFlowStages(prev => prev.map(item => item.name === stage.name ? { ...item, enabled: e.target.checked } : item))} />{index + 1}. {stage.name}</label>
                         <div className="flex items-center gap-1"><button title="上移" onClick={() => moveStage(index, -1)} disabled={index === 0} style={{ border: "none", background: "none", cursor: "pointer" }}><ArrowUp size={13} /></button><button title="下移" onClick={() => moveStage(index, 1)} disabled={index === flowStages.length - 1} style={{ border: "none", background: "none", cursor: "pointer" }}><ArrowDown size={13} /></button></div>
                       </div>
-                      {stage.enabled && stage.name === "数据预处理" && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}><label style={{ fontSize: 11.5, color: "#6b7280" }}>清洗规则<select value={String(stage.params.cleaningRule)} onChange={e => updateStageParam(stage.name, "cleaningRule", e.target.value)} style={{ ...inputSt, marginTop: 4 }}><option>去空值并去重</option><option>仅去空值</option><option>不清洗</option></select></label><label style={{ fontSize: 11.5, color: "#6b7280" }}>采样策略<select value={String(stage.params.samplingStrategy)} onChange={e => updateStageParam(stage.name, "samplingStrategy", e.target.value)} style={{ ...inputSt, marginTop: 4 }}><option>全量采样</option><option>随机采样</option><option>分层采样</option></select></label></div>}
+                      {stage.enabled && stage.name === "数据预处理" && (
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, marginTop: 8 }}>
+                          <label style={{ fontSize: 11.5, color: "#6b7280" }}>清洗规则
+                            <select value={String(stage.params.cleaningRule)} onChange={event => updateStageParam(stage.name, "cleaningRule", event.target.value)} style={{ ...inputSt, marginTop: 4 }}>
+                              <option>去空值并去重</option><option>仅去空值</option><option>不清洗</option>
+                            </select>
+                          </label>
+                          <label style={{ fontSize: 11.5, color: "#6b7280" }}>采样策略
+                            <select
+                              value={String(stage.params.samplingStrategy)}
+                              onChange={event => updateSamplingStrategy(event.target.value as "全量采样" | "随机采样")}
+                              style={{ ...inputSt, marginTop: 4 }}
+                            >
+                              <option>全量采样</option><option>随机采样</option>
+                            </select>
+                          </label>
+                          {stage.params.samplingStrategy === "随机采样" && (
+                            <div style={{ gridColumn: "1 / -1", paddingTop: 2 }}>
+                              <label style={{ display: "block", fontSize: 11.5, color: "#6b7280" }}>采样数量
+                                <div className="flex items-center" style={{ gap: 8, marginTop: 4, flexWrap: "wrap" }}>
+                                  <input
+                                    aria-label="随机采样数量"
+                                    title="随机采样数量"
+                                    type="number"
+                                    min={1}
+                                    step={1}
+                                    value={String(stage.params.samplingCount ?? DEFAULT_RANDOM_SAMPLE_COUNT)}
+                                    onChange={event => updateStageParam(stage.name, "samplingCount", event.target.value === "" ? "" : Number(event.target.value))}
+                                    style={{ ...inputSt, width: 112, height: 32, padding: "0 8px", background: "#fff", flexShrink: 0 }}
+                                  />
+                                  <span style={{ color: "#6b7280", fontSize: 11.5 }}>条</span>
+                                  <span style={{ color: "#8a909e", fontSize: 11.5, lineHeight: 1.5 }}>默认 25 条；超过清洗后有效数据量时使用全部数据。小样本仅适合快速验证流程。</span>
+                                </div>
+                              </label>
+                              {samplingCountInvalid && <div style={{ marginTop: 4, color: "#dc2626", fontSize: 11.5 }}>请输入大于 0 的整数</div>}
+                            </div>
+                          )}
+                        </div>
+                      )}
                       {stage.enabled && stage.name === "模型推理" && (
                         <div style={{ marginTop: 8, borderTop: "1px solid #eef0f5", paddingTop: 6 }}>
                           <div style={{ fontSize: 11.5, color: "#6b7280", marginBottom: 6 }}>
@@ -3007,31 +3041,6 @@ export function EvaluationConfigPage() {
                                 <span style={{ display: "block", minHeight: 28, marginTop: 4, color: "#8a909e", lineHeight: 1.4 }}>{field.hint}</span>
                               </label>
                             ))}
-                          </div>
-                          <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #eef0f5" }}>
-                            <div className="flex items-center" style={{ gap: 8, minWidth: 0, whiteSpace: "nowrap" }}>
-                              <CompactSwitch checked={stage.params.smokeTestEnabled === true} label="冒烟测试" onChange={updateSmokeTestEnabled} />
-                              <span style={{ color: "#374151", fontSize: 12.5, fontWeight: 600 }}>冒烟测试</span>
-                              {stage.params.smokeTestEnabled === true && (
-                                <>
-                                  <input
-                                    aria-label="冒烟测试条数"
-                                    title="冒烟测试条数"
-                                    type="number"
-                                    min={1}
-                                    step={1}
-                                    value={String(stage.params.smokeTestCount ?? 25)}
-                                    onChange={event => updateStageParam(stage.name, "smokeTestCount", event.target.value === "" ? "" : Number(event.target.value))}
-                                    style={{ ...inputSt, width: 80, height: 30, padding: "0 8px", background: "#fff", flexShrink: 0 }}
-                                  />
-                                  <span style={{ color: "#6b7280", fontSize: 11.5 }}>条</span>
-                                </>
-                              )}
-                              <span style={{ minWidth: 0, color: "#8a909e", fontSize: 11.5, overflow: "hidden", textOverflow: "ellipsis" }} title="适用于快速验证端口的可用性">
-                                适用于快速验证端口的可用性
-                              </span>
-                              {smokeTestCountInvalid && <span style={{ color: "#dc2626", fontSize: 11.5 }}>请输入大于 0 的整数</span>}
-                            </div>
                           </div>
                           {customInferenceParamsInvalid && <div style={{ marginTop: 4, color: "#dc2626", fontSize: 12 }}>请检查已填写的模型推理参数及取值范围。</div>}
                         </div>

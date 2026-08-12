@@ -10,6 +10,7 @@ const prdSource = await readFile(new URL("../docs/PRD-模型评测.md", import.m
 const metricRecommendationDoc = await readFile(new URL("../docs/模型评测-评价指标建议映射表.md", import.meta.url), "utf8");
 const createDrawerSource = evaluationSource.slice(evaluationSource.indexOf("function CreateDrawer"), evaluationSource.indexOf("function TaskDetailPage"));
 const configPageSource = evaluationSource.slice(evaluationSource.indexOf("export function EvaluationConfigPage"), evaluationSource.indexOf("function WorkbenchPage"));
+const flowPreprocessingSource = configPageSource.slice(configPageSource.indexOf('{stage.enabled && stage.name === "数据预处理"'), configPageSource.indexOf('{stage.enabled && stage.name === "模型推理"'));
 const flowInferenceSource = configPageSource.slice(configPageSource.indexOf('{stage.enabled && stage.name === "模型推理"'), configPageSource.indexOf('{stage.enabled && stage.name === "后处理"'));
 const flowPostprocessSource = configPageSource.slice(configPageSource.indexOf('{stage.enabled && stage.name === "后处理"'), configPageSource.indexOf('{stage.enabled && stage.name === "指标计算"'));
 
@@ -250,18 +251,23 @@ test("流程模板的模型推理参数直接展示、默认空且非必填", ()
   assert.match(prdSource, /不显示“高级配置”标题、不折叠、不提供默认值/);
 });
 
-test("流程模板支持默认关闭且条数可编辑的冒烟测试", () => {
-  assert.match(evaluationSource, /smokeTestEnabled: false/);
-  assert.match(evaluationSource, /smokeTestCount: 25/);
-  assert.match(evaluationSource, /role="switch"/);
-  assert.match(flowInferenceSource, /<CompactSwitch checked=\{stage\.params\.smokeTestEnabled === true\}/);
-  assert.match(flowInferenceSource, /aria-label="冒烟测试条数"/);
-  assert.match(flowInferenceSource, /适用于快速验证端口的可用性/);
-  assert.match(flowInferenceSource, /stage\.params\.smokeTestEnabled === true/);
-  assert.match(configPageSource, /smokeTestCountInvalid/);
-  assert.match(configPageSource, /Number\.isInteger\(Number\(smokeTestCountValue\)\)/);
-  assert.match(prdSource, /冒烟测试.*默认关闭.*25 条/s);
-  assert.match(prdSource, /关闭后保留用户最后填写的值/);
+test("流程模板将小样本验证合并到默认 25 条的随机采样", () => {
+  assert.match(evaluationSource, /const DEFAULT_RANDOM_SAMPLE_COUNT = 25/);
+  assert.match(evaluationSource, /samplingStrategy: "全量采样", samplingCount: DEFAULT_RANDOM_SAMPLE_COUNT/);
+  assert.match(flowPreprocessingSource, /<option>全量采样<\/option><option>随机采样<\/option>/);
+  assert.doesNotMatch(flowPreprocessingSource, /分层采样/);
+  assert.match(flowPreprocessingSource, /stage\.params\.samplingStrategy === "随机采样"/);
+  assert.match(flowPreprocessingSource, /aria-label="随机采样数量"/);
+  assert.match(flowPreprocessingSource, /stage\.params\.samplingCount \?\? DEFAULT_RANDOM_SAMPLE_COUNT/);
+  assert.match(configPageSource, /samplingCountInvalid/);
+  assert.match(configPageSource, /Number\.isInteger\(Number\(samplingCountValue\)\)/);
+  assert.doesNotMatch(flowInferenceSource, /冒烟测试|CompactSwitch|smokeTestEnabled|smokeTestCount/);
+  assert.match(evaluationSource, /delete params\.smokeTestEnabled/);
+  assert.match(evaluationSource, /delete params\.smokeTestCount/);
+  assert.match(createDrawerSource, /<b>数据预处理：<\/b>\{appliedPreprocessingSummary\}/);
+  assert.match(prdSource, /采样策略仅提供“全量采样”和“随机采样”/);
+  assert.match(prdSource, /随机采样数量默认为 25/);
+  assert.match(prdSource, /不再提供独立的冒烟测试开关/);
 });
 
 test("流程模板后处理默认关闭且使用三个固定标准化规则", () => {

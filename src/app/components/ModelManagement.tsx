@@ -35,32 +35,14 @@ interface ImportedModelDraft {
   weightFormat: string;
 }
 
-const IMPORT_FILE_PATTERN = /\.(safetensors|pth|json|ya?ml)$/i;
 const WEIGHT_FILE_PATTERN = /\.(safetensors|pth)$/i;
-const CONFIG_FILE_PATTERN = /\.(json|ya?ml)$/i;
+const CONFIG_FILE_PATTERN = /\.json$/i;
 
 function formatBytes(size: number) {
   if (size < 1024) return `${size} B`;
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
   if (size < 1024 * 1024 * 1024) return `${(size / 1024 / 1024).toFixed(1)} MB`;
   return `${(size / 1024 / 1024 / 1024).toFixed(2)} GB`;
-}
-
-function parseYaml(text: string): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const line of text.split(/\r?\n/)) {
-    const match = line.match(/^\s*([\w.-]+)\s*:\s*(.*?)\s*$/);
-    if (!match || !match[2] || match[2].startsWith("#")) continue;
-    const raw = match[2].replace(/\s+#.*$/, "").trim();
-    if (raw.startsWith("[") && raw.endsWith("]")) {
-      result[match[1]] = raw.slice(1, -1).split(",").map(item => item.trim().replace(/^['\"]|['\"]$/g, "")).filter(Boolean);
-    } else if (/^-?\d+(\.\d+)?$/.test(raw)) {
-      result[match[1]] = Number(raw);
-    } else {
-      result[match[1]] = raw.replace(/^['\"]|['\"]$/g, "");
-    }
-  }
-  return result;
 }
 
 function firstText(...values: unknown[]) {
@@ -112,26 +94,20 @@ function inferCapabilities(config: Record<string, unknown>, architecture: string
   return capabilities;
 }
 
-async function analyzeImportFiles(files: File[]): Promise<ImportedModelDraft> {
-  const weightFiles = files.filter(file => WEIGHT_FILE_PATTERN.test(file.name));
-  const configFiles = files.filter(file => CONFIG_FILE_PATTERN.test(file.name));
-  if (!weightFiles.length || !configFiles.length) throw new Error("请同时添加模型权重文件和配置文件");
+async function analyzeImportFiles(weightFile: File, configFile: File): Promise<ImportedModelDraft> {
+  if (!WEIGHT_FILE_PATTERN.test(weightFile.name)) throw new Error("权重文件仅支持 .safetensors 或 .pth 格式");
+  if (!CONFIG_FILE_PATTERN.test(configFile.name)) throw new Error("配置文件仅支持 .json 格式");
 
-  const preferredConfig = [...configFiles].sort((a, b) => {
-    const score = (file: File) => file.name === "config.json" ? 0 : file.name === "model_index.json" ? 1 : 2;
-    return score(a) - score(b);
-  })[0];
   let config: Record<string, unknown>;
   try {
-    const text = await preferredConfig.text();
-    const parsed = preferredConfig.name.toLowerCase().endsWith(".json") ? JSON.parse(text) : parseYaml(text);
+    const parsed = JSON.parse(await configFile.text());
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("invalid config");
     config = parsed as Record<string, unknown>;
   } catch {
-    throw new Error(`无法解析配置文件 ${preferredConfig.name}，请检查文件内容`);
+    throw new Error(`无法解析配置文件 ${configFile.name}，请检查 JSON 内容`);
   }
 
-  const weightName = weightFiles[0].name.replace(/(?:-\d{5}-of-\d{5})?\.(safetensors|pth)$/i, "");
+  const weightName = weightFile.name.replace(/(?:-\d{5}-of-\d{5})?\.(safetensors|pth)$/i, "");
   const configuredName = firstText(config.name, config.model_name, config._name_or_path).split(/[\\/]/).filter(Boolean).pop() ?? "";
   const name = configuredName || weightName || "imported-model";
   const modelType = firstText(config.model_type);
@@ -143,7 +119,7 @@ async function analyzeImportFiles(files: File[]): Promise<ImportedModelDraft> {
     architecture,
     category: inferCategory(config, architecture),
     capabilities: inferCapabilities(config, architecture),
-    weightFormat: Array.from(new Set(weightFiles.map(file => file.name.split(".").pop()?.toUpperCase()))).filter(Boolean).join(" + "),
+    weightFormat: weightFile.name.split(".").pop()?.toUpperCase() ?? "未识别",
   };
 }
 
@@ -373,33 +349,27 @@ function ImportModelModal({ models, onClose, onImport }: {
   onClose: () => void;
   onImport: (model: ModelRecord) => void;
 }) {
-  const [files, setFiles] = useState<File[]>([]);
+  const [weightFile, setWeightFile] = useState<File | null>(null);
+  const [configFile, setConfigFile] = useState<File | null>(null);
   const [draft, setDraft] = useState<ImportedModelDraft | null>(null);
   const [error, setError] = useState("");
-  const [isDragging, setIsDragging] = useState(false);
+  const [draggingTarget, setDraggingTarget] = useState<"weight" | "config" | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const weightFileRef = useRef<HTMLInputElement>(null);
+  const configFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
-    if (!files.length) {
+    if (!weightFile || !configFile) {
       setDraft(null);
       setError("");
       setIsParsing(false);
       return () => { cancelled = true; };
     }
-    const hasWeights = files.some(file => WEIGHT_FILE_PATTERN.test(file.name));
-    const hasConfig = files.some(file => CONFIG_FILE_PATTERN.test(file.name));
-    if (!hasWeights || !hasConfig) {
-      setDraft(null);
-      setError(!hasWeights ? "还需添加 .safetensors 或 .pth 权重文件" : "还需添加 JSON 或 YAML 配置文件");
-      setIsParsing(false);
-      return () => { cancelled = true; };
-    }
     setIsParsing(true);
     setError("");
-    analyzeImportFiles(files)
+    analyzeImportFiles(weightFile, configFile)
       .then(result => {
         if (!cancelled) {
           setDraft(result);
@@ -414,29 +384,29 @@ function ImportModelModal({ models, onClose, onImport }: {
       })
       .finally(() => { if (!cancelled) setIsParsing(false); });
     return () => { cancelled = true; };
-  }, [files]);
+  }, [weightFile, configFile]);
 
-  const addFiles = (incoming: File[]) => {
-    const rejected = incoming.filter(file => !IMPORT_FILE_PATTERN.test(file.name));
-    const accepted = incoming.filter(file => IMPORT_FILE_PATTERN.test(file.name));
-    if (rejected.length) setError(`不支持 ${rejected.map(file => file.name).join("、")}；请上传权重或 JSON/YAML 配置文件`);
-    if (accepted.length) {
-      setFiles(previous => {
-        const next = [...previous];
-        for (const file of accepted) {
-          const duplicateIndex = next.findIndex(item => item.name === file.name && item.size === file.size);
-          if (duplicateIndex >= 0) next[duplicateIndex] = file;
-          else next.push(file);
-        }
-        return next;
-      });
+  const selectFile = (kind: "weight" | "config", incoming: File[]) => {
+    const label = kind === "weight" ? "权重文件" : "配置文件";
+    if (incoming.length !== 1) {
+      setError(`${label}每次仅支持导入 1 个文件`);
+      return;
     }
+    const file = incoming[0];
+    const supported = kind === "weight" ? WEIGHT_FILE_PATTERN.test(file.name) : CONFIG_FILE_PATTERN.test(file.name);
+    if (!supported) {
+      setError(kind === "weight" ? "权重文件仅支持 .safetensors 或 .pth 格式" : "配置文件仅支持 .json 格式");
+      return;
+    }
+    setError("");
+    if (kind === "weight") setWeightFile(file);
+    else setConfigFile(file);
   };
 
-  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+  const handleDrop = (kind: "weight" | "config", event: DragEvent<HTMLElement>) => {
     event.preventDefault();
-    setIsDragging(false);
-    addFiles(Array.from(event.dataTransfer.files));
+    setDraggingTarget(null);
+    selectFile(kind, Array.from(event.dataTransfer.files));
   };
 
   const submit = () => {
@@ -460,15 +430,17 @@ function ImportModelModal({ models, onClose, onImport }: {
         capabilities: draft.capabilities,
         weightPath: `/models/imports/${slug}`,
         imagePath: "harbor.xxx.com/lm/vllm:latest",
-        description: `由 ${files.map(file => file.name).join("、")} 导入，系统解析架构为 ${draft.architecture}。`,
+        description: `由 ${weightFile?.name}、${configFile?.name} 导入，系统解析架构为 ${draft.architecture}。`,
         createdAt: today,
       });
     }, 700);
   };
 
-  const weights = files.filter(file => WEIGHT_FILE_PATTERN.test(file.name));
-  const configs = files.filter(file => CONFIG_FILE_PATTERN.test(file.name));
   const secondaryButton: CSSProperties = { height: 34, padding: "0 16px", border: "1px solid #dfe3eb", borderRadius: 7, background: "#fff", color: "#374151", fontSize: 13, cursor: "pointer" };
+  const uploadItems = [
+    { kind: "weight" as const, title: "权重文件", hint: "支持 .safetensors、.pth", file: weightFile, inputRef: weightFileRef, icon: FileBox, iconBackground: "#edf2ff", iconColor: "#4f6ef7" },
+    { kind: "config" as const, title: "配置文件", hint: "仅支持 .json", file: configFile, inputRef: configFileRef, icon: FileCode2, iconBackground: "#eef9f2", iconColor: "#198754" },
+  ];
 
   return (
     <div role="dialog" aria-modal="true" aria-label="导入模型" style={{ position: "fixed", inset: 0, zIndex: 110, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "rgba(31,38,49,.5)" }}>
@@ -476,46 +448,63 @@ function ImportModelModal({ models, onClose, onImport }: {
         <div style={{ minHeight: 66, padding: "14px 22px", display: "flex", alignItems: "center", borderBottom: "1px solid #edf0f4" }}>
           <div>
             <h2 style={{ margin: 0, color: "#20242d", fontSize: 18 }}>导入模型</h2>
-            <p style={{ margin: "4px 0 0", color: "#7b8494", fontSize: 12 }}>上传权重和配置文件，系统将自动解析模型架构</p>
+            <p style={{ margin: "4px 0 0", color: "#7b8494", fontSize: 12 }}>分别上传 1 个权重文件和 1 个 JSON 配置文件</p>
           </div>
           <button type="button" aria-label="关闭" onClick={onClose} disabled={isImporting} style={{ width: 32, height: 32, marginLeft: "auto", border: 0, borderRadius: 7, background: "transparent", color: "#98a2b3", cursor: isImporting ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={20} /></button>
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: "18px 22px 20px" }}>
-          <input ref={fileRef} type="file" multiple accept=".safetensors,.pth,.json,.yaml,.yml,application/json,text/yaml,application/x-yaml" hidden onChange={event => { addFiles(Array.from(event.target.files ?? [])); event.target.value = ""; }} />
-          <div
-            className="maas-import-dropzone"
-            onDragEnter={event => { event.preventDefault(); setIsDragging(true); }}
-            onDragOver={event => event.preventDefault()}
-            onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setIsDragging(false); }}
-            onDrop={handleDrop}
-            style={{ minHeight: 150, padding: 20, border: `1px dashed ${isDragging ? "#4f6ef7" : "#bfc8d7"}`, borderRadius: 8, background: isDragging ? "#f3f6ff" : "#fafbfc", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", transition: "all .16s" }}
-          >
-            <div style={{ width: 42, height: 42, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, background: "#edf2ff", color: "#4f6ef7" }}><UploadCloud size={22} /></div>
-            <div style={{ color: "#313846", fontSize: 13, fontWeight: 650 }}>将模型文件拖到此处，或 <button type="button" onClick={() => fileRef.current?.click()} style={{ padding: 0, border: 0, background: "transparent", color: "#4169f6", font: "inherit", cursor: "pointer" }}>选择文件</button></div>
-            <div style={{ marginTop: 7, color: "#8c96a6", fontSize: 12, lineHeight: 1.6 }}>
-              <span style={{ display: "inline-block", margin: "0 6px" }}>权重：.safetensors、.pth</span><span style={{ display: "inline-block", margin: "0 6px" }}>配置：.json、.yaml、.yml</span><br />
-              支持多分片权重，请至少各上传一个权重和配置文件
-            </div>
-          </div>
+          <div className="maas-import-file-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {uploadItems.map(item => {
+              const ItemIcon = item.icon;
+              const isActive = draggingTarget === item.kind;
+              const removeFile = () => item.kind === "weight" ? setWeightFile(null) : setConfigFile(null);
+              return (
+                <section
+                  key={item.kind}
+                  aria-label={`导入${item.title}`}
+                  className="maas-import-file-card"
+                  onDragEnter={event => { event.preventDefault(); setDraggingTarget(item.kind); }}
+                  onDragOver={event => event.preventDefault()}
+                  onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDraggingTarget(null); }}
+                  onDrop={event => handleDrop(item.kind, event)}
+                  style={{ minWidth: 0, minHeight: 176, padding: 14, border: `1px dashed ${isActive ? "#4f6ef7" : item.file ? "#b9c9c0" : "#c7ced9"}`, borderRadius: 8, background: isActive ? "#f3f6ff" : item.file ? "#fbfdfc" : "#fafbfc", transition: "all .16s" }}
+                >
+                  <input
+                    ref={item.inputRef}
+                    type="file"
+                    accept={item.kind === "weight" ? ".safetensors,.pth" : ".json,application/json"}
+                    hidden
+                    onChange={event => { selectFile(item.kind, Array.from(event.target.files ?? [])); event.target.value = ""; }}
+                  />
+                  <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                    <span style={{ width: 32, height: 32, flex: "0 0 32px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 7, background: item.iconBackground, color: item.iconColor }}><ItemIcon size={17} /></span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ color: "#313846", fontSize: 13, fontWeight: 650 }}>{item.title}<span style={{ marginLeft: 3, color: "#d14343" }}>*</span></div>
+                      <div style={{ marginTop: 2, color: "#8c96a6", fontSize: 11.5 }}>{item.hint}，仅限 1 个文件</div>
+                    </div>
+                  </div>
 
-          {files.length > 0 && (
-            <section aria-label="已选文件" style={{ marginTop: 16 }}>
-              <div style={{ marginBottom: 8, display: "flex", alignItems: "center", color: "#3b4351", fontSize: 13, fontWeight: 650 }}><span>已选文件</span><span style={{ marginLeft: 6, color: "#8b95a5", fontWeight: 500 }}>({files.length})</span><span style={{ marginLeft: "auto", color: weights.length && configs.length ? "#14804a" : "#9aa4b2", fontSize: 12, fontWeight: 500 }}>权重 {weights.length} · 配置 {configs.length}</span></div>
-              <div style={{ maxHeight: 150, overflowY: "auto", border: "1px solid #e3e7ee", borderRadius: 8, background: "#fff" }}>
-                {files.map((file, index) => {
-                  const isWeight = WEIGHT_FILE_PATTERN.test(file.name);
-                  return <div key={`${file.name}-${file.size}`} style={{ minHeight: 44, padding: "8px 10px", display: "flex", alignItems: "center", gap: 9, borderTop: index ? "1px solid #edf0f4" : 0 }}>
-                    <span style={{ width: 28, height: 28, flex: "0 0 28px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, background: isWeight ? "#edf2ff" : "#eef9f2", color: isWeight ? "#4f6ef7" : "#198754" }}>{isWeight ? <FileBox size={15} /> : <FileCode2 size={15} />}</span>
-                    <span title={file.name} style={{ minWidth: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#394150", fontSize: 12.5 }}>{file.name}</span>
-                    <span style={{ color: "#96a0ae", fontSize: 11.5, whiteSpace: "nowrap" }}>{formatBytes(file.size)}</span>
-                    <span style={{ minWidth: 37, padding: "2px 5px", borderRadius: 4, background: isWeight ? "#f1f4ff" : "#eef9f2", color: isWeight ? "#4f6ef7" : "#198754", fontSize: 10.5, textAlign: "center" }}>{isWeight ? "权重" : "配置"}</span>
-                    <button type="button" aria-label={`移除 ${file.name}`} onClick={() => setFiles(current => current.filter(item => item !== file))} style={{ width: 24, height: 24, padding: 0, border: 0, borderRadius: 5, background: "transparent", color: "#a2aab6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={14} /></button>
-                  </div>;
-                })}
-              </div>
-            </section>
-          )}
+                  {item.file ? (
+                    <div style={{ marginTop: 15 }}>
+                      <div style={{ minHeight: 46, padding: "8px 9px", display: "flex", alignItems: "center", gap: 8, border: "1px solid #e1e6eb", borderRadius: 7, background: "#fff" }}>
+                        <span style={{ width: 28, height: 28, flex: "0 0 28px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, background: item.iconBackground, color: item.iconColor }}><ItemIcon size={15} /></span>
+                        <span title={item.file.name} style={{ minWidth: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#394150", fontSize: 12 }}>{item.file.name}</span>
+                        <span style={{ color: "#96a0ae", fontSize: 11, whiteSpace: "nowrap" }}>{formatBytes(item.file.size)}</span>
+                        <button type="button" aria-label={`移除 ${item.file.name}`} onClick={removeFile} style={{ width: 24, height: 24, padding: 0, border: 0, borderRadius: 5, background: "transparent", color: "#a2aab6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={14} /></button>
+                      </div>
+                      <button type="button" onClick={() => item.inputRef.current?.click()} style={{ marginTop: 9, padding: 0, border: 0, background: "transparent", color: "#4169f6", fontSize: 12, cursor: "pointer" }}>更换文件</button>
+                    </div>
+                  ) : (
+                    <div style={{ minHeight: 94, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+                      <UploadCloud size={21} color="#8ea0bc" />
+                      <div style={{ marginTop: 8, color: "#6d7788", fontSize: 12 }}>拖拽文件到此处，或 <button type="button" onClick={() => item.inputRef.current?.click()} style={{ padding: 0, border: 0, background: "transparent", color: "#4169f6", font: "inherit", cursor: "pointer" }}>选择{item.title}</button></div>
+                    </div>
+                  )}
+                </section>
+              );
+            })}
+          </div>
 
           {isParsing && <div style={{ marginTop: 14, minHeight: 40, padding: "10px 12px", display: "flex", alignItems: "center", gap: 8, borderRadius: 7, background: "#f6f8fc", color: "#657084", fontSize: 12.5 }}><LoaderCircle className="maas-spin" size={15} />正在解析模型配置…</div>}
           {draft && !isParsing && (
@@ -544,12 +533,13 @@ function ImportModelModal({ models, onClose, onImport }: {
   );
 }
 
-function ModelModal({ mode, model, models, onClose, onSave }: {
+function ModelModal({ mode, model, models, onClose, onSave, onImport }: {
   mode: ModalMode;
   model?: ModelRecord;
   models: ModelRecord[];
   onClose: () => void;
   onSave: (model: ModelRecord) => void;
+  onImport: () => void;
 }) {
   const [form, setForm] = useState<ModelRecord>(model ? { ...EMPTY_FORM, ...model, capabilities: model.capabilities ?? [] } : { ...EMPTY_FORM });
   const [error, setError] = useState("");
@@ -656,7 +646,13 @@ function ModelModal({ mode, model, models, onClose, onSave }: {
               </div>
             </div>
 
-            <label><span style={labelStyle}><b style={{ color: "#e5484d" }}>*</b> 模型权重地址</span><input disabled={readOnly} value={form.weightPath} onChange={e => set("weightPath", e.target.value)} style={inputStyle} placeholder="如 /models/Qwen3-8B" /></label>
+            <div>
+              <span style={labelStyle}><b style={{ color: "#e5484d" }}>*</b> 模型权重地址</span>
+              <span className="maas-model-weight-control" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <input aria-label="模型权重地址" disabled={readOnly} value={form.weightPath} onChange={e => set("weightPath", e.target.value)} style={{ ...inputStyle, minWidth: 0, flex: 1 }} placeholder="如 /models/Qwen3-8B" />
+                {mode === "add" && <button type="button" onClick={onImport} style={{ height: 36, padding: "0 12px", flex: "0 0 auto", border: "1px solid #cfd7e6", borderRadius: 7, background: "#fff", color: "#3f5fd7", fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5 }}><Upload size={14} />导入模型</button>}
+              </span>
+            </div>
             <label><span style={labelStyle}><b style={{ color: "#e5484d" }}>*</b> 模型镜像地址</span><input disabled={readOnly} value={form.imagePath} onChange={e => set("imagePath", e.target.value)} style={inputStyle} list="maas-image-options" placeholder="搜索或输入 Harbor 镜像地址" /><datalist id="maas-image-options">{IMAGE_OPTIONS.map(option => <option key={option} value={option} />)}</datalist></label>
             <label style={{ gridColumn: "1 / -1" }}><span style={labelStyle}>简介</span><textarea disabled={readOnly} value={form.description} onChange={e => set("description", e.target.value)} maxLength={500} style={{ ...inputStyle, height: 70, paddingTop: 9, resize: "vertical" }} placeholder="模型简介，最长 500 字" /></label>
           </div>
@@ -726,7 +722,6 @@ export function ModelManagementPage({ models, onModelsChange, onDeploy }: ModelM
           <select value={category} onChange={e => setCategory(e.target.value)} className="notranslate" translate="no" style={{ ...inputStyle, width: 150 }}><option value="">全部类型</option>{MODEL_CATEGORIES.map(item => <option key={item} className="notranslate" translate="no">{item}</option>)}</select>
           <select value={developer} onChange={e => setDeveloper(e.target.value)} aria-label="开发者筛选" style={{ ...inputStyle, width: 160 }}><option value="">全部开发者</option>{developers.map(item => <option key={item}>{item}</option>)}</select>
           <div style={{ flex: 1 }} />
-          <button type="button" onClick={() => setImportOpen(true)} style={{ height: 36, padding: "0 14px", border: "1px solid #cfd7e6", borderRadius: 7, background: "#fff", color: "#3f5fd7", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><Upload size={14} />导入模型</button>
           <button type="button" onClick={() => setModal({ mode: "add" })} style={buttonPrimary}><Plus size={14} />新建模型</button>
         </div>
 
@@ -737,12 +732,12 @@ export function ModelManagementPage({ models, onModelsChange, onDeploy }: ModelM
         ) : <div style={{ padding: 70, textAlign: "center", color: "#98a2b3", border: "1px dashed #d8dee9", borderRadius: 10, background: "#fff" }}>暂无符合条件的模型</div>}
       </div>
 
-      {modal && <ModelModal key={`${modal.mode}-${modal.model?.id || "new"}`} mode={modal.mode} model={modal.model} models={models} onClose={() => setModal(null)} onSave={save} />}
+      {modal && <ModelModal key={`${modal.mode}-${modal.model?.id || "new"}`} mode={modal.mode} model={modal.model} models={models} onClose={() => setModal(null)} onSave={save} onImport={() => { setModal(null); setImportOpen(true); }} />}
       {importOpen && <ImportModelModal models={models} onClose={() => setImportOpen(false)} onImport={importModel} />}
 
       <style>{`
         @media (max-width: 1180px) { .maas-model-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
-        @media (max-width: 720px) { .maas-model-grid { grid-template-columns: 1fr !important; } .maas-model-form-grid, .maas-import-summary { grid-template-columns: 1fr !important; } .maas-model-form-grid > *, .maas-import-summary > * { grid-column: auto !important; } .maas-import-dropzone { min-height: 132px !important; padding: 16px 12px !important; } }
+        @media (max-width: 720px) { .maas-model-grid, .maas-import-file-grid { grid-template-columns: 1fr !important; } .maas-model-form-grid, .maas-import-summary { grid-template-columns: 1fr !important; } .maas-model-form-grid > *, .maas-import-summary > * { grid-column: auto !important; } .maas-import-file-card { min-height: 160px !important; } }
         .maas-model-card { transition: transform .16s, box-shadow .16s, border-color .16s; }
         .maas-model-card:hover { transform: translateY(-2px); border-color: #cad4e4 !important; box-shadow: 0 8px 20px rgba(31,41,55,.07) !important; }
         .maas-model-card:focus-visible { border-color: #7190ff !important; box-shadow: 0 0 0 3px rgba(79,110,247,.14) !important; }

@@ -50,7 +50,7 @@ export interface TrainingTaskDetailProps {
 
 type TabKey = "overview" | "monitor" | "logs";
 type LogSource = "all" | "scheduler" | "training";
-type WorkerSort = "node" | "gpuUtilization" | "gpuMemory" | "networkReceive" | "networkSend" | "diskIO";
+type WorkerSort = "node" | "gpuUtilization" | "gpuMemory" | "network" | "diskIO";
 
 const C = {
   ink: "#20242d",
@@ -354,8 +354,7 @@ function MonitorTab() {
     if (workerSort === "node") return a.node.localeCompare(b.node);
     if (workerSort === "gpuUtilization") return b.gpuUtilization - a.gpuUtilization;
     if (workerSort === "gpuMemory") return b.gpuMemoryUsed - a.gpuMemoryUsed;
-    if (workerSort === "networkReceive") return b.networkReceive - a.networkReceive;
-    if (workerSort === "networkSend") return b.networkSend - a.networkSend;
+    if (workerSort === "network") return (b.networkReceive + b.networkSend) - (a.networkReceive + a.networkSend);
     return (b.diskRead + b.diskWrite) - (a.diskRead + a.diskWrite);
   }), [workerSort]);
 
@@ -487,8 +486,7 @@ function MonitorTab() {
                     <option value="diskIO">磁盘 I/O ↓</option>
                     <option value="gpuUtilization">GPU 利用率 ↓</option>
                     <option value="gpuMemory">GPU 显存占用 ↓</option>
-                    <option value="networkReceive">网络接收速率 ↓</option>
-                    <option value="networkSend">网络发送速率 ↓</option>
+                    <option value="network">网络接收/发送速率 ↓</option>
                     <option value="node">节点名称 ↑</option>
                   </select>
                   <ChevronDown size={12} aria-hidden="true" style={{ position: "absolute", right: 8, top: 9, color: C.faint, pointerEvents: "none" }} />
@@ -499,7 +497,7 @@ function MonitorTab() {
         </div>
         <div style={{ overflowX: "auto" }}>
           <table className="ttd-worker-table" aria-label="节点性能指标" style={{ width: "100%", minWidth: 1120, borderCollapse: "collapse", fontSize: 11.5 }}>
-            <thead><tr style={{ color: C.muted, background: "#fafbfc" }}>{["节点", "Worker / GPU", "GPU 利用率", "GPU 显存占用", "网络接收速率", "网络发送速率", "磁盘 I/O（读 / 写）", "状态"].map(label => <th key={label} style={{ padding: "9px 12px", textAlign: "left", borderTop: `1px solid ${C.line}`, borderBottom: `1px solid ${C.line}`, fontWeight: 600, whiteSpace: "nowrap" }}>{label}</th>)}</tr></thead>
+            <thead><tr style={{ color: C.muted, background: "#fafbfc" }}>{["节点", "Worker / GPU", "GPU 利用率", "GPU 显存占用", "网络接收/发送速率", "磁盘 I/O（读 / 写）", "状态"].map(label => <th key={label} style={{ padding: "9px 12px", textAlign: "left", borderTop: `1px solid ${C.line}`, borderBottom: `1px solid ${C.line}`, fontWeight: 600, whiteSpace: "nowrap" }}>{label}</th>)}</tr></thead>
             <tbody>
               {sortedWorkers.map((row, index) => (
                 <tr key={row.node}>
@@ -512,8 +510,7 @@ function MonitorTab() {
                   </td>
                   <td data-label="GPU 利用率" style={{ padding: "10px 12px", color: C.text, fontWeight: 600, whiteSpace: "nowrap", borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>{row.gpuUtilization.toFixed(1)}%</td>
                   <td data-label="GPU 显存占用" style={{ padding: "10px 12px", color: C.text, whiteSpace: "nowrap", borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>{row.gpuMemoryUsed.toFixed(1)} / {row.gpuMemoryTotal} GB</td>
-                  <td data-label="网络接收速率" style={{ padding: "10px 12px", color: C.text, whiteSpace: "nowrap", borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>{row.networkReceive} Gbps</td>
-                  <td data-label="网络发送速率" style={{ padding: "10px 12px", color: C.text, whiteSpace: "nowrap", borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>{row.networkSend} Gbps</td>
+                  <td data-label="网络接收/发送速率" title={`接收 ${row.networkReceive} Gbps / 发送 ${row.networkSend} Gbps`} style={{ padding: "10px 12px", color: C.text, whiteSpace: "nowrap", borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>{row.networkReceive} / {row.networkSend} Gbps</td>
                   <td data-label="磁盘 I/O（读 / 写）" style={{ padding: "10px 12px", color: C.text, whiteSpace: "nowrap", borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>{row.diskRead} / {row.diskWrite} GB/s</td>
                   <td data-label="状态" style={{ padding: "10px 12px", color: C.green, fontWeight: 600, borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>{row.status}</td>
                 </tr>

@@ -391,7 +391,7 @@ function MonitorTab() {
         <SectionTitle
           title="当前通信与聚合策略"
           description={appliedAt ? `聚合频率已更新，将从 ${appliedAt} 起应用于后续训练步骤。` : "运行中仅开放聚合频率微调，其他通信配置保持任务提交时的快照。"}
-          action={<Button variant="secondary" icon={<SlidersHorizontal size={13} />} onClick={openStrategyDialog}>调整聚合策略</Button>}
+          action={<Button variant="secondary" icon={<SlidersHorizontal size={13} />} onClick={openStrategyDialog}>聚合策略动态调整</Button>}
         />
         <div className="ttd-strategy-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 8 }}>
           {[
@@ -559,10 +559,10 @@ function MonitorTab() {
           <section role="dialog" aria-modal="true" aria-labelledby="aggregation-strategy-title" style={{ width: "min(460px,100%)", maxHeight: "calc(100vh - 40px)", overflowY: "auto", borderRadius: 8, background: "#fff", boxShadow: "0 20px 50px rgba(17,24,39,.18)" }}>
             <header style={{ padding: "14px 16px", display: "flex", alignItems: "flex-start", gap: 12, borderBottom: `1px solid ${C.line}` }}>
               <div style={{ minWidth: 0, flex: 1 }}>
-                <h2 id="aggregation-strategy-title" style={{ margin: 0, color: C.ink, fontSize: 15, fontWeight: 700 }}>调整聚合策略</h2>
+                <h2 id="aggregation-strategy-title" style={{ margin: 0, color: C.ink, fontSize: 15, fontWeight: 700 }}>聚合策略动态调整</h2>
                 <p style={{ margin: "4px 0 0", color: C.muted, fontSize: 11.5, lineHeight: 1.55 }}>仅修改梯度聚合频率，不重启当前训练任务。</p>
               </div>
-              <button className="ttd-icon-button" type="button" aria-label="关闭调整聚合策略" onClick={() => setStrategyOpen(false)} style={{ width: 30, height: 30, display: "grid", placeItems: "center", border: `1px solid ${C.line}`, borderRadius: 6, color: C.muted, background: "#fff", cursor: "pointer" }}><X size={14} /></button>
+              <button className="ttd-icon-button" type="button" aria-label="关闭聚合策略动态调整" onClick={() => setStrategyOpen(false)} style={{ width: 30, height: 30, display: "grid", placeItems: "center", border: `1px solid ${C.line}`, borderRadius: 6, color: C.muted, background: "#fff", cursor: "pointer" }}><X size={14} /></button>
             </header>
             <div style={{ padding: 16, display: "grid", gap: 14 }}>
               <div style={{ padding: "10px 11px", display: "grid", gridTemplateColumns: "1fr auto", gap: 8, border: `1px solid ${C.line}`, borderRadius: 7, background: "#fbfcfe", fontSize: 11.5 }}>

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from "react";
+import { Fragment, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from "react";
 import { Bug, CheckCircle2, ChevronDown, ChevronRight, Circle, Clock3, Code2, Download, FileText, Gauge, GitBranch, Package, Puzzle, ShieldCheck, SlidersHorizontal, Terminal, TestTube, Upload, X, XCircle } from "lucide-react";
 
 type ExtensionType = "微调算法" | "优化器" | "数据处理" | "评估方法";
@@ -38,14 +38,19 @@ const PERF_METRICS = [{ label: "吞吐", value: "31 条/s" }, { label: "单步�
 const V_STATE_TEXT: Record<ValidationState, string> = { passed: "通过", failed: "失败", running: "执行中", pending: "未执行" };
 function initParams(templateId: string) { const t = TEMPLATES.find(i => i.id === templateId); return Object.fromEntries((t?.parameters ?? []).map(p => [p.key, p.defaultValue])); }
 
+export const DEFAULT_ENABLED_FINE_TUNING_EXTENSIONS: ReadonlyArray<EnabledFineTuningExtension> = [
+  { id: "e1v3", name: "LoRA+ 训练器", type: "微调算法", version: "v1.2.0", parameters: initParams("a1") },
+  { id: "e4", name: "自适应优化器", type: "优化器", version: "v1.0.1", parameters: initParams("a2") },
+];
+
 const INITIAL_EXTENSIONS: ExtensionVersion[] = [
-  { id: "e1v3", templateId: "a1", name: "LoRA+ 训练器", type: "微调算法", version: "v1.2.0", fileName: "lora-plus-v1.2.0.zip", uploadedAt: "2026-08-04 10:24", validations: [{ key: "compatibility", state: "passed", summary: "通过" }, { key: "security", state: "passed", summary: "通过" }, { key: "unit", state: "passed", summary: "通过" }, { key: "integration", state: "passed", summary: "通过" }, { key: "performance", state: "passed", summary: "通过" }], parameters: initParams("a1"), enabled: false },
+  { id: "e1v3", templateId: "a1", name: "LoRA+ 训练器", type: "微调算法", version: "v1.2.0", fileName: "lora-plus-v1.2.0.zip", uploadedAt: "2026-08-04 10:24", validations: [{ key: "compatibility", state: "passed", summary: "通过" }, { key: "security", state: "passed", summary: "通过" }, { key: "unit", state: "passed", summary: "通过" }, { key: "integration", state: "passed", summary: "通过" }, { key: "performance", state: "passed", summary: "通过" }], parameters: initParams("a1"), enabled: true },
   { id: "e1v2", templateId: "a1", name: "LoRA+ 训练器", type: "微调算法", version: "v1.1.0", fileName: "lora-plus-v1.1.0.zip", uploadedAt: "2026-07-20 15:30", validations: [{ key: "compatibility", state: "passed", summary: "通过" }, { key: "security", state: "passed", summary: "通过" }, { key: "unit", state: "passed", summary: "通过" }, { key: "integration", state: "passed", summary: "通过" }, { key: "performance", state: "passed", summary: "通过" }], parameters: initParams("a1"), enabled: false },
   { id: "e1v1", templateId: "a1", name: "LoRA+ 训练器", type: "微调算法", version: "v1.0.0", fileName: "lora-plus-v1.0.0.zip", uploadedAt: "2026-07-15 09:12", validations: [{ key: "compatibility", state: "passed", summary: "通过" }, { key: "security", state: "failed", summary: "失败" }, { key: "unit", state: "passed", summary: "通过" }, { key: "integration", state: "pending", summary: "跳过" }, { key: "performance", state: "pending", summary: "跳过" }], parameters: initParams("a1"), enabled: false },
   { id: "e2v2", templateId: "a3", name: "医疗对话清洗器", type: "数据处理", version: "v0.8.0", fileName: "dialog-cleaner-v0.8.0.tar.gz", uploadedAt: "2026-08-04 11:08", validations: [{ key: "compatibility", state: "passed", summary: "通过" }, { key: "security", state: "running", summary: "验证中" }, { key: "unit", state: "pending", summary: "等待" }, { key: "integration", state: "pending", summary: "等待" }, { key: "performance", state: "pending", summary: "等待" }], parameters: initParams("a3"), enabled: false },
   { id: "e2v1", templateId: "a3", name: "医疗对话清洗器", type: "数据处理", version: "v0.5.0", fileName: "dialog-cleaner-v0.5.0.tar.gz", uploadedAt: "2026-07-28 17:44", validations: [{ key: "compatibility", state: "passed", summary: "通过" }, { key: "security", state: "passed", summary: "通过" }, { key: "unit", state: "passed", summary: "通过" }, { key: "integration", state: "passed", summary: "通过" }, { key: "performance", state: "passed", summary: "通过" }], parameters: initParams("a3"), enabled: false },
   { id: "e3", templateId: "a4", name: "事实性评分", type: "评估方法", version: "v0.5.2", fileName: "factuality-v0.5.2.zip", uploadedAt: "2026-08-03 17:36", validations: [{ key: "compatibility", state: "passed", summary: "通过" }, { key: "security", state: "failed", summary: "失败" }, { key: "unit", state: "passed", summary: "通过" }, { key: "integration", state: "pending", summary: "跳过" }, { key: "performance", state: "pending", summary: "跳过" }], parameters: initParams("a4"), enabled: false },
-  { id: "e4", templateId: "a2", name: "自适应优化器", type: "优化器", version: "v1.0.1", fileName: "adaptive-opt-v1.0.1.tar.gz", uploadedAt: "2026-08-05 14:12", validations: [{ key: "compatibility", state: "passed", summary: "通过" }, { key: "security", state: "passed", summary: "通过" }, { key: "unit", state: "passed", summary: "通过" }, { key: "integration", state: "passed", summary: "通过" }, { key: "performance", state: "passed", summary: "通过" }], parameters: initParams("a2"), enabled: false },
+  { id: "e4", templateId: "a2", name: "自适应优化器", type: "优化器", version: "v1.0.1", fileName: "adaptive-opt-v1.0.1.tar.gz", uploadedAt: "2026-08-05 14:12", validations: [{ key: "compatibility", state: "passed", summary: "通过" }, { key: "security", state: "passed", summary: "通过" }, { key: "unit", state: "passed", summary: "通过" }, { key: "integration", state: "passed", summary: "通过" }, { key: "performance", state: "passed", summary: "通过" }], parameters: initParams("a2"), enabled: true },
   { id: "e5", templateId: "a3", name: "多语言数据清洗器", type: "数据处理", version: "v2.0.0", fileName: "multilang-cleaner-v2.0.0.zip", uploadedAt: "2026-08-05 16:45", validations: [{ key: "compatibility", state: "passed", summary: "通过" }, { key: "security", state: "passed", summary: "通过" }, { key: "unit", state: "passed", summary: "通过" }, { key: "integration", state: "passed", summary: "通过" }, { key: "performance", state: "passed", summary: "通过" }], parameters: initParams("a3"), enabled: false },
 ];
 
@@ -218,7 +223,7 @@ export function UnifiedExtensionManagement({ onEnable }: UnifiedExtensionManagem
                     const isSel = sel === g.key;
                     const enabledVer = g.versions.find(v => v.enabled);
                     return (
-                      <>
+                      <Fragment key={g.key}>
                         <tr key={g.key}
                           onClick={() => setSel(isSel ? "" : g.key)}
                           style={{ cursor: "pointer", background: isSel ? C.primarySoft : "#fff", borderBottom: `1px solid ${C.lineSoft}` }}>
@@ -269,7 +274,7 @@ export function UnifiedExtensionManagement({ onEnable }: UnifiedExtensionManagem
                             </tr>
                           );
                         })}
-                      </>
+                      </Fragment>
                     );
                   })}
                 </tbody>

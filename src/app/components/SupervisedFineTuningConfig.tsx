@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type CSSProperties, type ReactNode } from "react";
 import { ArrowRight, Check, CheckCircle2, ChevronDown, Clock3, Cpu, Network, Puzzle, Server, ShieldCheck, WandSparkles, X, Zap } from "lucide-react";
-import { type EnabledFineTuningExtension } from "./UnifiedExtensionManagement";
+import { DEFAULT_ENABLED_FINE_TUNING_EXTENSIONS, type EnabledFineTuningExtension } from "./UnifiedExtensionManagement";
 
 const EXT_STAGE: Record<EnabledFineTuningExtension["type"], string> = { "数据处理": "数据预处理阶段", "微调算法": "训练策略阶段", "优化器": "参数优化阶段", "评估方法": "训练后评估阶段" };
 const EXT_STAGE_ORDER: EnabledFineTuningExtension["type"][] = ["数据处理", "微调算法", "优化器", "评估方法"];
@@ -177,15 +177,21 @@ export function SupervisedFineTuningConfig({ model, onValidationChange, onOpenEx
   const generateTopology = () => { setNodeRoles(Array.from({ length: Math.min(effectiveNodes, 4) }, (_, i) => i === 0 && multiNode ? "Parameter Server" : "Worker")); setTopologyGenerated(true); };
   const updateNodeRole = (i: number, role: NodeRole) => setNodeRoles(c => c.map((v, idx) => idx === i ? role : v));
 
-  const orderedExtensions = [...(enabledExtensions ?? [])].sort((a, b) => EXT_STAGE_ORDER.indexOf(a.type) - EXT_STAGE_ORDER.indexOf(b.type));
+  const orderedExtensions = [...(enabledExtensions?.length ? enabledExtensions : DEFAULT_ENABLED_FINE_TUNING_EXTENSIONS)].sort((a, b) => EXT_STAGE_ORDER.indexOf(a.type) - EXT_STAGE_ORDER.indexOf(b.type));
   const algoExtActive = orderedExtensions.some(e => e.type === "微调算法" && extToggles[e.id] !== false);
 
   return (
 <>
+<style>{`@media (max-width: 640px) {
+  .sft-extension-row { display: grid !important; grid-template-columns: minmax(0, 1fr) auto; align-items: start !important; gap: 8px 10px !important; }
+  .sft-extension-stage { grid-column: 1; grid-row: 1; align-self: center; width: max-content; }
+  .sft-extension-action { grid-column: 2; grid-row: 1; }
+  .sft-extension-copy { grid-column: 1 / -1; grid-row: 2; }
+}`}</style>
 <section style={{ marginBottom: 20, minWidth: 0, overflow: "hidden", border: `1px solid ${C.line}`, borderRadius: 8, background: "#fff" }}>
 <header style={{ padding: "11px 14px", display: "flex", alignItems: "center", gap: 10, borderBottom: `1px solid ${C.lineSoft}`, background: C.panel }}>
 <span style={{ width: 32, height: 32, display: "grid", placeItems: "center", borderRadius: 7, background: C.primarySoft, color: C.primary }}><Puzzle size={16} /></span>
-<div style={{ minWidth: 0, flex: 1 }}><b style={{ display: "block", color: C.ink, fontSize: 13, fontWeight: 650 }}>扩展组件</b><span style={{ display: "block", marginTop: 2, color: C.muted, fontSize: 11 }}>已启用的框架扩展按挂载阶段注入本次训练任务，可按任务开关。</span></div>
+<div style={{ minWidth: 0, flex: 1 }}><b style={{ display: "block", color: C.ink, fontSize: 13, fontWeight: 650 }}>已启用扩展（{orderedExtensions.length}）</b><span style={{ display: "block", marginTop: 2, color: C.muted, fontSize: 11 }}>默认用于本次训练，可按任务逐项关闭。</span></div>
 <button type="button" onClick={onOpenExtensionManagement} style={{ height: 30, padding: "0 12px", border: `1px solid ${C.line}`, borderRadius: 6, background: "#fff", color: C.primary, fontSize: 11.5, fontWeight: 600, cursor: "pointer", flex: "0 0 auto" }}>管理扩展</button>
 </header>
 <div style={{ padding: 12 }}>
@@ -196,14 +202,16 @@ export function SupervisedFineTuningConfig({ model, onValidationChange, onOpenEx
 {orderedExtensions.map(e => {
 const on = extToggles[e.id] !== false;
 return (
-<div key={e.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", border: `1px solid ${C.lineSoft}`, borderRadius: 7, background: on ? "#fbfcfe" : "#f8f9fb" }}>
-<span style={{ padding: "2px 7px", borderRadius: 4, background: C.primarySoft, color: C.primary, fontSize: 9.5, fontWeight: 650, flex: "0 0 auto", whiteSpace: "nowrap" }}>{EXT_STAGE[e.type]}</span>
-<div style={{ minWidth: 0, flex: 1 }}>
+<div className="sft-extension-row" key={e.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", border: `1px solid ${C.lineSoft}`, borderRadius: 7, background: on ? "#fbfcfe" : "#f8f9fb" }}>
+<span className="sft-extension-stage" style={{ padding: "2px 7px", borderRadius: 4, background: C.primarySoft, color: C.primary, fontSize: 9.5, fontWeight: 650, flex: "0 0 auto", whiteSpace: "nowrap" }}>{EXT_STAGE[e.type]}</span>
+<div className="sft-extension-copy" style={{ minWidth: 0, flex: 1 }}>
 <b style={{ color: C.ink, fontSize: 11.5 }}>{e.name} <span style={{ color: C.faint, fontWeight: 400 }}>{e.version}</span></b>
-<span style={{ display: "block", marginTop: 1, color: C.faint, fontSize: 10 }}>{e.type} · 参数 {Object.entries(e.parameters).map(([k, v]) => `${k}=${v}`).join(" · ") || "无"}</span>
+<span style={{ display: "block", marginTop: 1, color: C.faint, fontSize: 10, lineHeight: 1.55, overflowWrap: "anywhere" }}>{e.type} · 参数 {Object.entries(e.parameters).map(([k, v]) => `${k}=${v}`).join(" · ") || "无"}</span>
 </div>
-<span style={{ color: on ? C.green : C.faint, fontSize: 10.5, fontWeight: 600, flex: "0 0 auto" }}>{on ? "本次任务注入" : "本次任务不注入"}</span>
+<div className="sft-extension-action" style={{ display: "flex", alignItems: "center", gap: 8, flex: "0 0 auto" }}>
+<span style={{ color: on ? C.green : C.faint, fontSize: 10.5, fontWeight: 600, whiteSpace: "nowrap" }}>{on ? "本次任务启用" : "本次任务关闭"}</span>
 <Toggle checked={on} onChange={v => setExtToggles(t => ({...t, [e.id]: v}))} label={`启用 ${e.name}`} />
+</div>
 </div>
 );
 })}

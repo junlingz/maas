@@ -50,6 +50,7 @@ export interface TrainingTaskDetailProps {
 
 type TabKey = "overview" | "monitor" | "logs";
 type LogSource = "all" | "scheduler" | "training";
+type WorkerSort = "node" | "gpuUtilization" | "gpuMemory" | "networkReceive" | "networkSend" | "diskIO";
 
 const C = {
   ink: "#20242d",
@@ -76,16 +77,26 @@ const panel: CSSProperties = {
   boxShadow: "0 2px 8px rgba(31,41,55,.025)",
 };
 
-const lossAccuracyData = [
-  { step: "0", loss: 2.42, accuracy: 58.2 },
-  { step: "400", loss: 1.91, accuracy: 68.4 },
-  { step: "800", loss: 1.55, accuracy: 75.1 },
-  { step: "1.2k", loss: 1.31, accuracy: 80.3 },
-  { step: "1.6k", loss: 1.12, accuracy: 84.8 },
-  { step: "2.0k", loss: 0.99, accuracy: 88.2 },
-  { step: "2.4k", loss: 0.91, accuracy: 90.4 },
-  { step: "2.8k", loss: 0.86, accuracy: 91.7 },
+type TrainingMetricPoint = {
+  step: number;
+  trainLoss: number;
+  validationLoss: number | null;
+  validationAccuracy: number | null;
+};
+
+// 原型演示数据；生产环境应按当前 task_id 读取训练引擎上报的指标序列。
+const prototypeTrainingMetricData: TrainingMetricPoint[] = [
+  { step: 0, trainLoss: 2.42, validationLoss: null, validationAccuracy: null },
+  { step: 400, trainLoss: 1.91, validationLoss: 2.06, validationAccuracy: 68.4 },
+  { step: 800, trainLoss: 1.55, validationLoss: 1.72, validationAccuracy: 75.1 },
+  { step: 1200, trainLoss: 1.31, validationLoss: 1.49, validationAccuracy: 80.3 },
+  { step: 1600, trainLoss: 1.12, validationLoss: 1.31, validationAccuracy: 84.8 },
+  { step: 2000, trainLoss: 0.99, validationLoss: 1.17, validationAccuracy: 88.2 },
+  { step: 2400, trainLoss: 0.91, validationLoss: 1.07, validationAccuracy: 90.4 },
+  { step: 2800, trainLoss: 0.86, validationLoss: 0.98, validationAccuracy: 91.7 },
 ];
+
+const formatStep = (step: number) => step >= 1000 ? `${(step / 1000).toFixed(1)}k` : String(step);
 
 const bandwidthData = [
   { time: "14:10", nvlink: 472, interNode: 322 },
@@ -109,8 +120,8 @@ const gpuRows = [
 ];
 
 const workerRows = [
-  { node: "worker-a100-07", worker: "4 / 4", gpu: "4 × A100 80GB", speed: 92.4, communication: 322, diskRead: 1.8, diskWrite: 0.9, status: "正常" },
-  { node: "worker-a100-12", worker: "4 / 4", gpu: "4 × A100 80GB", speed: 89.7, communication: 326, diskRead: 1.5, diskWrite: 1.1, status: "正常" },
+  { node: "worker-a100-07", worker: "4 / 4", gpu: "4 × A100 80GB", gpuUtilization: 95.5, gpuMemoryUsed: 289.2, gpuMemoryTotal: 320, networkReceive: 322, networkSend: 318, diskRead: 1.8, diskWrite: 0.9, status: "正常" },
+  { node: "worker-a100-12", worker: "4 / 4", gpu: "4 × A100 80GB", gpuUtilization: 87.5, gpuMemoryUsed: 285.2, gpuMemoryTotal: 320, networkReceive: 326, networkSend: 321, diskRead: 1.5, diskWrite: 1.1, status: "正常" },
 ];
 
 function Button({ children, icon, variant = "secondary", onClick, disabled, title }: {
@@ -316,17 +327,22 @@ function ChartPanel({ title, description, children }: { title: string; descripti
 function MonitorTab() {
   const [timeRange, setTimeRange] = useState<"15m" | "1h" | "all">("1h");
   const [zoom, setZoom] = useState(100);
-  const [workerSort, setWorkerSort] = useState<"node" | "speed" | "communication" | "diskIO">("diskIO");
+  const [workerSort, setWorkerSort] = useState<WorkerSort>("diskIO");
   const [strategyOpen, setStrategyOpen] = useState(false);
   const [aggregationFrequency, setAggregationFrequency] = useState(1);
   const [draftFrequency, setDraftFrequency] = useState(1);
   const [appliedAt, setAppliedAt] = useState<string | null>(null);
 
-  const visibleLossData = useMemo(() => {
-    const baseCount = timeRange === "15m" ? 4 : timeRange === "1h" ? 6 : lossAccuracyData.length;
+  const visibleMetricData = useMemo(() => {
+    const baseCount = timeRange === "15m" ? 4 : timeRange === "1h" ? 6 : prototypeTrainingMetricData.length;
     const visibleCount = Math.max(3, Math.ceil(baseCount / (zoom / 100)));
-    return lossAccuracyData.slice(-visibleCount);
+    return prototypeTrainingMetricData.slice(-visibleCount);
   }, [timeRange, zoom]);
+
+  const hasVisibleAccuracy = useMemo(
+    () => visibleMetricData.some(row => row.validationAccuracy !== null),
+    [visibleMetricData],
+  );
 
   const visibleBandwidthData = useMemo(() => {
     const baseCount = timeRange === "15m" ? 4 : timeRange === "1h" ? 6 : bandwidthData.length;
@@ -336,8 +352,10 @@ function MonitorTab() {
 
   const sortedWorkers = useMemo(() => [...workerRows].sort((a, b) => {
     if (workerSort === "node") return a.node.localeCompare(b.node);
-    if (workerSort === "speed") return b.speed - a.speed;
-    if (workerSort === "communication") return b.communication - a.communication;
+    if (workerSort === "gpuUtilization") return b.gpuUtilization - a.gpuUtilization;
+    if (workerSort === "gpuMemory") return b.gpuMemoryUsed - a.gpuMemoryUsed;
+    if (workerSort === "networkReceive") return b.networkReceive - a.networkReceive;
+    if (workerSort === "networkSend") return b.networkSend - a.networkSend;
     return (b.diskRead + b.diskWrite) - (a.diskRead + a.diskWrite);
   }), [workerSort]);
 
@@ -383,7 +401,7 @@ function MonitorTab() {
         <Kpi label="当前轮次" value="2 / 3" icon={<Activity size={15} />} hint="Step 2,840 / 4,200" />
         <Kpi label="已处理样本" value="81,920" suffix="/ 120k" icon={<Database size={15} />} hint="本轮 27,306 条" />
         <Kpi label="训练 Loss" value="0.86" icon={<Gauge size={15} />} hint="较上轮下降 18.1%" />
-        <Kpi label="验证准确率" value="91.7" suffix="%" icon={<CheckCircle2 size={15} />} hint="最佳 92.1%" />
+        <Kpi label="验证准确率" value="91.7" suffix="%" icon={<CheckCircle2 size={15} />} hint="每 400 Step 验证" />
         <Kpi label="训练速度" value="182k" suffix="tok/s" icon={<Zap size={15} />} hint="8 个 Worker 合计" />
       </div>
 
@@ -409,20 +427,36 @@ function MonitorTab() {
         </div>
       </section>
 
-      <div className="ttd-chart-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0,1.15fr) minmax(0,.85fr)", gap: 12 }}>
-        <ChartPanel title="Loss 与准确率趋势" description={`同 task_id 聚合 · ${timeRange === "all" ? "全部训练过程" : timeRange === "15m" ? "近 15 分钟" : "近 1 小时"} · 缩放 ${zoom}%`}>
+      <div className="ttd-chart-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 12 }}>
+        <ChartPanel title="全局损失函数曲线" description={`当前任务全体 Worker 加权聚合 · ${timeRange === "all" ? "全部训练过程" : timeRange === "15m" ? "近 15 分钟" : "近 1 小时"} · 缩放 ${zoom}%`}>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={visibleLossData} margin={{ top: 6, right: 6, left: -20, bottom: 0 }}>
+            <LineChart data={visibleMetricData} margin={{ top: 6, right: 6, left: -20, bottom: 0 }}>
               <CartesianGrid stroke="#edf0f4" strokeDasharray="3 3" />
-              <XAxis dataKey="step" tick={{ fontSize: 10, fill: C.faint }} axisLine={false} tickLine={false} />
-              <YAxis yAxisId="loss" domain={[0, 2.8]} tick={{ fontSize: 10, fill: C.faint }} axisLine={false} tickLine={false} />
-              <YAxis yAxisId="accuracy" orientation="right" domain={[50, 100]} tickFormatter={(value: number) => `${value}%`} tick={{ fontSize: 10, fill: C.faint }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ border: `1px solid ${C.line}`, borderRadius: 7, boxShadow: "0 6px 20px rgba(31,41,55,.08)", fontSize: 11 }} />
+              <XAxis dataKey="step" tickFormatter={formatStep} tick={{ fontSize: 10, fill: C.faint }} axisLine={false} tickLine={false} />
+              <YAxis domain={[0, 2.8]} tick={{ fontSize: 10, fill: C.faint }} axisLine={false} tickLine={false} />
+              <Tooltip labelFormatter={(value) => `Step ${Number(value).toLocaleString()}`} contentStyle={{ border: `1px solid ${C.line}`, borderRadius: 7, boxShadow: "0 6px 20px rgba(31,41,55,.08)", fontSize: 11 }} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Line isAnimationActive={false} yAxisId="loss" type="monotone" dataKey="loss" name="训练 Loss" stroke={C.blue} strokeWidth={2} dot={false} />
-              <Line isAnimationActive={false} yAxisId="accuracy" type="monotone" dataKey="accuracy" name="验证准确率 (%)" stroke={C.green} strokeWidth={2} dot={false} />
+              <Line isAnimationActive={false} connectNulls={false} type="monotone" dataKey="trainLoss" name="训练 Loss" stroke={C.blue} strokeWidth={2} dot={false} />
+              <Line isAnimationActive={false} connectNulls={false} type="monotone" dataKey="validationLoss" name="验证 Loss" stroke="#d97706" strokeWidth={2} dot={{ r: 2 }} />
             </LineChart>
           </ResponsiveContainer>
+        </ChartPanel>
+
+        <ChartPanel title="验证集准确率曲线" description={`验证阶段 eval_accuracy · 每 400 Step 上报 · ${timeRange === "all" ? "全部训练过程" : timeRange === "15m" ? "近 15 分钟" : "近 1 小时"} · 缩放 ${zoom}%`}>
+          {hasVisibleAccuracy ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={visibleMetricData} margin={{ top: 6, right: 8, left: -12, bottom: 0 }}>
+                <CartesianGrid stroke="#edf0f4" strokeDasharray="3 3" />
+                <XAxis dataKey="step" tickFormatter={formatStep} tick={{ fontSize: 10, fill: C.faint }} axisLine={false} tickLine={false} />
+                <YAxis domain={[0, 100]} tickFormatter={(value: number) => `${value}%`} tick={{ fontSize: 10, fill: C.faint }} axisLine={false} tickLine={false} />
+                <Tooltip labelFormatter={(value) => `Step ${Number(value).toLocaleString()}`} formatter={(value) => [`${Number(value).toFixed(1)}%`, "验证集准确率"]} contentStyle={{ border: `1px solid ${C.line}`, borderRadius: 7, boxShadow: "0 6px 20px rgba(31,41,55,.08)", fontSize: 11 }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Line isAnimationActive={false} connectNulls={false} type="linear" dataKey="validationAccuracy" name="验证集准确率" stroke={C.green} strokeWidth={2.2} dot={{ r: 2.5, fill: "#fff", strokeWidth: 2 }} activeDot={{ r: 4 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div role="status" style={{ height: "100%", display: "grid", placeItems: "center", color: C.faint, fontSize: 11.5 }}>尚未产生验证集准确率数据</div>
+          )}
         </ChartPanel>
 
         <ChartPanel title="通信带宽" description={`节点内 NVLink 与跨节点 IB · Gbps · 缩放 ${zoom}%`}>
@@ -444,15 +478,17 @@ function MonitorTab() {
         <div style={{ padding: "12px 14px 0" }}>
           <SectionTitle
             title="节点 / Worker"
-            description="按节点查看训练进程、训练速度、通信带宽与磁盘 I/O。"
+            description="按节点汇总 GPU 利用率、GPU 显存占用、网络接收/发送速率与磁盘 I/O。"
             action={(
               <label style={{ display: "inline-flex", alignItems: "center", gap: 6, color: C.muted, fontSize: 10.5 }}>
-                排序
+                <span className="ttd-sort-label">排序</span>
                 <span style={{ position: "relative", display: "inline-flex" }}>
-                  <select aria-label="节点排序方式" value={workerSort} onChange={event => setWorkerSort(event.target.value as "node" | "speed" | "communication" | "diskIO")} style={{ height: 30, padding: "0 28px 0 9px", appearance: "none", border: `1px solid ${C.line}`, borderRadius: 6, color: C.text, background: "#fff", fontSize: 11, fontFamily: "inherit", cursor: "pointer" }}>
+                  <select aria-label="节点排序方式" value={workerSort} onChange={event => setWorkerSort(event.target.value as WorkerSort)} style={{ height: 30, padding: "0 28px 0 9px", appearance: "none", border: `1px solid ${C.line}`, borderRadius: 6, color: C.text, background: "#fff", fontSize: 11, fontFamily: "inherit", cursor: "pointer" }}>
                     <option value="diskIO">磁盘 I/O ↓</option>
-                    <option value="speed">训练速度 ↓</option>
-                    <option value="communication">通信带宽 ↓</option>
+                    <option value="gpuUtilization">GPU 利用率 ↓</option>
+                    <option value="gpuMemory">GPU 显存占用 ↓</option>
+                    <option value="networkReceive">网络接收速率 ↓</option>
+                    <option value="networkSend">网络发送速率 ↓</option>
                     <option value="node">节点名称 ↑</option>
                   </select>
                   <ChevronDown size={12} aria-hidden="true" style={{ position: "absolute", right: 8, top: 9, color: C.faint, pointerEvents: "none" }} />
@@ -462,18 +498,24 @@ function MonitorTab() {
           />
         </div>
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", minWidth: 840, borderCollapse: "collapse", fontSize: 11.5 }}>
-            <thead><tr style={{ color: C.muted, background: "#fafbfc" }}>{["节点", "Worker", "GPU", "训练速度", "跨节点通信", "磁盘 I/O（读 / 写）", "状态"].map(label => <th key={label} style={{ padding: "9px 12px", textAlign: "left", borderTop: `1px solid ${C.line}`, borderBottom: `1px solid ${C.line}`, fontWeight: 600 }}>{label}</th>)}</tr></thead>
+          <table className="ttd-worker-table" aria-label="节点性能指标" style={{ width: "100%", minWidth: 1120, borderCollapse: "collapse", fontSize: 11.5 }}>
+            <thead><tr style={{ color: C.muted, background: "#fafbfc" }}>{["节点", "Worker / GPU", "GPU 利用率", "GPU 显存占用", "网络接收速率", "网络发送速率", "磁盘 I/O（读 / 写）", "状态"].map(label => <th key={label} style={{ padding: "9px 12px", textAlign: "left", borderTop: `1px solid ${C.line}`, borderBottom: `1px solid ${C.line}`, fontWeight: 600, whiteSpace: "nowrap" }}>{label}</th>)}</tr></thead>
             <tbody>
               {sortedWorkers.map((row, index) => (
                 <tr key={row.node}>
-                  <td style={{ padding: "10px 12px", color: C.ink, fontWeight: 600, borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>{row.node}</td>
-                  <td style={{ padding: "10px 12px", color: C.text, borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>{row.worker}</td>
-                  <td style={{ padding: "10px 12px", color: C.text, borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>{row.gpu}</td>
-                  <td style={{ padding: "10px 12px", color: C.text, borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>{row.speed}k tok/s</td>
-                  <td style={{ padding: "10px 12px", color: C.text, borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>{row.communication} Gbps</td>
-                  <td style={{ padding: "10px 12px", color: C.text, borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>{row.diskRead} / {row.diskWrite} GB/s</td>
-                  <td style={{ padding: "10px 12px", color: C.green, fontWeight: 600, borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>{row.status}</td>
+                  <td data-label="节点" style={{ padding: "10px 12px", color: C.ink, fontWeight: 600, borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>{row.node}</td>
+                  <td data-label="Worker / GPU" style={{ padding: "10px 12px", color: C.text, borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>
+                    <div style={{ minWidth: 0, textAlign: "right" }}>
+                      <b style={{ display: "block", color: C.text, fontSize: 11.5 }}>{row.worker}</b>
+                      <span style={{ marginTop: 2, display: "block", color: C.faint, fontSize: 10.5 }}>{row.gpu}</span>
+                    </div>
+                  </td>
+                  <td data-label="GPU 利用率" style={{ padding: "10px 12px", color: C.text, fontWeight: 600, whiteSpace: "nowrap", borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>{row.gpuUtilization.toFixed(1)}%</td>
+                  <td data-label="GPU 显存占用" style={{ padding: "10px 12px", color: C.text, whiteSpace: "nowrap", borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>{row.gpuMemoryUsed.toFixed(1)} / {row.gpuMemoryTotal} GB</td>
+                  <td data-label="网络接收速率" style={{ padding: "10px 12px", color: C.text, whiteSpace: "nowrap", borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>{row.networkReceive} Gbps</td>
+                  <td data-label="网络发送速率" style={{ padding: "10px 12px", color: C.text, whiteSpace: "nowrap", borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>{row.networkSend} Gbps</td>
+                  <td data-label="磁盘 I/O（读 / 写）" style={{ padding: "10px 12px", color: C.text, whiteSpace: "nowrap", borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>{row.diskRead} / {row.diskWrite} GB/s</td>
+                  <td data-label="状态" style={{ padding: "10px 12px", color: C.green, fontWeight: 600, borderBottom: index < sortedWorkers.length - 1 ? `1px solid ${C.line}` : 0 }}>{row.status}</td>
                 </tr>
               ))}
             </tbody>
@@ -516,10 +558,10 @@ function MonitorTab() {
 
                 {/* 指标区 */}
                 <div style={{ display: "grid", gap: 6 }}>
-                  {/* 核心利用率 */}
+                  {/* GPU 利用率 */}
                   <div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 3 }}>
-                      <span style={{ color: C.faint, fontSize: 10 }}>核心利用率</span>
+                      <span style={{ color: C.faint, fontSize: 10 }}>GPU 利用率</span>
                       <span style={{ color: C.ink, fontSize: 13, fontWeight: 700 }}>{row.utilization}%</span>
                     </div>
                     <div style={{ height: 4, borderRadius: 2, background: "#e5e9f0", overflow: "hidden" }}>
@@ -527,9 +569,9 @@ function MonitorTab() {
                     </div>
                   </div>
 
-                  {/* 显存使用量/总量 */}
+                  {/* GPU 显存占用 */}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                    <span style={{ color: C.faint, fontSize: 10 }}>显存使用量/总量</span>
+                    <span style={{ color: C.faint, fontSize: 10 }}>GPU 显存占用</span>
                     <span style={{ color: C.ink, fontSize: 12.5, fontWeight: 600 }}>{row.memory}</span>
                   </div>
 
@@ -763,14 +805,14 @@ export function TrainingTaskDetail({ task, onBack, onOpenNodeResources }: Traini
           .ttd-policy-grid { grid-template-columns: 1fr !important; }
           .ttd-allocation-grid { grid-template-columns: 1fr !important; }
           .ttd-allocation-arrow { height: 14px; transform: rotate(90deg); }
-          .ttd-gpu-table thead { display: none; }
-          .ttd-gpu-table, .ttd-gpu-table tbody { display: block; width: 100%; }
-          .ttd-gpu-table tbody { padding: 10px; display: grid; gap: 8px; }
-          .ttd-gpu-table tr { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid ${C.line}; border-radius: 7px; overflow: hidden; }
-          .ttd-gpu-table td { min-width: 0; padding: 9px 10px !important; display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid ${C.line} !important; overflow-wrap: anywhere; }
-          .ttd-gpu-table td::before { content: attr(data-label); flex: 0 0 auto; color: ${C.faint}; font-size: 10.5px; font-weight: 500; }
-          .ttd-gpu-table td:first-child { grid-column: 1 / -1; }
-          .ttd-gpu-table td:last-child { border-bottom: 0 !important; }
+          .ttd-worker-table thead { display: none; }
+          .ttd-worker-table, .ttd-worker-table tbody { min-width: 0 !important; display: block; width: 100%; }
+          .ttd-worker-table tbody { padding: 10px; display: grid; gap: 8px; }
+          .ttd-worker-table tr { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid ${C.line}; border-radius: 7px; overflow: hidden; }
+          .ttd-worker-table td { min-width: 0; padding: 9px 10px !important; display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid ${C.line} !important; overflow-wrap: anywhere; }
+          .ttd-worker-table td::before { content: attr(data-label); flex: 0 0 auto; color: ${C.faint}; font-size: 10.5px; font-weight: 500; }
+          .ttd-worker-table td:first-child { grid-column: 1 / -1; }
+          .ttd-worker-table td:last-child { border-bottom: 0 !important; }
         }
 
         @media (max-width: 680px) {
@@ -790,9 +832,10 @@ export function TrainingTaskDetail({ task, onBack, onOpenNodeResources }: Traini
           .ttd-monitor-toolbar > label select { flex: 1; }
           .ttd-head-actions { padding-left: 0; }
           .ttd-head-actions .ttd-button { width: 100%; }
+          .ttd-sort-label { display: none; }
           .ttd-table-toolbar > label { width: 100%; justify-content: space-between; }
-          .ttd-gpu-table tr { grid-template-columns: 1fr; }
-          .ttd-gpu-table td:first-child { grid-column: auto; }
+          .ttd-worker-table tr { grid-template-columns: 1fr; }
+          .ttd-worker-table td:first-child { grid-column: auto; }
           .ttd-definition-list { grid-template-columns: 1fr !important; gap: 4px !important; }
           .ttd-definition-list dd { margin-bottom: 8px !important; }
           .ttd-log-row { grid-template-columns: 1fr !important; }

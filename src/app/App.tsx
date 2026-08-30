@@ -18,7 +18,7 @@ import { ParallelTrainingConfig } from "./components/ParallelTrainingConfig";
 import { SupervisedFineTuningConfig } from "./components/SupervisedFineTuningConfig";
 import { TrainingTaskDetail } from "./components/TrainingTaskDetail";
 import { DistributedClusterMonitor } from "./components/DistributedClusterMonitor";
-import { DEFAULT_ENABLED_FINE_TUNING_EXTENSIONS, UnifiedExtensionManagement, type EnabledFineTuningExtension } from "./components/UnifiedExtensionManagement";
+import { UnifiedExtensionManagement, type EnabledFineTuningExtension } from "./components/UnifiedExtensionManagement";
 import {
   AdminUsageStatsPage,
   ApiKeyManagementPage,
@@ -2103,12 +2103,7 @@ export default function App() {
   const [selectedTrainingTask, setSelectedTrainingTask] = useState<TrainingRow | null>(null);
   const [myModelFilter, setMyModelFilter] = useState<string | null>(null);
   const [deletedModelAlert, setDeletedModelAlert] = useState<string | null>(null);
-  const [enabledExtensions, setEnabledExtensions] = useState<EnabledFineTuningExtension[]>(() =>
-    DEFAULT_ENABLED_FINE_TUNING_EXTENSIONS.map(extension => ({
-      ...extension,
-      parameters: { ...extension.parameters },
-    })),
-  );
+  const [enabledExtensions, setEnabledExtensions] = useState<EnabledFineTuningExtension[]>([]);
 
   useEffect(() => {
     const requestedPage = new URLSearchParams(window.location.search).get("page");
@@ -2214,10 +2209,7 @@ export default function App() {
           ) : activeMenu === "training-data" ? (
             <TrainingDataPage />
           ) : activeMenu === "training-extension" ? (
-            <UnifiedExtensionManagement onEnable={(ext) => setEnabledExtensions(prev => [
-              ...prev.filter(item => item.name !== ext.name || item.type !== ext.type),
-              ext,
-            ])} />
+            <UnifiedExtensionManagement onEnable={(ext) => setEnabledExtensions(prev => prev.some(e => e.id === ext.id) ? prev : [...prev, ext])} />
           ) : activeMenu === "model-list" ? (
             <ModelManagementPage models={models} onModelsChange={setModels} onDeploy={model => {
               setDeployPrefillModelId(model.id);

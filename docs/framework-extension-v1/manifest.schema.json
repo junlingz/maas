@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maas.local/schemas/extension-parameter-config-v1.json",
+  "title": "MaaS Framework Extension Parameter Config Envelope v1",
+  "description": "YAML 参数配置的通用信封。parameters 的具体字段规则由 template_id 和 template_version 对应的模板 Schema 追加校验。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "template_id",
+    "template_version",
+    "extension_name",
+    "extension_type",
+    "parameters"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "maas.extension-params/v1"
+    },
+    "template_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,63}$"
+    },
+    "template_version": {
+      "type": "string",
+      "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)$"
+    },
+    "extension_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "extension_type": {
+      "enum": [
+        "fine_tuning_algorithm",
+        "optimizer",
+        "data_processing",
+        "evaluation_method"
+      ]
+    },
+    "parameters": {
+      "type": "object",
+      "maxProperties": 32,
+      "additionalProperties": {
+        "type": ["string", "number", "integer", "boolean"]
+      }
+    }
+  }
+}
